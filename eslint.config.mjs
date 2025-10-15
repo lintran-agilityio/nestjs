@@ -32,4 +32,24 @@ export default tseslint.config(
       "prettier/prettier": ["error", { endOfLine: "auto" }],
     },
   },
+  {
+    files: ['drizzle.config.ts'],
+    rules: {
+      '@typescript-eslint/no-unsafe-call': 'off',
+    },
+  },
+  {
+    files: ['src/schema/*.ts'],
+    rules: {
+      '@typescript-eslint/no-unsafe-assignment': 'off',
+      '@typescript-eslint/no-unsafe-call': 'off',
+    },
+  },
+  {
+    files: ["src/**/*.dto.ts"],
+    rules: {
+      "@typescript-eslint/no-unsafe-call": "off",
+      "@typescript-eslint/no-unsafe-assignment": "off",
+    },
+  },
 );
