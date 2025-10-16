@@ -1,29 +1,69 @@
 // libs
-import { Injectable } from '@nestjs/common';
-import { ApiProperty } from '@nestjs/swagger';
+import { Injectable, Logger } from '@nestjs/common';
+import { genSalt, hash } from 'bcryptjs';
+import { eq, type InferInsertModel } from 'drizzle-orm';
+import { TransactionHost } from '@nestjs-cls/transactional';
+import { TransactionalAdapterDrizzleOrm } from '@nestjs-cls/transactional-adapter-drizzle-orm';
+import type { NodePgDatabase } from 'drizzle-orm/node-postgres';
+import type * as schema from '../database/schema';
 
-import { CreateUserDto } from './dto/create-user.dto';
-import { UpdateAuthDto } from './dto/login.dto';
+// db
+import { usersSchema } from '../database/schema/userSchema';
+import { RegisterRequestDto, RegisterResponseDto } from './dto/register.dto';
 
 @Injectable()
 export class AuthService {
-  create(createUserDto: CreateUserDto) {
-    return 'This action adds a new auth';
+  constructor(
+    private readonly txHost: TransactionHost<
+      TransactionalAdapterDrizzleOrm<NodePgDatabase<typeof schema>>
+    >,
+  ) {}
+
+  private readonly logger = new Logger(AuthService.name);
+
+  private getDb(): NodePgDatabase<typeof schema> {
+    return this.txHost.tx;
   }
 
-  findAll() {
-    return `This action returns all auth`;
-  }
+  async register(dto: RegisterRequestDto): Promise<RegisterResponseDto> {
+    // Show the user data by logger
+    this.logger.log(`Register user data: ${JSON.stringify(dto, null, 2)}`);
 
-  findOne(id: number) {
-    return `This action returns a #${id} auth`;
-  }
+    const db = this.getDb();
 
-  update(id: number, updateAuthDto: UpdateAuthDto) {
-    return `This action updates a #${id} auth`;
-  }
+    const existingUser = await db.query.usersSchema.findFirst({
+      where: eq(usersSchema.email, dto.email),
+    });
 
-  remove(id: number) {
-    return `This action removes a #${id} auth`;
+    if (existingUser) {
+      this.logger.log(`
+        User already exists: ${JSON.stringify(existingUser, null, 2)}
+      `);
+    }
+
+    const salt = await genSalt(10);
+    const hashedPassword = await hash(dto.password, salt);
+
+    try {
+      const newUserData: InferInsertModel<typeof usersSchema> = {
+        ...dto,
+        password: hashedPassword,
+      };
+      const [newUser] = await db
+        .insert(usersSchema)
+        .values(newUserData)
+        .returning();
+
+      return new RegisterResponseDto({
+        id: String(newUser.id),
+        email: newUser.email,
+        status: newUser.status,
+      });
+    } catch (error) {
+      this.logger.log(`
+        [Error] - Error log: ${JSON.stringify(error, null, 2)}
+      `);
+      throw error;
+    }
   }
 }

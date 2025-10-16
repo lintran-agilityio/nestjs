@@ -1,34 +1,46 @@
-import { Controller, Get, Post, Body, Patch, Param, Delete } from '@nestjs/common';
+// libs
+import { Controller, Post, Body, HttpStatus } from '@nestjs/common';
+import {
+  ApiOperation,
+  ApiBadRequestResponse,
+  ApiInternalServerErrorResponse,
+  ApiBody,
+  ApiResponse,
+  ApiCreatedResponse,
+  ApiConflictResponse,
+  ApiNotFoundResponse,
+  ApiOkResponse,
+  ApiUnauthorizedResponse,
+  ApiBearerAuth,
+  ApiNoContentResponse,
+} from '@nestjs/swagger';
+
 import { AuthService } from './auth.service';
-import { CreateAuthDto } from './dto/create-user.dto';
-import { UpdateAuthDto } from './dto/login.dto';
+import { RegisterRequestDto, RegisterResponseDto } from './dto/register.dto';
+import { Public } from '@app/shared/decorators/public.decorator';
 
 @Controller('auth')
 export class AuthController {
   constructor(private readonly authService: AuthService) {}
 
-  @Post()
-  create(@Body() createAuthDto: CreateAuthDto) {
-    return this.authService.create(createAuthDto);
-  }
+  @Post('registerUser')
+  @Public()
+  @ApiOperation({ summary: 'Register' })
+  @ApiBody({
+    description: 'Register',
+    type: RegisterRequestDto,
+  })
+  @ApiResponse({
+    status: HttpStatus.CREATED,
+    description: 'Register successfully',
+    type: RegisterResponseDto,
+  })
+  @ApiBadRequestResponse({
+    status: HttpStatus.BAD_REQUEST,
+    description: 'Bad request',
 
-  @Get()
-  findAll() {
-    return this.authService.findAll();
-  }
-
-  @Get(':id')
-  findOne(@Param('id') id: string) {
-    return this.authService.findOne(+id);
-  }
-
-  @Patch(':id')
-  update(@Param('id') id: string, @Body() updateAuthDto: UpdateAuthDto) {
-    return this.authService.update(+id, updateAuthDto);
-  }
-
-  @Delete(':id')
-  remove(@Param('id') id: string) {
-    return this.authService.remove(+id);
+  })
+  async registerUser(@Body() dto: RegisterRequestDto) {
+    return await this.authService.register(dto);
   }
 }
