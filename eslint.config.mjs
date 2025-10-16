@@ -52,4 +52,11 @@ export default tseslint.config(
       "@typescript-eslint/no-unsafe-assignment": "off",
     },
   },
+  {
+    files: ["src/database/database.module.ts"],
+    rules: {
+      "@typescript-eslint/no-unsafe-call": "off",
+      "@typescript-eslint/no-unsafe-assignment": "off",
+    },
+  }
 );
