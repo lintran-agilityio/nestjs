@@ -1,69 +1,135 @@
 // libs
-import { Injectable, Logger } from '@nestjs/common';
-import { genSalt, hash } from 'bcryptjs';
-import { eq, type InferInsertModel } from 'drizzle-orm';
-import { TransactionHost } from '@nestjs-cls/transactional';
-import { TransactionalAdapterDrizzleOrm } from '@nestjs-cls/transactional-adapter-drizzle-orm';
-import type { NodePgDatabase } from 'drizzle-orm/node-postgres';
-import type * as schema from '../database/schema';
+import {
+  Injectable,
+  Logger,
+  ConflictException,
+  InternalServerErrorException,
+  NotFoundException,
+  UnauthorizedException,
+} from '@nestjs/common';
+import { compare, genSalt, hash } from 'bcryptjs';
+import { Repository, DeepPartial } from 'typeorm';
+import { InjectRepository } from '@nestjs/typeorm';
+import { ConfigService } from '@nestjs/config';
+import { JwtService } from '@nestjs/jwt';
 
-// db
-import { usersSchema } from '../database/schema/userSchema';
-import { RegisterRequestDto, RegisterResponseDto } from './dto/register.dto';
+import {
+  LoginRequestDto,
+  LoginResponseDto,
+  RegisterRequestDto,
+  RegisterResponseDto,
+} from './dto';
+import { User } from '@app/user/entities';
+import { MESSAGES } from '@app/shared/constants';
+import { JWT_EXPIRES } from '@app/shared/common';
 
 @Injectable()
 export class AuthService {
   constructor(
-    private readonly txHost: TransactionHost<
-      TransactionalAdapterDrizzleOrm<NodePgDatabase<typeof schema>>
-    >,
+    @InjectRepository(User)
+    private readonly usersRepo: Repository<User>,
+    private configService: ConfigService,
+    private jwtService: JwtService,
   ) {}
 
   private readonly logger = new Logger(AuthService.name);
 
-  private getDb(): NodePgDatabase<typeof schema> {
-    return this.txHost.tx;
-  }
+  async register(
+    registerDto: RegisterRequestDto,
+  ): Promise<RegisterResponseDto> {
+    const { email, password, role, firstName, lastName, status } =
+      registerDto || {};
 
-  async register(dto: RegisterRequestDto): Promise<RegisterResponseDto> {
     // Show the user data by logger
-    this.logger.log(`Register user data: ${JSON.stringify(dto, null, 2)}`);
+    this.logger.log(`
+      Register user data: ${JSON.stringify(registerDto, null, 2)}
+    `);
 
-    const db = this.getDb();
-
-    const existingUser = await db.query.usersSchema.findFirst({
-      where: eq(usersSchema.email, dto.email),
+    const existingUser = await this.usersRepo.findOne({
+      where: { email: registerDto.email },
     });
 
     if (existingUser) {
       this.logger.log(`
         User already exists: ${JSON.stringify(existingUser, null, 2)}
       `);
+
+      throw new ConflictException(MESSAGES.USER_ALREADY_EXISTS);
     }
 
     const salt = await genSalt(10);
-    const hashedPassword = await hash(dto.password, salt);
+    const hashedPassword = await hash(password, salt);
 
     try {
-      const newUserData: InferInsertModel<typeof usersSchema> = {
-        ...dto,
+      const userRes = this.usersRepo.create({
+        email,
         password: hashedPassword,
-      };
-      const [newUser] = await db
-        .insert(usersSchema)
-        .values(newUserData)
-        .returning();
+        firstName,
+        lastName,
+        role,
+        status,
+      } as DeepPartial<User>);
+
+      const savedUser = (await this.usersRepo.save(userRes)) as unknown as User;
 
       return new RegisterResponseDto({
-        id: String(newUser.id),
-        email: newUser.email,
-        status: newUser.status,
+        id: savedUser.id,
+        email: savedUser.email,
+        role: savedUser.role,
+        status: savedUser.status,
       });
     } catch (error) {
       this.logger.log(`
         [Error] - Error log: ${JSON.stringify(error, null, 2)}
       `);
-      throw error;
+
+      throw new InternalServerErrorException('Server error');
+    }
+  }
+
+  async login(loginDto: LoginRequestDto): Promise<LoginResponseDto> {
+    const { email, password } = loginDto;
+
+    // Logger user login
+    this.logger.log(`Login user data: ${JSON.stringify(loginDto, null, 2)}`);
+
+    try {
+      const userRes = await this.usersRepo.findOne({
+        where: { email },
+      });
+
+      if (!userRes) {
+        throw new NotFoundException(MESSAGES.USER_NOT_FOUND);
+      }
+
+      // compare password
+      if (userRes && !(await compare(password, userRes.password))) {
+        throw new UnauthorizedException(MESSAGES.INVALID_CREDENTIALS);
+      }
+
+      const payload = {
+        id: userRes.id,
+        email: userRes.email,
+        role: userRes.role,
+      };
+
+      const accessTokenExpiresIn =
+        this.configService.get<string>(JWT_EXPIRES.JWT_ACCESS_EXPIRES_IN) ??
+        '15s';
+      const refreshTokenExpiresIn =
+        this.configService.get<string>(JWT_EXPIRES.JWT_REFRESH_EXPIRES_IN) ??
+        '15s';
+
+      const accessToken = await this.jwtService.signAsync(payload, {
+        expiresIn: accessTokenExpiresIn,
+      });
+      const newRefreshToken = await this.jwtService.signAsync(payload, {
+        expiresIn: refreshTokenExpiresIn,
+      });
+    } catch (error) {
+      this.logger.log(`[Error] - Error log: ${JSON.stringify(error, null, 2)}`);
+
+      throw new InternalServerErrorException('Server error');
     }
   }
 }

@@ -84,7 +84,7 @@ Create a `.env` file in the root of your project with the following variables:
 # Database configuration
 POSTGRES_USER=postgres
 POSTGRES_PASSWORD=your_postgres_password
-POSTGRES_DB=user_social_network_api
+POSTGRES_DB=fake_social
 DATABASE_URL="prisma+postgres://accelerate.prisma-data.net/?api_key=your_api_key"
 
 # JWT authentication
