@@ -1,6 +1,6 @@
 // libs
 import { ApiProperty } from '@nestjs/swagger';
-import { IsEmail, IsEnum, IsIn, IsNotEmpty, IsString } from 'class-validator';
+import { IsEmail, IsEnum, IsNotEmpty, IsString } from 'class-validator';
 
 import { UserRole } from '@app/shared/types';
 
@@ -57,25 +57,6 @@ export class LoginResponseDto {
     example: 'abcd122345678-aB11',
   })
   refreshToken: string;
-
-  @ApiProperty({
-    type: String,
-    description: 'Type of token',
-    example: 'Bearer',
-  })
-  @IsNotEmpty()
-  @IsString()
-  @IsIn(['Bearer'])
-  tokenType: string;
-
-  @ApiProperty({
-    type: String,
-    description: 'Expires in',
-    example: '15m',
-  })
-  @IsNotEmpty()
-  @IsString()
-  expiresIn: string;
 
   constructor(partial: Partial<LoginResponseDto>) {
     Object.assign(this, partial);

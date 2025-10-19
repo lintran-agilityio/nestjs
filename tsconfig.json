@@ -12,8 +12,7 @@
     "baseUrl": "./",
     "paths": {
       "@app/*": ["src/*"],
-      "@tests/*": ["tests/*"],
-      "@prisma/*": ["prisma/*"]
+      "@tests/*": ["tests/*"]
     },
     "incremental": true,
     "skipLibCheck": true,

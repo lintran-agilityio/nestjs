@@ -19,15 +19,17 @@ import {
   RegisterRequestDto,
   RegisterResponseDto,
 } from './dto';
-import { User } from '@app/user/entities';
+import { User } from '@app/modules/user/entities';
 import { MESSAGES } from '@app/shared/constants';
 import { JWT_EXPIRES } from '@app/shared/common';
+import { HashingService } from '@app/modules/hashing/hashing.service';
 
 @Injectable()
 export class AuthService {
   constructor(
     @InjectRepository(User)
     private readonly usersRepo: Repository<User>,
+    private readonly hashingService: HashingService,
     private configService: ConfigService,
     private jwtService: JwtService,
   ) {}
@@ -57,8 +59,7 @@ export class AuthService {
       throw new ConflictException(MESSAGES.USER_ALREADY_EXISTS);
     }
 
-    const salt = await genSalt(10);
-    const hashedPassword = await hash(password, salt);
+    const hashedPassword = await this.hashingService.hash(password);
 
     try {
       const userRes = this.usersRepo.create({

@@ -1,6 +1,17 @@
 // libs
+import { REGEX, VALIDATION_RULES } from '@app/shared/constants';
 import { ApiProperty } from '@nestjs/swagger';
-import { IsEmail, IsNotEmpty, IsString, IsStrongPassword } from 'class-validator';
+import {
+  IsEmail,
+  IsNotEmpty,
+  IsString,
+  IsStrongPassword,
+  Matches,
+  MaxLength,
+  MinLength,
+} from 'class-validator';
+
+const { PASSWORD } = VALIDATION_RULES;
 
 export class LoginRequestDto {
   @ApiProperty({
@@ -11,6 +22,7 @@ export class LoginRequestDto {
   @IsEmail()
   @IsNotEmpty()
   @IsString()
+  @Matches(REGEX.EMAIL)
   email: string;
 
   @ApiProperty({
@@ -20,6 +32,9 @@ export class LoginRequestDto {
   })
   @IsNotEmpty()
   @IsStrongPassword()
+  @Matches(REGEX.PASSWORD)
+  @MaxLength(PASSWORD.MAX)
+  @MinLength(PASSWORD.MIN)
   password: string;
 
   constructor(partial: Partial<LoginRequestDto>) {
