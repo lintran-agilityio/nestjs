@@ -7,12 +7,15 @@ import {
   ApiBody,
   ApiCreatedResponse,
   ApiConflictResponse,
+  ApiOkResponse,
+  ApiUnauthorizedResponse,
 } from '@nestjs/swagger';
 
 import { AuthService } from './auth.service';
-import { RegisterRequestDto, RegisterResponseDto } from './dto';
+import { LoginRequestDto, LoginResponseDto, RegisterRequestDto, RegisterResponseDto } from './dto';
 import { Public } from '@app/shared/decorators/public.decorator';
 import { ErrorResponseDto } from '@app/shared/dto';
+import { MESSAGES } from '@app/shared/constants';
 
 @Controller({
   path: 'auth',
@@ -21,11 +24,11 @@ import { ErrorResponseDto } from '@app/shared/dto';
 export class AuthController {
   constructor(private readonly authService: AuthService) {}
 
-  @Post('registerUser')
+  @Post('register')
   @Public()
   @ApiOperation({ summary: 'Register' })
   @ApiBody({
-    description: 'Register',
+    description: 'User Register',
     type: RegisterRequestDto,
   })
   @ApiCreatedResponse({
@@ -45,9 +48,27 @@ export class AuthController {
     type: ErrorResponseDto,
   })
   @HttpCode(HttpStatus.ACCEPTED)
-  async registerUser(
+  async register(
     @Body() registerDto: RegisterRequestDto,
   ): Promise<RegisterResponseDto> {
     return await this.authService.register(registerDto);
+  }
+
+  @Post('login')
+  @Public()
+  @HttpCode(HttpStatus.OK)
+  @ApiOkResponse({
+    description: 'Login successful',
+    type: LoginResponseDto,
+  })
+  @ApiUnauthorizedResponse({
+    
+  })
+  @ApiBody({
+    description: 'User Login',
+    type: LoginRequestDto,
+  })
+  async login(@Body() loginDto: LoginRequestDto): Promise<LoginResponseDto> {
+    return await this.authService.login(loginDto);
   }
 }
