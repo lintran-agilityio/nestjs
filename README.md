@@ -101,6 +101,11 @@ PORT=3000
 $ pnpm install
 ```
 
+## Run database
+```bash
+$ docker compose up
+```
+
 ## Compile and run the project
 
 ```bash
