@@ -1,10 +1,10 @@
-// Libs
-import { IsEmail, IsNotEmpty, IsString } from 'class-validator';
+// libs
 import { ApiProperty } from '@nestjs/swagger';
+import { IsEmail, IsNotEmpty, IsString } from 'class-validator';
+
 import { UserRole, UserStatus } from '@app/shared/types';
 
-// Create dto for user registration response
-export class RegisterResponseDto {
+export class UserInfoResponseDto {
   @ApiProperty({
     type: String,
     description: 'Id of user',
@@ -40,8 +40,4 @@ export class RegisterResponseDto {
   @IsString()
   @IsNotEmpty()
   status: UserStatus;
-
-  constructor(partial: Partial<RegisterResponseDto>) {
-    Object.assign(this, partial);
-  }
 }

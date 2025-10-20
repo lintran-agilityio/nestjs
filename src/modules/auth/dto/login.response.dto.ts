@@ -1,62 +1,25 @@
-// libs
+// Libs
 import { ApiProperty } from '@nestjs/swagger';
-import { IsEmail, IsEnum, IsNotEmpty, IsString } from 'class-validator';
+import { Expose, Type } from 'class-transformer';
 
-import { UserRole } from '@app/shared/types';
+import { UserInfoResponseDto } from './user-info.response.dto';
 
+// Create dto for user registration response
 export class LoginResponseDto {
   @ApiProperty({
-    type: String,
-    description: 'The user email',
-    example: 'abc@gmail.com',
+    description: 'Access token',
+    example: 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...',
   })
-  @IsEmail()
-  @IsNotEmpty()
-  @IsString()
-  email: string;
-
-  @ApiProperty({
-    type: String,
-    description: 'First name of user',
-    example: 'Tran',
-  })
-  @IsNotEmpty()
-  @IsString()
-  firstName: string;
-
-  @ApiProperty({
-    type: String,
-    description: 'Last name of user',
-    example: 'A',
-  })
-  @IsNotEmpty()
-  @IsString()
-  lastName: string;
-
-  @ApiProperty({
-    type: String,
-    description: 'The user role',
-    example: 'user',
-  })
-  @IsNotEmpty()
-  @IsEnum(UserRole)
-  role: string;
-
-  @ApiProperty({
-    type: String,
-    description: 'The access token',
-    example: 'abcd122345678-aB11',
-  })
-  @IsNotEmpty()
-  @IsString()
+  @Expose()
   accessToken: string;
 
   @ApiProperty({
-    type: String,
-    description: 'The refresh token',
-    example: 'abcd122345678-aB11',
+    description: 'User information',
+    type: UserInfoResponseDto,
   })
-  refreshToken: string;
+  @Type(() => UserInfoResponseDto)
+  @Expose()
+  user: UserInfoResponseDto;
 
   constructor(partial: Partial<LoginResponseDto>) {
     Object.assign(this, partial);

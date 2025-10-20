@@ -11,6 +11,7 @@ export const typeOrmConfig: TypeOrmModuleOptions = {
   password: process.env.DB_PASS || 'postgres',
   database: process.env.DB_NAME || 'fake_social',
   entities: [User],
-  synchronize: true,
+  synchronize: false,
+  migrations: ['./src/database/migrations/*.ts'],
   logging: true,
 };

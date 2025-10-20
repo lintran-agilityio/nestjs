@@ -10,13 +10,13 @@ import { UserRole, UserStatus } from '@app/shared/types';
 
 @Entity('users')
 export class User {
-  @PrimaryGeneratedColumn()
+  @PrimaryGeneratedColumn('uuid')
   id: string;
 
   @Column({ name: 'email', type: 'varchar', length: 255, unique: true })
   email: string;
 
-  @Column({ name: 'password', type: 'varchar', length: 50 })
+  @Column({ name: 'password', type: 'varchar', length: 100 })
   password: string;
 
   @Column({ name: 'first_name', type: 'varchar', length: 50 })

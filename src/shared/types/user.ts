@@ -7,3 +7,10 @@ export enum UserStatus {
   ACTIVE = 'ACTIVE',
   INACTIVE = 'INACTIVE',
 }
+
+export interface IJwtAuthPayload {
+  id: string;
+  email: string;
+  role: UserRole;
+  status: UserStatus;
+}

@@ -5,9 +5,8 @@ import {
   ConflictException,
   InternalServerErrorException,
   NotFoundException,
-  UnauthorizedException,
+  BadRequestException,
 } from '@nestjs/common';
-import { compare, genSalt, hash } from 'bcryptjs';
 import { Repository, DeepPartial } from 'typeorm';
 import { InjectRepository } from '@nestjs/typeorm';
 import { ConfigService } from '@nestjs/config';
@@ -21,8 +20,9 @@ import {
 } from './dto';
 import { User } from '@app/modules/user/entities';
 import { MESSAGES } from '@app/shared/constants';
-import { JWT_EXPIRES } from '@app/shared/common';
 import { HashingService } from '@app/modules/hashing/hashing.service';
+import { UserService } from '../user/user.service';
+import { IJwtAuthPayload } from '@app/shared/types';
 
 @Injectable()
 export class AuthService {
@@ -32,6 +32,7 @@ export class AuthService {
     private readonly hashingService: HashingService,
     private configService: ConfigService,
     private jwtService: JwtService,
+    private readonly userService: UserService,
   ) {}
 
   private readonly logger = new Logger(AuthService.name);
@@ -47,9 +48,7 @@ export class AuthService {
       Register user data: ${JSON.stringify(registerDto, null, 2)}
     `);
 
-    const existingUser = await this.usersRepo.findOne({
-      where: { email: registerDto.email },
-    });
+    const existingUser = await this.userService.findUserByEmail(email);
 
     if (existingUser) {
       this.logger.log(`
@@ -94,39 +93,48 @@ export class AuthService {
     // Logger user login
     this.logger.log(`Login user data: ${JSON.stringify(loginDto, null, 2)}`);
 
+    const existingUser = await this.userService.findUserByEmail(email);
+
+    if (!existingUser) {
+      this.logger.log(`
+        User not found: ${email}
+      `);
+
+      throw new NotFoundException(MESSAGES.USER_NOT_FOUND);
+    }
+
     try {
-      const userRes = await this.usersRepo.findOne({
-        where: { email },
-      });
-
-      if (!userRes) {
-        throw new NotFoundException(MESSAGES.USER_NOT_FOUND);
-      }
-
       // compare password
-      if (userRes && !(await compare(password, userRes.password))) {
-        throw new UnauthorizedException(MESSAGES.INVALID_CREDENTIALS);
+      const isMatchPassword = await this.hashingService.compare(
+        password,
+        existingUser.password,
+      );
+
+      if (!isMatchPassword) {
+        this.logger.log(`
+          Login wrong password: ${password})}
+        `);
+
+        throw new BadRequestException(MESSAGES.USER_WRONG_PASSWORD);
       }
 
-      const payload = {
-        id: userRes.id,
-        email: userRes.email,
-        role: userRes.role,
+      const payload: IJwtAuthPayload = {
+        id: existingUser.id,
+        email: existingUser.email,
+        role: existingUser.role,
+        status: existingUser.status,
       };
+      const accessToken = await this.jwtService.signAsync(payload);
 
-      const accessTokenExpiresIn =
-        this.configService.get<string>(JWT_EXPIRES.JWT_ACCESS_EXPIRES_IN) ??
-        '15s';
-      const refreshTokenExpiresIn =
-        this.configService.get<string>(JWT_EXPIRES.JWT_REFRESH_EXPIRES_IN) ??
-        '15s';
-
-      const accessToken = await this.jwtService.signAsync(payload, {
-        expiresIn: accessTokenExpiresIn,
-      });
-      const newRefreshToken = await this.jwtService.signAsync(payload, {
-        expiresIn: refreshTokenExpiresIn,
-      });
+      return {
+        accessToken,
+        user: {
+          id: existingUser.id,
+          email: existingUser.email,
+          role: existingUser.role,
+          status: existingUser.status,
+        },
+      };
     } catch (error) {
       this.logger.log(`[Error] - Error log: ${JSON.stringify(error, null, 2)}`);
 
