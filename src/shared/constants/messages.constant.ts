@@ -1,5 +1,4 @@
 export const MESSAGES = {
-  UNAUTHORIZED: 'Unauthorized',
   INVALID_CREDENTIALS: 'Invalid password!',
   INVALID_REFRESH_TOKEN: 'Invalid refresh token',
   PERMISSION_DEFINED: 'Permission defined',
@@ -8,10 +7,13 @@ export const MESSAGES = {
   SERVER_ERROR: 'Internal server error',
 
   // user messages
+  USER_UNAUTHORIZED: 'Email or Password wrong!',
   USER_ALREADY_EXISTS: 'User email already exists',
   USER_NOT_FOUND: 'User not found',
   USER_CREATE_FAILED: 'Created User failed',
   USER_WRONG_PASSWORD: 'Wrong password',
+  USER_INVALID_REFRESH_TOKEN: 'Invalid refresh token',
+  USER_TOKEN_EXPIRED: 'Invalid or expired refresh token',
 
   // validation
   INVALID_PASSWORD:

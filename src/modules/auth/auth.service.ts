@@ -6,11 +6,13 @@ import {
   InternalServerErrorException,
   NotFoundException,
   BadRequestException,
+  UnauthorizedException,
 } from '@nestjs/common';
 import { Repository, DeepPartial } from 'typeorm';
 import { InjectRepository } from '@nestjs/typeorm';
 import { ConfigService } from '@nestjs/config';
 import { JwtService } from '@nestjs/jwt';
+import type { JwtSignOptions } from '@nestjs/jwt';
 
 import {
   LoginRequestDto,
@@ -105,12 +107,12 @@ export class AuthService {
 
     try {
       // compare password
-      const isMatchPassword = await this.hashingService.compare(
+      const isValidPassword = await this.hashingService.compare(
         password,
         existingUser.password,
       );
 
-      if (!isMatchPassword) {
+      if (!isValidPassword) {
         this.logger.log(`
           Login wrong password: ${password})}
         `);
@@ -124,10 +126,30 @@ export class AuthService {
         role: existingUser.role,
         status: existingUser.status,
       };
-      const accessToken = await this.jwtService.signAsync(payload);
+
+      const accessToken = await this.jwtService.signAsync(payload, {
+        secret: this.configService.get<string>('JWT_SECRET') ?? 'super-secret',
+        expiresIn: this.configService.get('JWT_EXPIRES_IN') ?? '1h',
+      });
+
+      const refreshToken = await this.jwtService.signAsync(payload, {
+        secret:
+          this.configService.get<string>('JWT_REFRESH_SECRET') ??
+          'super-refresh-secret',
+        expiresIn: (this.configService.get<string>('JWT_REFRESH_EXPIRES_IN') ??
+          '7d') as JwtSignOptions['expiresIn'],
+      });
+
+      // store refresh token in DB
+      const hashedRefreshToken = await this.hashingService.hash(refreshToken);
+      await this.userService.updateRefreshToken(
+        existingUser.id,
+        hashedRefreshToken,
+      );
 
       return {
         accessToken,
+        refreshToken,
         user: {
           id: existingUser.id,
           email: existingUser.email,
@@ -136,9 +158,55 @@ export class AuthService {
         },
       };
     } catch (error) {
-      this.logger.log(`[Error] - Error log: ${JSON.stringify(error, null, 2)}`);
+      this.logger.log(`
+        [Error] - Login Error: ${JSON.stringify(error, null, 2)}
+      `);
 
       throw new InternalServerErrorException('Server error');
+    }
+  }
+
+  async refreshTokens(refreshToken: string) {
+    try {
+      const payload = await this.jwtService.verifyAsync<IJwtAuthPayload>(
+        refreshToken,
+        {
+          secret:
+            this.configService.get<string>('JWT_REFRESH_SECRET') ??
+            'default-refresh-secret',
+        },
+      );
+
+      const user = await this.userService.findUserById(payload.id);
+
+      if (!user || !user.refreshToken) {
+        this.logger.log(MESSAGES.INVALID_REFRESH_TOKEN);
+        throw new UnauthorizedException(MESSAGES.USER_INVALID_REFRESH_TOKEN);
+      }
+
+      const isValid = await this.hashingService.compare(
+        refreshToken,
+        user.refreshToken,
+      );
+
+      if (!isValid) {
+        this.logger.log(MESSAGES.INVALID_REFRESH_TOKEN);
+        throw new UnauthorizedException(MESSAGES.USER_INVALID_REFRESH_TOKEN);
+      }
+
+      const newAccessToken = await this.jwtService.signAsync(payload, {
+        secret:
+          this.configService.get<string>('JWT_SECRET') ?? 'default-secret',
+        expiresIn: (this.configService.get<string>('JWT_EXPIRES_IN') ||
+          '1h') as JwtSignOptions['expiresIn'],
+      });
+
+      return { accessToken: newAccessToken };
+    } catch (error) {
+      this.logger.log(
+        `[Error] - Error log: ${MESSAGES.USER_TOKEN_EXPIRED} - ${JSON.stringify(error, null, 2)}`,
+      );
+      throw new UnauthorizedException(MESSAGES.USER_INVALID_REFRESH_TOKEN);
     }
   }
 }

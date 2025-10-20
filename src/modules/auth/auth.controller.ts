@@ -12,10 +12,14 @@ import {
 } from '@nestjs/swagger';
 
 import { AuthService } from './auth.service';
-import { LoginRequestDto, LoginResponseDto, RegisterRequestDto, RegisterResponseDto } from './dto';
+import {
+  LoginRequestDto,
+  LoginResponseDto,
+  RegisterRequestDto,
+  RegisterResponseDto,
+} from './dto';
 import { Public } from '@app/shared/decorators/public.decorator';
 import { ErrorResponseDto } from '@app/shared/dto';
-import { MESSAGES } from '@app/shared/constants';
 
 @Controller({
   path: 'auth',
@@ -26,6 +30,7 @@ export class AuthController {
 
   @Post('register')
   @Public()
+  @HttpCode(HttpStatus.CREATED)
   @ApiOperation({ summary: 'Register' })
   @ApiBody({
     description: 'User Register',
@@ -62,7 +67,8 @@ export class AuthController {
     type: LoginResponseDto,
   })
   @ApiUnauthorizedResponse({
-    
+    description: 'Unauthorized',
+    type: ErrorResponseDto,
   })
   @ApiBody({
     description: 'User Login',
@@ -70,5 +76,11 @@ export class AuthController {
   })
   async login(@Body() loginDto: LoginRequestDto): Promise<LoginResponseDto> {
     return await this.authService.login(loginDto);
+  }
+
+  @Post('refresh')
+  @Public()
+  async refresh(@Body('refreshToken') refreshToken: string) {
+    return this.authService.refreshTokens(refreshToken);
   }
 }

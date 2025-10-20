@@ -14,6 +14,13 @@ export class LoginResponseDto {
   accessToken: string;
 
   @ApiProperty({
+    description: 'Refresh token',
+    example: 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...',
+  })
+  @Expose()
+  refreshToken: string;
+
+  @ApiProperty({
     description: 'User information',
     type: UserInfoResponseDto,
   })

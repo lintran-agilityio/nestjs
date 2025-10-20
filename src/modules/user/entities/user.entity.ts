@@ -6,7 +6,7 @@ import {
   CreateDateColumn,
   UpdateDateColumn,
 } from 'typeorm';
-import { UserRole, UserStatus } from '@app/shared/types';
+import { UserRole, UserStatus } from '../../../shared/types';
 
 @Entity('users')
 export class User {
@@ -53,4 +53,7 @@ export class User {
     onUpdate: 'CURRENT_TIMESTAMP',
   })
   updatedAt: Date;
+
+  @Column({ nullable: true })
+  refreshToken?: string;
 }

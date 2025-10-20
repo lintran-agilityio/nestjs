@@ -1,7 +1,7 @@
 // libs
 import { TypeOrmModuleOptions } from '@nestjs/typeorm';
 
-import { User } from '@app/modules/user/entities/user.entity';
+import { User } from '../modules/user/entities/user.entity';
 
 export const typeOrmConfig: TypeOrmModuleOptions = {
   type: 'postgres',
@@ -11,7 +11,7 @@ export const typeOrmConfig: TypeOrmModuleOptions = {
   password: process.env.DB_PASS || 'postgres',
   database: process.env.DB_NAME || 'fake_social',
   entities: [User],
-  synchronize: false,
+  synchronize: true,
   migrations: ['./src/database/migrations/*.ts'],
   logging: true,
 };

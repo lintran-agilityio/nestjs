@@ -23,8 +23,19 @@ export class UserService {
     });
   }
 
-  update(id: number, updateUserDto: UpdateUserDto) {
-    return `This action updates a #${id} user`;
+  async findUserById(id: string): Promise<User | null> {
+    return await this.usersRepo.findOne({
+      where: { id },
+    });
+  }
+
+  async updateRefreshToken(id: string, refreshToken: string) {
+    await this.usersRepo.update(id, { refreshToken });
+  }
+
+  async update(id: string, updateUserDto: UpdateUserDto) {
+    await this.usersRepo.update(id, updateUserDto);
+    return this.usersRepo.findOne({ where: { id } });
   }
 
   remove(id: number) {
