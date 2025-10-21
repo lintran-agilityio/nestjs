@@ -1,17 +1,20 @@
 // libs
-import { TypeOrmModuleOptions } from '@nestjs/typeorm';
+import { ConfigService } from '@nestjs/config';
 
-import { User } from '../modules/user/entities/user.entity';
+import { DataSourceOptions } from 'typeorm';
 
-export const typeOrmConfig: TypeOrmModuleOptions = {
-  type: 'postgres',
-  host: process.env.DB_HOST || 'localhost',
-  port: parseInt(process.env.DB_PORT || '5432', 10),
-  username: process.env.DB_USER || 'postgres',
-  password: process.env.DB_PASS || 'postgres',
-  database: process.env.DB_NAME || 'fake_social',
-  entities: [User],
-  synchronize: true,
-  migrations: ['./src/database/migrations/*.ts'],
-  logging: true,
+export const typeOrmConfig = async (
+  configService: ConfigService,
+): Promise<DataSourceOptions> => {
+  return Promise.resolve({
+    type: 'postgres',
+    host: configService.get<string>('DB_HOST'),
+    port: configService.get<number>('DB_PORT'),
+    username: configService.get<string>('DB_USER'),
+    password: configService.get<string>('DB_PASS'),
+    database: configService.get<string>('DB_NAME'),
+    autoLoadEntities: true,
+    synchronize: false,
+    migrations: [__dirname + '/../migrations/*.{ts,js}'],
+  });
 };
