@@ -21,10 +21,7 @@ import {
 import { Public } from '@app/shared/decorators/public.decorator';
 import { ErrorResponseDto } from '@app/shared/dto';
 
-@Controller({
-  path: 'auth',
-  version: '1',
-})
+@Controller('auth')
 export class AuthController {
   constructor(private readonly authService: AuthService) {}
 

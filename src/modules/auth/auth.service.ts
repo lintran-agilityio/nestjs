@@ -22,16 +22,19 @@ import {
 } from './dto';
 import { User } from '@app/modules/user/entities';
 import { MESSAGES } from '@app/shared/constants';
-import { HashingService } from '@app/modules/hashing/hashing.service';
+import { HashingAbstractService } from '@app/modules/hashing/hashing.abstract.service';
+import { Inject } from '@nestjs/common';
 import { UserService } from '../user/user.service';
 import { IJwtAuthPayload } from '@app/shared/types';
+import { CUSTOM_PROVIDER_TOKENS } from '@app/shared/common';
 
 @Injectable()
 export class AuthService {
   constructor(
     @InjectRepository(User)
     private readonly usersRepo: Repository<User>,
-    private readonly hashingService: HashingService,
+    @Inject(CUSTOM_PROVIDER_TOKENS.PASSWORD_HASHING_SERVICE)
+    private readonly hashingService: HashingAbstractService,
     private configService: ConfigService,
     private jwtService: JwtService,
     private readonly userService: UserService,
@@ -50,7 +53,7 @@ export class AuthService {
       Register user data: ${JSON.stringify(registerDto, null, 2)}
     `);
 
-    const existingUser = await this.userService.findUserByEmail(email);
+    const existingUser = await this.userService.getUserByEmail(email);
 
     if (existingUser) {
       this.logger.log(`
@@ -95,7 +98,7 @@ export class AuthService {
     // Logger user login
     this.logger.log(`Login user data: ${JSON.stringify(loginDto, null, 2)}`);
 
-    const existingUser = await this.userService.findUserByEmail(email);
+    const existingUser = await this.userService.getUserByEmail(email);
 
     if (!existingUser) {
       this.logger.log(`
@@ -177,7 +180,7 @@ export class AuthService {
         },
       );
 
-      const user = await this.userService.findUserById(payload.id);
+      const user = await this.userService.getUserById(payload.id);
 
       if (!user || !user.refreshToken) {
         this.logger.log(MESSAGES.INVALID_REFRESH_TOKEN);

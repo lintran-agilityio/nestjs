@@ -1,18 +1,10 @@
 // libs
-import {
-  Entity,
-  PrimaryGeneratedColumn,
-  Column,
-  CreateDateColumn,
-  UpdateDateColumn,
-} from 'typeorm';
+import { Entity, Column } from 'typeorm';
 import { UserRole, UserStatus } from '../../../shared/types';
+import { BaseEntity } from '../../../shared/entities';
 
 @Entity('users')
-export class User {
-  @PrimaryGeneratedColumn('uuid')
-  id: string;
-
+export class User extends BaseEntity {
   @Column({ name: 'email', type: 'varchar', length: 255, unique: true })
   email: string;
 
@@ -38,21 +30,6 @@ export class User {
     default: UserStatus.ACTIVE,
   })
   status: UserStatus;
-
-  @CreateDateColumn({
-    name: 'created_at',
-    type: 'timestamp',
-    default: () => 'CURRENT_TIMESTAMP',
-  })
-  createdAt: Date;
-
-  @UpdateDateColumn({
-    name: 'updated_at',
-    type: 'timestamp',
-    nullable: true,
-    onUpdate: 'CURRENT_TIMESTAMP',
-  })
-  updatedAt: Date;
 
   @Column({ nullable: true })
   refreshToken?: string;
