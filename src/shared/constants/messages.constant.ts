@@ -18,4 +18,6 @@ export const MESSAGES = {
   // validation
   INVALID_PASSWORD:
     'Password must contain at least one uppercase letter, one lowercase letter, and one special character',
+  INVALID_VALIDATION: 'Validation fail',
+  INVALID_TOKEN: 'Token missing or invalid',
 };
