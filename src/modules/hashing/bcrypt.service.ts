@@ -2,10 +2,10 @@
 import { Injectable } from '@nestjs/common';
 import { compare, genSalt, hash } from 'bcryptjs';
 
-import { HashingService } from './hashing.service';
+import { HashingAbstractService } from './hashing.abstract.service';
 
 @Injectable()
-export class BcryptService implements HashingService {
+export class BcryptService implements HashingAbstractService {
   async hash(data: string | Buffer): Promise<string> {
     const salt = await genSalt(10);
     return hash(data.toString(), salt);

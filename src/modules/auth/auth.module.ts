@@ -7,9 +7,9 @@ import { AuthService } from './auth.service';
 import { JwtModule, JwtModuleOptions } from '@nestjs/jwt';
 import { AuthController } from './auth.controller';
 import { User } from '@app/modules/user/entities';
-import { HashingService } from '@app/modules/hashing/hashing.service';
 import { BcryptService } from '@app/modules/hashing/bcrypt.service';
 import { UserModule } from '../user/user.module';
+import { CUSTOM_PROVIDER_TOKENS } from '@app/shared/common';
 
 @Module({
   imports: [
@@ -31,7 +31,7 @@ import { UserModule } from '../user/user.module';
   providers: [
     AuthService,
     {
-      provide: HashingService,
+      provide: CUSTOM_PROVIDER_TOKENS.PASSWORD_HASHING_SERVICE,
       useClass: BcryptService,
     },
   ],
