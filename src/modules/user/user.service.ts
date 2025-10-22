@@ -1,38 +1,53 @@
 // libs
 import {
+  Inject,
   Injectable,
   InternalServerErrorException,
-  Logger,
   NotFoundException,
 } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 
-import { UpdateUserDto } from './dto/update-user.dto';
 import { User } from './entities';
-import { UserQueryParamDto } from './dto';
+import {
+  DeleteAllUsersDto,
+  UpdateAllUsersDto,
+  UpdateUserDto,
+  UserResponseDto,
+} from './dto';
 import { getSelectFields } from '@app/shared/utils';
-import { USE_SELECT_FIELDS } from './config';
+import { USER_SELECT_FIELDS } from './config';
 import { OrderBy } from '@app/shared/types';
-import { UserResponseDto } from './dto/get-user-response.dto';
 import { MESSAGES } from '@app/shared/constants';
+import { HashingAbstractService } from '../hashing/hashing.abstract.service';
+import { CUSTOM_PROVIDER_TOKENS } from '@app/shared/common';
+import { AppLoggerService } from '../logger/logger.service';
+import { QueryPaginationParamDto } from '@app/shared/dto';
 
 @Injectable()
 export class UserService {
   constructor(
     @InjectRepository(User)
     private readonly usersRepo: Repository<User>,
-  ) {}
 
-  private readonly logger = new Logger(UserService.name);
+    @Inject(CUSTOM_PROVIDER_TOKENS.PASSWORD_HASHING_SERVICE)
+    private readonly hashingService: HashingAbstractService,
 
-  async getUsers(params: UserQueryParamDto): Promise<UserResponseDto> {
+    private readonly logger: AppLoggerService,
+  ) {
+    this.logger.setContext(UserService.name);
+  }
+
+  async getUsers(queryUrl: QueryPaginationParamDto): Promise<UserResponseDto> {
+    this.logger.log('Get all users...');
+
     try {
-      const { limit, orderBy, page, sortBy, search } = params;
+      this.logger.warn(`Query get all users: ${JSON.stringify(queryUrl)}`);
+      const { limit, orderBy, page, sortBy, search } = queryUrl;
       const query = {
-        limit: 1,
-        orderBy: OrderBy.ASC,
-        page: 1,
+        limit: limit || 1,
+        orderBy: orderBy || OrderBy.ASC,
+        page: page || 1,
         sortBy,
         search,
       };
@@ -40,10 +55,10 @@ export class UserService {
       const numberLimit = Number(limit) || 10;
       const skip = (numberPage - 1) * numberLimit;
 
-      this.logger.log(`Query get all users: ${JSON.stringify(query)}`);
+      this.logger.warn(`Query get all users: ${JSON.stringify(query)}`);
 
       // Fields selected
-      const selectFields = getSelectFields(USE_SELECT_FIELDS);
+      const selectFields = getSelectFields(USER_SELECT_FIELDS);
       const allowedSortFields = selectFields;
       const sortField = allowedSortFields.includes(sortBy ?? '')
         ? sortBy
@@ -81,7 +96,7 @@ export class UserService {
         },
       };
     } catch (error) {
-      this.logger.log(
+      this.logger.error(
         `[Error] - Get error when get all user: ${JSON.stringify(error)}`,
       );
 
@@ -90,48 +105,152 @@ export class UserService {
   }
 
   async getUserByEmail(email: string): Promise<User | null> {
-    this.logger.log(`Query get user by email: ${email}`);
+    this.logger.warn(`Query get user by email: ${email}`);
     return await this.usersRepo.findOne({
       where: { email },
     });
   }
 
+  async findUserByEmail(email: string): Promise<User | null> {
+    this.logger.log('Get user by email...');
+    const user = await this.getUserByEmail(email);
+
+    if (!user) {
+      this.logger.error(`User not found by: ${email}`);
+
+      throw new NotFoundException(MESSAGES.USER_NOT_FOUND);
+    }
+
+    return user;
+  }
+
   async getUserById(id: string): Promise<User | null> {
-    this.logger.log(`Query get user by id: ${id}`);
+    this.logger.warn(`Query get user by id: ${id}`);
     return await this.usersRepo.findOne({
       where: { id },
     });
   }
 
-  async updateRefreshToken(id: string, refreshToken: string) {
-    await this.usersRepo.update(id, { refreshToken });
-  }
+  async findUserById(id: string): Promise<User | null> {
+    this.logger.log('Get user by id...');
+    const user = await this.getUserById(id);
 
-  async updateAllUsers(id: string, updateUserDto: UpdateUserDto) {
-    await this.usersRepo.update(id, updateUserDto);
-    return this.usersRepo.findOne({ where: { id } });
-  }
+    if (!user) {
+      this.logger.log(`User not found by: ${id}`);
 
-  async updateUserById(id: string, updateUserDto: UpdateUserDto) {
-    this.logger.log(`Update user by id: ${id}`);
-
-    const existedUser = await this.usersRepo.findOne({
-      where: { id },
-    });
-
-    if (!existedUser) {
-      this.logger.log(`User not found with id: ${id}`);
       throw new NotFoundException(MESSAGES.USER_NOT_FOUND);
     }
 
-    
+    return user;
   }
 
-  deleteUsers() {
-    return 'Delete all user';
+  async updateRefreshToken(id: string, refreshToken: string) {
+    this.logger.log('Update refresh token when token is expire...');
+    await this.usersRepo.update(id, { refreshToken });
   }
 
-  deleteUsersById(id: string) {
-    return `This action removes a #${id} user`;
+  async updateAllUsers(updateUsersDto: UpdateAllUsersDto) {
+    this.logger.warn(
+      `Update all user' information have  ${JSON.stringify(updateUsersDto)}`,
+    );
+    const users = updateUsersDto.users || [];
+    const updatedUsers: User[] = [];
+
+    try {
+      for (const userDto of users) {
+        const { id } = userDto;
+        const existingUser = await this.findUserById(id);
+        userDto.password = await this.hashingService.hash(userDto.password);
+        const userUpdating = this.usersRepo.merge(existingUser, userDto);
+        const userUpdated = await this.usersRepo.save(userUpdating);
+        updatedUsers.push(userUpdated);
+      }
+
+      this.logger.log(
+        `Update all users successful ${JSON.stringify(updatedUsers)}`,
+      );
+      return updatedUsers;
+    } catch (error) {
+      this.logger.error(`
+        [Error] - Error log: ${JSON.stringify(error, null, 2)}
+      `);
+
+      throw new InternalServerErrorException('Server error');
+    }
+  }
+
+  async updateUserById(
+    id: string,
+    updateUserDto: UpdateUserDto,
+  ): Promise<User> {
+    this.logger.warn(
+      `Update user by id: ${id} and use update ${JSON.stringify(updateUserDto)}`,
+    );
+
+    const existedUser = await this.findUserById(id);
+
+    try {
+      const hashedPassword = await this.hashingService.hash(
+        updateUserDto.password,
+      );
+
+      this.logger.log('Updated user by ID...');
+      return this.usersRepo.save({
+        ...updateUserDto,
+        id: existedUser.id,
+        password: hashedPassword,
+      });
+    } catch (error) {
+      this.logger.error(`[Error] - update user error ${JSON.stringify(error)}`);
+      throw new InternalServerErrorException('Server error');
+    }
+  }
+
+  async deleteUsers(
+    _dto: DeleteAllUsersDto,
+  ): Promise<{ message: string; count: number }> {
+    this.logger.log('Delete all users data');
+    const users = await this.usersRepo.find();
+    if (!users.length) {
+      this.logger.error('[Error] - No users for delete');
+      throw new NotFoundException('No users for delete');
+    }
+
+    try {
+      const { affected } = await this.usersRepo
+        .createQueryBuilder()
+        .delete()
+        .execute();
+
+      this.logger.log(`All user deleted with ${JSON.stringify(affected)} item`);
+      return {
+        message: `Deleted ${affected} users successfully.`,
+        count: affected || 0,
+      };
+    } catch (error) {
+      this.logger.error(
+        `[Error] - delete users error ${JSON.stringify(error)}`,
+      );
+      throw new InternalServerErrorException('Server error');
+    }
+  }
+
+  async deleteUsersById(id: string): Promise<{ message: string }> {
+    this.logger.warn(`Delete user by ${id}`);
+
+    const existedUser = await this.findUserById(id);
+
+    try {
+      await this.usersRepo.remove(existedUser);
+
+      this.logger.log(`User with id is ${id} deleted`);
+
+      return {
+        message: MESSAGES.USER_DELETE_SUCCESS,
+      };
+    } catch (error) {
+      this.logger.error(`[Error] - delete user error ${JSON.stringify(error)}`);
+      throw new InternalServerErrorException('Server error');
+    }
   }
 }

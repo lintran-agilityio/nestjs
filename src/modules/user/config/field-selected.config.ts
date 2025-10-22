@@ -1,8 +1,4 @@
-// libs
-import { FindOptionsSelect } from 'typeorm';
-import { User } from '../entities';
-
-export const USE_SELECT_FIELDS: FindOptionsSelect<User> = {
+export const USER_SELECT_FIELDS: Record<string, boolean> = {
   id: true,
   role: true,
   firstName: true,
@@ -11,4 +7,5 @@ export const USE_SELECT_FIELDS: FindOptionsSelect<User> = {
   email: true,
   password: false,
   createdAt: true,
+  posts: false,
 };

@@ -8,21 +8,15 @@ import {
   Query,
   HttpCode,
   HttpStatus,
+  Put,
 } from '@nestjs/common';
 import { UserService } from './user.service';
-import { UpdateUserDto } from './dto/update-user.dto';
-import { UserQueryParamDto } from './dto';
-import {
-  ApiBadRequestResponse,
-  ApiNotFoundResponse,
-  ApiOperation,
-  ApiParam,
-  ApiResponse,
-  ApiUnauthorizedResponse,
-} from '@nestjs/swagger';
-import { UserResponseDto } from './dto/get-user-response.dto';
-import { MESSAGES } from '@app/shared/constants';
+import { UpdateAllUsersDto, UpdateUserDto } from './dto/update-user.dto';
+import { DeleteAllUsersDto } from './dto';
+import { UserResponseDto } from './dto';
 import { User } from './entities';
+import { ApiOkResponseDto } from '@app/shared/decorator';
+import { QueryPaginationParamDto } from '@app/shared/dto';
 
 @Controller('users')
 export class UserController {
@@ -30,69 +24,83 @@ export class UserController {
 
   @Get()
   @HttpCode(HttpStatus.OK)
-  @ApiOperation({ summary: 'Get all user information for ADMIN user role' })
-  @ApiResponse({
-    status: HttpStatus.OK,
-    description: 'Get all users info successful',
+  @ApiOkResponseDto({
+    summary: 'Get all user information for ADMIN user role',
+    description: 'Get all users successful',
     type: UserResponseDto,
   })
-  @ApiBadRequestResponse({
-    description: MESSAGES.INVALID_VALIDATION,
-  })
-  @ApiUnauthorizedResponse({
-    description: MESSAGES.INVALID_TOKEN,
-  })
   async getUsers(
-    @Query() paramQueryDto: UserQueryParamDto,
+    @Query() paramQueryDto: QueryPaginationParamDto,
   ): Promise<UserResponseDto> {
     return await this.userService.getUsers(paramQueryDto);
   }
 
   @Get(':id')
   @HttpCode(HttpStatus.OK)
-  @ApiOperation({ summary: 'Get user info by id for ADMIN user role' })
-  @ApiParam({ name: 'id', type: String, description: 'Id of user' })
-  @ApiResponse({
-    status: HttpStatus.OK,
+  @ApiOkResponseDto({
+    summary: 'Get user info by id for ADMIN user role',
     description: 'Get users by id successful',
     type: UserResponseDto,
   })
-  @ApiBadRequestResponse({
-    description: MESSAGES.INVALID_VALIDATION,
-  })
-  @ApiNotFoundResponse({
-    description: MESSAGES.USER_NOT_FOUND,
-  })
   async getUserById(@Param('id') id: string): Promise<User> {
-    return this.userService.getUserById(id);
+    return this.userService.findUserById(id);
   }
 
-  @Get(':email')
+  @Get('by-email/:email')
   @HttpCode(HttpStatus.OK)
-  @ApiOperation({ summary: 'Get user info by email for ADMIN user role' })
-  @ApiParam({ name: 'email', type: String, description: 'Email of user' })
-  @ApiResponse({
-    status: HttpStatus.OK,
+  @ApiOkResponseDto({
+    summary: 'Get user info by email for ADMIN user role',
     description: 'Get users by email successful',
     type: UserResponseDto,
   })
-  @ApiBadRequestResponse({
-    description: MESSAGES.INVALID_VALIDATION,
-  })
-  @ApiNotFoundResponse({
-    description: MESSAGES.USER_NOT_FOUND,
-  })
   async getUserByEmail(@Param('email') email: string): Promise<User> {
-    return this.userService.getUserById(email);
+    return this.userService.findUserByEmail(email);
   }
 
   @Patch(':id')
-  update(@Param('id') id: string, @Body() updateUserDto: UpdateUserDto) {
-    return this.userService.updateUserById(id, updateUserDto);
+  @HttpCode(HttpStatus.OK)
+  @ApiOkResponseDto({
+    summary: 'Update info of user by id',
+    description: 'Updated user successful',
+    type: User,
+  })
+  async update(@Param('id') id: string, @Body() updateUserDto: UpdateUserDto) {
+    return await this.userService.updateUserById(id, updateUserDto);
+  }
+
+  @Put('update-all')
+  @HttpCode(HttpStatus.OK)
+  @ApiOkResponseDto({
+    summary: 'Update multiple users at once',
+    description: 'All users updated successfully',
+    type: User,
+    isArray: true,
+  })
+  async updateAllUsers(@Body() dto: UpdateAllUsersDto) {
+    return await this.userService.updateAllUsers(dto);
+  }
+
+  @Delete('delete-all')
+  @HttpCode(HttpStatus.OK)
+  @ApiOkResponseDto({
+    summary: 'Delete multiple users',
+    description: 'Deleted users successfully',
+    type: String,
+  })
+  async deleteUsers(
+    @Body() dto: DeleteAllUsersDto,
+  ): Promise<{ message: string; count: number }> {
+    return await this.userService.deleteUsers(dto);
   }
 
   @Delete(':id')
-  remove(@Param('id') id: string) {
-    return this.userService.deleteUsersById(id);
+  @HttpCode(HttpStatus.OK)
+  @ApiOkResponseDto({
+    summary: 'Delete user by ID',
+    description: 'Deleted user successfully',
+    type: String,
+  })
+  async deleteUsersById(@Param('id') id: string): Promise<{ message: string }> {
+    return await this.userService.deleteUsersById(id);
   }
 }

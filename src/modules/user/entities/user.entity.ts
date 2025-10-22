@@ -1,14 +1,15 @@
 // libs
-import { Entity, Column } from 'typeorm';
+import { Entity, Column, OneToMany } from 'typeorm';
 import { UserRole, UserStatus } from '../../../shared/types';
 import { BaseEntity } from '../../../shared/entities';
+import { Post } from '@app/modules/post/entities';
 
 @Entity('users')
 export class User extends BaseEntity {
   @Column({ name: 'email', type: 'varchar', length: 255, unique: true })
   email: string;
 
-  @Column({ name: 'password', type: 'varchar', length: 100 })
+  @Column({ name: 'password', type: 'varchar', length: 20 })
   password: string;
 
   @Column({ name: 'first_name', type: 'varchar', length: 50 })
@@ -33,4 +34,8 @@ export class User extends BaseEntity {
 
   @Column({ nullable: true })
   refreshToken?: string;
+
+  // Relationship to Post
+  @OneToMany(() => Post, (post) => post.author)
+  posts: Post[];
 }
