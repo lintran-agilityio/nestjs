@@ -6,6 +6,9 @@ import { ConfigModule } from '@nestjs/config';
 import { UserModule } from './modules/user/user.module';
 import { AuthModule } from './modules/auth/auth.module';
 import { DatabaseModule } from './modules/database/database.module';
+import { LoggerModule } from './modules/logger/logger.module';
+import { PostModule } from './modules/post/post.module';
+import { AppLoggerService } from './modules/logger/logger.service';
 
 @Module({
   imports: [
@@ -13,10 +16,19 @@ import { DatabaseModule } from './modules/database/database.module';
       isGlobal: true,
     }),
     DatabaseModule,
+    LoggerModule,
     UserModule,
     AuthModule,
+    PostModule,
   ],
   controllers: [],
-  providers: [],
+  providers: [
+    {
+      provide: AppLoggerService,
+      useClass: AppLoggerService,
+      scope: 'TRANSIENT',
+    },
+  ],
+  exports: [AppLoggerService],
 })
 export class AppModule {}

@@ -1,12 +1,12 @@
 // libs
 import {
   Injectable,
-  Logger,
   ConflictException,
   InternalServerErrorException,
   NotFoundException,
   BadRequestException,
   UnauthorizedException,
+  LoggerService,
 } from '@nestjs/common';
 import { Repository, DeepPartial } from 'typeorm';
 import { InjectRepository } from '@nestjs/typeorm';
@@ -27,9 +27,12 @@ import { Inject } from '@nestjs/common';
 import { UserService } from '../user/user.service';
 import { IJwtAuthPayload } from '@app/shared/types';
 import { CUSTOM_PROVIDER_TOKENS } from '@app/shared/common';
+import { AppLoggerService } from '../logger/logger.service';
 
 @Injectable()
 export class AuthService {
+  private readonly logger: LoggerService;
+
   constructor(
     @InjectRepository(User)
     private readonly usersRepo: Repository<User>,
@@ -38,9 +41,11 @@ export class AuthService {
     private configService: ConfigService,
     private jwtService: JwtService,
     private readonly userService: UserService,
-  ) {}
-
-  private readonly logger = new Logger(AuthService.name);
+    private readonly appLogger: AppLoggerService,
+  ) {
+    // Create context name for logger
+    this.logger = appLogger.getLoggerName(AuthService.name);
+  }
 
   async register(
     registerDto: RegisterRequestDto,
@@ -49,14 +54,14 @@ export class AuthService {
       registerDto || {};
 
     // Show the user data by logger
-    this.logger.log(`
+    this.logger.warn(`
       Register user data: ${JSON.stringify(registerDto, null, 2)}
     `);
 
     const existingUser = await this.userService.getUserByEmail(email);
 
     if (existingUser) {
-      this.logger.log(`
+      this.logger.warn(`
         User already exists: ${JSON.stringify(existingUser, null, 2)}
       `);
 
@@ -84,7 +89,7 @@ export class AuthService {
         status: savedUser.status,
       });
     } catch (error) {
-      this.logger.log(`
+      this.logger.error(`
         [Error] - Error log: ${JSON.stringify(error, null, 2)}
       `);
 
@@ -96,14 +101,12 @@ export class AuthService {
     const { email, password } = loginDto;
 
     // Logger user login
-    this.logger.log(`Login user data: ${JSON.stringify(loginDto, null, 2)}`);
+    this.logger.warn(`Login user data: ${JSON.stringify(loginDto, null, 2)}`);
 
     const existingUser = await this.userService.getUserByEmail(email);
 
     if (!existingUser) {
-      this.logger.log(`
-        User not found: ${email}
-      `);
+      this.logger.warn(`User not found: ${email}`);
 
       throw new NotFoundException(MESSAGES.USER_NOT_FOUND);
     }
@@ -116,9 +119,7 @@ export class AuthService {
       );
 
       if (!isValidPassword) {
-        this.logger.log(`
-          Login wrong password: ${password})}
-        `);
+        this.logger.error(`Login wrong password: ${password})}`);
 
         throw new BadRequestException(MESSAGES.USER_WRONG_PASSWORD);
       }
@@ -161,7 +162,7 @@ export class AuthService {
         },
       };
     } catch (error) {
-      this.logger.log(`
+      this.logger.error(`
         [Error] - Login Error: ${JSON.stringify(error, null, 2)}
       `);
 
@@ -183,7 +184,7 @@ export class AuthService {
       const user = await this.userService.getUserById(payload.id);
 
       if (!user || !user.refreshToken) {
-        this.logger.log(MESSAGES.INVALID_REFRESH_TOKEN);
+        this.logger.error(MESSAGES.INVALID_REFRESH_TOKEN);
         throw new UnauthorizedException(MESSAGES.USER_INVALID_REFRESH_TOKEN);
       }
 
@@ -193,7 +194,7 @@ export class AuthService {
       );
 
       if (!isValid) {
-        this.logger.log(MESSAGES.INVALID_REFRESH_TOKEN);
+        this.logger.error(MESSAGES.INVALID_REFRESH_TOKEN);
         throw new UnauthorizedException(MESSAGES.USER_INVALID_REFRESH_TOKEN);
       }
 
@@ -206,7 +207,7 @@ export class AuthService {
 
       return { accessToken: newAccessToken };
     } catch (error) {
-      this.logger.log(
+      this.logger.error(
         `[Error] - Error log: ${MESSAGES.USER_TOKEN_EXPIRED} - ${JSON.stringify(error, null, 2)}`,
       );
       throw new UnauthorizedException(MESSAGES.USER_INVALID_REFRESH_TOKEN);
