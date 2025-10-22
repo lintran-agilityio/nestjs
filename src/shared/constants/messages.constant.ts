@@ -2,9 +2,10 @@ export const MESSAGES = {
   INVALID_CREDENTIALS: 'Invalid password!',
   INVALID_REFRESH_TOKEN: 'Invalid refresh token',
   PERMISSION_DEFINED: 'Permission defined',
-  INVALID_USER_ID: 'Invalid user id',
   POST_NOT_FOUND: 'Post not found',
   SERVER_ERROR: 'Internal server error',
+  BAD_REQUEST: 'Bad request on your params',
+  CONFLICT: 'Conflict or duplicate resource',
 
   // user messages
   USER_UNAUTHORIZED: 'Email or Password wrong!',
@@ -14,6 +15,7 @@ export const MESSAGES = {
   USER_WRONG_PASSWORD: 'Wrong password',
   USER_INVALID_REFRESH_TOKEN: 'Invalid refresh token',
   USER_TOKEN_EXPIRED: 'Invalid or expired refresh token',
+  USER_DELETE_SUCCESS: 'User has been deleted successfully',
 
   // validation
   INVALID_PASSWORD:
