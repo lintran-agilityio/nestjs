@@ -14,4 +14,3 @@ export interface IJwtAuthPayload {
   role: UserRole;
   status: UserStatus;
 }
-

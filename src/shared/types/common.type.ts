@@ -1,4 +1,9 @@
 export enum OrderBy {
-  ASC = 'ACS',
+  ASC = 'ASC',
   DESC = 'DESC',
+}
+
+export interface IMessageAndCountRepose {
+  message: string;
+  count?: number;
 }

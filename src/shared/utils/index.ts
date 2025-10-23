@@ -8,5 +8,5 @@ export const getSelectFields = (
   selectFields: Record<string, boolean>,
 ): string[] =>
   Object.entries(selectFields)
-    .filter(([, value]) => value)
+    .filter(([, value]) => value === true)
     .map(([key]) => key);
