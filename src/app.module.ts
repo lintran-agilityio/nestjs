@@ -1,5 +1,5 @@
 // libs
-import { Module } from '@nestjs/common';
+import { Module, Scope } from '@nestjs/common';
 import { ConfigModule } from '@nestjs/config';
 
 // database module
@@ -26,7 +26,7 @@ import { AppLoggerService } from './modules/logger/logger.service';
     {
       provide: AppLoggerService,
       useClass: AppLoggerService,
-      scope: 'TRANSIENT',
+      scope: Scope.TRANSIENT,
     },
   ],
   exports: [AppLoggerService],
