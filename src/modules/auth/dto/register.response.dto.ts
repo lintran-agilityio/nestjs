@@ -1,5 +1,5 @@
 // Libs
-import { IsEmail, IsNotEmpty, IsString } from 'class-validator';
+import { IsEmail, IsNotEmpty, IsString, IsUUID } from 'class-validator';
 import { ApiProperty } from '@nestjs/swagger';
 import { UserRole, UserStatus } from '@app/shared/types';
 
@@ -12,6 +12,7 @@ export class RegisterResponseDto {
   })
   @IsNotEmpty()
   @IsString()
+  @IsUUID()
   id: string;
 
   @ApiProperty({

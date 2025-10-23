@@ -1,12 +1,9 @@
 import { Logger, LoggerService } from '@nestjs/common';
 
 export class AppLoggerService implements LoggerService {
-  private context = 'AppLogger';
-  private logger = new Logger(this.context);
+  private logger = new Logger('AppLogger');
 
   getLoggerName(context: string): LoggerService {
-    // this.context = context;
-    // this.logger = new Logger(context);
     return new Logger(context);
   }
 

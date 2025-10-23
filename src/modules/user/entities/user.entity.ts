@@ -2,14 +2,14 @@
 import { Entity, Column, OneToMany } from 'typeorm';
 import { UserRole, UserStatus } from '../../../shared/types';
 import { BaseEntity } from '../../../shared/entities';
-import { Post } from '@app/modules/post/entities';
+import { Post } from '../../post/entities';
 
 @Entity('users')
 export class User extends BaseEntity {
   @Column({ name: 'email', type: 'varchar', length: 255, unique: true })
   email: string;
 
-  @Column({ name: 'password', type: 'varchar', length: 20 })
+  @Column({ name: 'password', type: 'varchar', length: 255 })
   password: string;
 
   @Column({ name: 'first_name', type: 'varchar', length: 50 })
