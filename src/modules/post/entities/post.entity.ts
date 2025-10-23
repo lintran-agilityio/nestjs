@@ -1,0 +1,22 @@
+// libs
+import { Column, Entity, JoinColumn, ManyToOne } from 'typeorm';
+
+import { User } from '@app/modules/user/entities';
+import { BaseEntity } from '@app/shared/entities';
+
+@Entity('posts')
+export class Post extends BaseEntity {
+  @Column({ name: 'title', type: 'varchar', length: 255 })
+  title: string;
+
+  @Column({ name: 'contents', type: 'text' })
+  contents: string;
+
+  @Column({ name: 'author_id', type: 'uuid' })
+  authorId: string;
+
+  // Relationship to User
+  @ManyToOne(() => User, (user) => user.posts, { onDelete: 'CASCADE' })
+  @JoinColumn({ name: 'author_id' })
+  author: User;
+}
