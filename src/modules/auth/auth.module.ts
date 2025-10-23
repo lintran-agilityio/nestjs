@@ -2,6 +2,7 @@
 import { Module } from '@nestjs/common';
 import { TypeOrmModule } from '@nestjs/typeorm';
 import { ConfigModule, ConfigService } from '@nestjs/config';
+import { PassportModule } from '@nestjs/passport';
 
 import { AuthService } from './auth.service';
 import { JwtModule, JwtModuleOptions } from '@nestjs/jwt';
@@ -10,10 +11,13 @@ import { User } from '@app/modules/user/entities';
 import { BcryptService } from '@app/modules/hashing/bcrypt.service';
 import { UserModule } from '../user/user.module';
 import { CUSTOM_PROVIDER_TOKENS } from '@app/shared/common';
+import { JwtStrategy } from '@app/shared/strategy';
 
 @Module({
   imports: [
+    ConfigModule,
     TypeOrmModule.forFeature([User]),
+    PassportModule.register({ defaultStrategy: 'jwt' }),
     JwtModule.registerAsync({
       imports: [ConfigModule],
       inject: [ConfigService],
@@ -34,7 +38,8 @@ import { CUSTOM_PROVIDER_TOKENS } from '@app/shared/common';
       provide: CUSTOM_PROVIDER_TOKENS.PASSWORD_HASHING_SERVICE,
       useClass: BcryptService,
     },
+    JwtStrategy,
   ],
-  exports: [AuthService],
+  exports: [AuthService, JwtStrategy, PassportModule],
 })
 export class AuthModule {}

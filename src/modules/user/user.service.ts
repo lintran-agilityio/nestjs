@@ -3,6 +3,7 @@ import {
   Inject,
   Injectable,
   InternalServerErrorException,
+  LoggerService,
   NotFoundException,
 } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
@@ -17,7 +18,7 @@ import {
 } from './dto';
 import { getSelectFields } from '@app/shared/utils';
 import { USER_SELECT_FIELDS } from './config';
-import { OrderBy } from '@app/shared/types';
+import { IMessageAndCountRepose, OrderBy } from '@app/shared/types';
 import { MESSAGES } from '@app/shared/constants';
 import { HashingAbstractService } from '../hashing/hashing.abstract.service';
 import { CUSTOM_PROVIDER_TOKENS } from '@app/shared/common';
@@ -26,6 +27,8 @@ import { QueryPaginationParamDto } from '@app/shared/dto';
 
 @Injectable()
 export class UserService {
+  private readonly logger: LoggerService;
+
   constructor(
     @InjectRepository(User)
     private readonly usersRepo: Repository<User>,
@@ -33,9 +36,10 @@ export class UserService {
     @Inject(CUSTOM_PROVIDER_TOKENS.PASSWORD_HASHING_SERVICE)
     private readonly hashingService: HashingAbstractService,
 
-    private readonly logger: AppLoggerService,
+    private readonly appLoggerServices: AppLoggerService,
   ) {
-    this.logger.setContext(UserService.name);
+    // Create context name for logger
+    this.logger = this.appLoggerServices.getLoggerName(UserService.name);
   }
 
   async getUsers(queryUrl: QueryPaginationParamDto): Promise<UserResponseDto> {
@@ -206,9 +210,7 @@ export class UserService {
     }
   }
 
-  async deleteUsers(
-    _dto: DeleteAllUsersDto,
-  ): Promise<{ message: string; count: number }> {
+  async deleteUsers(_dto: DeleteAllUsersDto): Promise<IMessageAndCountRepose> {
     this.logger.log('Delete all users data');
     const users = await this.usersRepo.find();
     if (!users.length) {
@@ -235,7 +237,7 @@ export class UserService {
     }
   }
 
-  async deleteUsersById(id: string): Promise<{ message: string }> {
+  async deleteUsersById(id: string): Promise<IMessageAndCountRepose> {
     this.logger.warn(`Delete user by ${id}`);
 
     const existedUser = await this.findUserById(id);

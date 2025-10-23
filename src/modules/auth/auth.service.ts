@@ -41,10 +41,10 @@ export class AuthService {
     private configService: ConfigService,
     private jwtService: JwtService,
     private readonly userService: UserService,
-    private readonly appLogger: AppLoggerService,
+    private readonly appLoggerServices: AppLoggerService,
   ) {
     // Create context name for logger
-    this.logger = appLogger.getLoggerName(AuthService.name);
+    this.logger = this.appLoggerServices.getLoggerName(AuthService.name);
   }
 
   async register(
@@ -103,13 +103,7 @@ export class AuthService {
     // Logger user login
     this.logger.warn(`Login user data: ${JSON.stringify(loginDto, null, 2)}`);
 
-    const existingUser = await this.userService.getUserByEmail(email);
-
-    if (!existingUser) {
-      this.logger.warn(`User not found: ${email}`);
-
-      throw new NotFoundException(MESSAGES.USER_NOT_FOUND);
-    }
+    const existingUser = await this.userService.findUserByEmail(email);
 
     try {
       // compare password
