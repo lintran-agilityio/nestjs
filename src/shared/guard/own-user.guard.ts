@@ -7,6 +7,7 @@ import {
 } from '@nestjs/common';
 import { Observable } from 'rxjs';
 import { UserRole } from '../types';
+import { MESSAGES } from '../constants';
 
 interface AuthenticatedRequest extends Request {
   user?: {
@@ -23,17 +24,16 @@ export class OwnUserGuard implements CanActivate {
   canActivate(
     context: ExecutionContext,
   ): boolean | Promise<boolean> | Observable<boolean> {
-    console.log('Work in OwnUserGuard======>')
     const request = context.switchToHttp().getRequest<AuthenticatedRequest>();
     const user = request.user;
     const paramId = request.params.id;
 
     if (!user) {
-      throw new ForbiddenException('User not authentication');
+      throw new ForbiddenException(MESSAGES.UNAUTHORIZED);
     }
 
-    if (user.id !== paramId) {
-      throw new ForbiddenException('You can only modify your own account');
+    if (user.role === UserRole.USER && user.id !== paramId) {
+      throw new ForbiddenException(MESSAGES.NO_PERMISSION);
     }
 
     return true;

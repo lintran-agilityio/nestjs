@@ -19,20 +19,18 @@ export class JwtAuthGuard extends AuthGuard('jwt') {
       context.getHandler(),
       context.getClass(),
     ]);
-    console.log('====== JWT PUBLIC ======', isPublic)
+
     if (isPublic) return true;
-    
+
     const result = super.canActivate(context);
-    console.log('======= JWT CONTEXT', result)
-    
+
     // Handle Promise result properly
     if (result instanceof Promise) {
-      return result.catch((error) => {
-        console.log('JWT Authentication failed:', error.message);
+      return result.catch((error: any) => {
         throw error;
       });
     }
-    
+
     return result;
   }
 }
