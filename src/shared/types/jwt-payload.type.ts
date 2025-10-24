@@ -4,4 +4,5 @@ export interface IJwtPayload {
   role: string;
   iat?: number;
   exp?: number;
+  id?: string;
 }

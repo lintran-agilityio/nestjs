@@ -15,7 +15,6 @@ import { JwtStrategy } from '@app/shared/strategy';
 
 @Module({
   imports: [
-    ConfigModule,
     TypeOrmModule.forFeature([User]),
     PassportModule.register({ defaultStrategy: 'jwt' }),
     JwtModule.registerAsync({
@@ -28,7 +27,6 @@ import { JwtStrategy } from '@app/shared/strategy';
         },
       }),
     }),
-    ConfigModule,
     UserModule,
   ],
   controllers: [AuthController],

@@ -187,6 +187,7 @@ export class UserService {
     id: string,
     updateUserDto: UpdateUserDto,
   ): Promise<User> {
+    const { password } = updateUserDto;
     this.logger.warn(
       `Update user by id: ${id} and use update ${JSON.stringify(updateUserDto)}`,
     );
@@ -194,14 +195,13 @@ export class UserService {
     const existedUser = await this.findUserById(id);
 
     try {
-      const hashedPassword = await this.hashingService.hash(
-        updateUserDto.password,
-      );
+      const hashedPassword = password
+        ? await this.hashingService.hash(updateUserDto.password)
+        : existedUser.password;
 
       this.logger.log('Updated user by ID...');
       return this.usersRepo.save({
         ...updateUserDto,
-        id: existedUser.id,
         password: hashedPassword,
       });
     } catch (error) {

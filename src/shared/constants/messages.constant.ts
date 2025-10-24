@@ -5,6 +5,8 @@ export const MESSAGES = {
   SERVER_ERROR: 'Internal server error',
   BAD_REQUEST: 'Bad request on your params',
   CONFLICT: 'Conflict or duplicate resource',
+  NO_PERMISSION: 'You do not have permission to access this resource',
+  UNAUTHORIZED: 'Your token is expire',
 
   // user error
   USER_UNAUTHORIZED: 'Email or Password wrong!',

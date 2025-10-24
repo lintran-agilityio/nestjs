@@ -1,3 +1,4 @@
+// libs
 import {
   Controller,
   Get,
@@ -9,20 +10,31 @@ import {
   HttpCode,
   HttpStatus,
   Put,
+  UseGuards,
 } from '@nestjs/common';
+import { AuthGuard } from '@nestjs/passport';
+
 import { UserService } from './user.service';
-import { UpdateAllUsersDto, UpdateUserDto } from './dto/update-user.dto';
-import { DeleteAllUsersDto } from './dto';
-import { UserResponseDto } from './dto';
+import {
+  UpdateAllUsersDto,
+  UpdateUserDto,
+  DeleteAllUsersDto,
+  UserResponseDto,
+} from './dto';
 import { User } from './entities';
-import { ApiOkResponseDto } from '@app/shared/decorator';
+import { ApiOkResponseDto, Roles } from '@app/shared/decorator';
 import { QueryPaginationParamDto } from '@app/shared/dto';
+import { IMessageAndCountRepose, UserRole } from '@app/shared/types';
+import { OwnUserGuard, RolesGuard } from '@app/shared/guard';
 
 @Controller('users')
+// Apply authentication first, then roles guard
+// @UseGuards(AuthGuard('jwt'), RolesGuard)
 export class UserController {
   constructor(private readonly userService: UserService) {}
 
   @Get()
+  @Roles(UserRole.ADMIN, UserRole.USER)
   @HttpCode(HttpStatus.OK)
   @ApiOkResponseDto({
     summary: 'Get all user information for ADMIN user role',
@@ -36,6 +48,7 @@ export class UserController {
   }
 
   @Get(':id')
+  @Roles(UserRole.ADMIN, UserRole.USER)
   @HttpCode(HttpStatus.OK)
   @ApiOkResponseDto({
     summary: 'Get user info by id for ADMIN user role',
@@ -47,6 +60,7 @@ export class UserController {
   }
 
   @Get('by-email/:email')
+  @Roles(UserRole.ADMIN, UserRole.USER)
   @HttpCode(HttpStatus.OK)
   @ApiOkResponseDto({
     summary: 'Get user info by email for ADMIN user role',
@@ -58,17 +72,22 @@ export class UserController {
   }
 
   @Patch(':id')
+  @Roles(UserRole.ADMIN, UserRole.USER)
   @HttpCode(HttpStatus.OK)
   @ApiOkResponseDto({
     summary: 'Update info of user by id',
     description: 'Updated user successful',
     type: User,
   })
-  async update(@Param('id') id: string, @Body() updateUserDto: UpdateUserDto) {
+  async update(
+    @Param('id') id: string,
+    @Body() updateUserDto: UpdateUserDto,
+  ): Promise<User> {
     return await this.userService.updateUserById(id, updateUserDto);
   }
 
   @Put('update-all')
+  @Roles(UserRole.ADMIN)
   @HttpCode(HttpStatus.OK)
   @ApiOkResponseDto({
     summary: 'Update multiple users at once',
@@ -76,11 +95,12 @@ export class UserController {
     type: User,
     isArray: true,
   })
-  async updateAllUsers(@Body() dto: UpdateAllUsersDto) {
+  async updateAllUsers(@Body() dto: UpdateAllUsersDto): Promise<User[]> {
     return await this.userService.updateAllUsers(dto);
   }
 
   @Delete('delete-all')
+  @Roles(UserRole.ADMIN)
   @HttpCode(HttpStatus.OK)
   @ApiOkResponseDto({
     summary: 'Delete multiple users',
@@ -89,18 +109,21 @@ export class UserController {
   })
   async deleteUsers(
     @Body() dto: DeleteAllUsersDto,
-  ): Promise<{ message: string; count: number }> {
+  ): Promise<IMessageAndCountRepose> {
     return await this.userService.deleteUsers(dto);
   }
 
   @Delete(':id')
+  @Roles(UserRole.ADMIN, UserRole.USER)
   @HttpCode(HttpStatus.OK)
   @ApiOkResponseDto({
     summary: 'Delete user by ID',
     description: 'Deleted user successfully',
     type: String,
   })
-  async deleteUsersById(@Param('id') id: string): Promise<{ message: string }> {
+  async deleteUsersById(
+    @Param('id') id: string,
+  ): Promise<IMessageAndCountRepose> {
     return await this.userService.deleteUsersById(id);
   }
 }
