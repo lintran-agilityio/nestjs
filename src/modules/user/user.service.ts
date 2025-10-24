@@ -13,7 +13,7 @@ import { User } from './entities';
 import {
   DeleteAllUsersDto,
   UpdateAllUsersDto,
-  UpdateUserDto,
+  UpdateUserByIdDto,
   UserResponseDto,
 } from './dto';
 import { getSelectFields } from '@app/shared/utils';
@@ -185,12 +185,10 @@ export class UserService {
 
   async updateUserById(
     id: string,
-    updateUserDto: UpdateUserDto,
-  ): Promise<User> {
+    updateUserDto: UpdateUserByIdDto,
+  ): Promise<IMessageAndCountRepose> {
     const { password } = updateUserDto;
-    this.logger.warn(
-      `Update user by id: ${id} and use update ${JSON.stringify(updateUserDto)}`,
-    );
+    this.logger.log('Updated user by ID...');
 
     const existedUser = await this.findUserById(id);
 
@@ -199,11 +197,18 @@ export class UserService {
         ? await this.hashingService.hash(updateUserDto.password)
         : existedUser.password;
 
-      this.logger.log('Updated user by ID...');
-      return this.usersRepo.save({
+      this.logger.warn(
+        `Update user by id: ${id} and use update ${JSON.stringify(updateUserDto)}`,
+      );
+      await this.usersRepo.update(id, {
+        // ...existedUser,
         ...updateUserDto,
         password: hashedPassword,
       });
+
+      return {
+        message: `User id - ${id} updated successfully`,
+      };
     } catch (error) {
       this.logger.error(`[Error] - update user error ${JSON.stringify(error)}`);
       throw new InternalServerErrorException('Server error');

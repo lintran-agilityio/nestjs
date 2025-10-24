@@ -11,25 +11,28 @@ import {
   HttpStatus,
   Put,
   UseGuards,
+  UseInterceptors,
+  ClassSerializerInterceptor,
 } from '@nestjs/common';
-import { AuthGuard } from '@nestjs/passport';
 
 import { UserService } from './user.service';
 import {
   UpdateAllUsersDto,
-  UpdateUserDto,
   DeleteAllUsersDto,
   UserResponseDto,
+  UpdateUserByIdDto,
 } from './dto';
 import { User } from './entities';
 import { ApiOkResponseDto, Roles } from '@app/shared/decorator';
 import { QueryPaginationParamDto } from '@app/shared/dto';
 import { IMessageAndCountRepose, UserRole } from '@app/shared/types';
 import { OwnUserGuard, RolesGuard } from '@app/shared/guard';
+import { JwtAuthGuard } from '@app/shared/guard/jwt.guard';
 
+@UseInterceptors(ClassSerializerInterceptor)
 @Controller('users')
 // Apply authentication first, then roles guard
-// @UseGuards(AuthGuard('jwt'), RolesGuard)
+@UseGuards(JwtAuthGuard, RolesGuard)
 export class UserController {
   constructor(private readonly userService: UserService) {}
 
@@ -73,6 +76,7 @@ export class UserController {
 
   @Patch(':id')
   @Roles(UserRole.ADMIN, UserRole.USER)
+  @UseGuards(JwtAuthGuard, RolesGuard, OwnUserGuard)
   @HttpCode(HttpStatus.OK)
   @ApiOkResponseDto({
     summary: 'Update info of user by id',
@@ -81,8 +85,8 @@ export class UserController {
   })
   async update(
     @Param('id') id: string,
-    @Body() updateUserDto: UpdateUserDto,
-  ): Promise<User> {
+    @Body() updateUserDto: UpdateUserByIdDto,
+  ): Promise<IMessageAndCountRepose> {
     return await this.userService.updateUserById(id, updateUserDto);
   }
 
@@ -115,6 +119,7 @@ export class UserController {
 
   @Delete(':id')
   @Roles(UserRole.ADMIN, UserRole.USER)
+  @UseGuards(JwtAuthGuard, RolesGuard, OwnUserGuard)
   @HttpCode(HttpStatus.OK)
   @ApiOkResponseDto({
     summary: 'Delete user by ID',

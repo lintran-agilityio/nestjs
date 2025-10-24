@@ -5,6 +5,8 @@ import { IsArray, ValidateNested } from 'class-validator';
 import { Type } from 'class-transformer';
 import { UuidDto } from '@app/shared/dto';
 
+export class UpdateUserByIdDto extends PartialType(RegisterRequestDto) {}
+
 export class UpdateUserDto extends IntersectionType(
   PartialType(RegisterRequestDto),
   UuidDto,
