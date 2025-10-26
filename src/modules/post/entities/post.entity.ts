@@ -7,6 +7,9 @@ import { BaseEntity } from '@app/shared/entities';
 
 @Entity('posts')
 export class Post extends BaseEntity {
+  @Column({ name: 'slug', type: 'varchar', length: 255, unique: true })
+  slug: string;
+
   @Column({ name: 'title', type: 'varchar', length: 255 })
   title: string;
 

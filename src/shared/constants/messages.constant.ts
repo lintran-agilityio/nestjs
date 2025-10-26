@@ -22,6 +22,7 @@ export const MESSAGES = {
   POST_NOT_FOUND: 'Post not found',
   POST_DELETE_SUCCESS: 'The Post has been deleted successfully',
   DELETE_NO_POST: 'No posts were deleted as none were found',
+  POST_SLUG_IS_EXISTED: 'The post slug already exists',
   NO_POST_PROCESS: 'No posts were processed',
 
   // comment error

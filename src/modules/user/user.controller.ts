@@ -14,6 +14,7 @@ import {
   UseInterceptors,
   ClassSerializerInterceptor,
 } from '@nestjs/common';
+import { ApiBearerAuth } from '@nestjs/swagger';
 
 // App sources
 import { ApiOkResponseDto, Roles } from '@app/shared/decorators';
@@ -34,6 +35,7 @@ const { USER, ADMIN } = UserRole;
 
 @UseInterceptors(ClassSerializerInterceptor)
 @Controller('users')
+@ApiBearerAuth()
 @UseGuards(JwtAuthGuard, RolesGuard)
 export class UserController {
   constructor(private readonly userService: UserService) {}

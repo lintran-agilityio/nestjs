@@ -124,6 +124,21 @@ export class PostService {
   }
 
   /**
+   * Get a post by slug
+   * @param slug - The post slug
+   * @returns Post details or null if not found
+   * @throws NotFoundException if post not found
+   */
+  async getBySlug(slug: string): Promise<Post | null> {
+    this.logger.log(`Get post by Id - ${slug}...`);
+    const post = await this.postsRepo.findOne({
+      where: { slug },
+    });
+
+    return post;
+  }
+
+  /**
    * Get a post by ID
    * @param id - The post ID
    * @returns Post details or null if not found
@@ -156,6 +171,13 @@ export class PostService {
 
     // Find the existed user
     await this.usersService.getById(authorId);
+
+    const post = await this.getBySlug(postDto.slug);
+
+    if (post) {
+      this.logger.log(`Post slug already exists: ${postDto.slug}`);
+      throw new NotFoundException(MESSAGES.POST_SLUG_IS_EXISTED);
+    }
 
     try {
       return this.postsRepo.save({

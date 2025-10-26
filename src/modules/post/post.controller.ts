@@ -12,7 +12,7 @@ import {
   Query,
   UseGuards,
 } from '@nestjs/common';
-import { ApiNoContentResponse } from '@nestjs/swagger';
+import { ApiBearerAuth, ApiNoContentResponse } from '@nestjs/swagger';
 
 // App sources
 import {
@@ -45,6 +45,7 @@ import { PostService } from './post.service';
 const { USER, ADMIN } = UserRole;
 
 @Controller('posts')
+@ApiBearerAuth()
 @UseGuards(JwtAuthGuard, RolesGuard)
 export class PostController {
   constructor(private readonly postService: PostService) {}
@@ -64,7 +65,7 @@ export class PostController {
       'Retrieve paginated list of posts with optional search and filtering',
     type: PostPaginationResponseDto,
   })
-  async getPosts(
+  async getAll(
     @Query() paramQueryDto: QueryPaginationParamDto,
   ): Promise<PostPaginationResponseDto> {
     return await this.postService.getAll(paramQueryDto);
@@ -85,7 +86,7 @@ export class PostController {
     description: 'Retrieve a specific post by its unique identifier',
     type: PostEntities,
   })
-  async getById(@Param('id') id: string): Promise<PostEntities> {
+  async get(@Param('id') id: string): Promise<PostEntities> {
     return await this.postService.getById(id);
   }
 
@@ -104,7 +105,7 @@ export class PostController {
     description: 'Create a new post for the authenticated user',
     type: PostEntities,
   })
-  async createUsersPost(
+  async create(
     @GetCurrentUser() user: IUserInfo,
     @Body() postDto: PostRequestDto,
   ): Promise<PostEntities> {
@@ -127,7 +128,7 @@ export class PostController {
     description: 'Update an existing post by its unique identifier',
     type: PostEntities,
   })
-  async updateUsersPostById(
+  async updateById(
     @Param('id') id: string,
     @Body() updatePostDto: PostRequestDto,
   ): Promise<PostEntities> {
@@ -147,9 +148,7 @@ export class PostController {
     description: 'Delete a post by its unique identifier',
     type: String,
   })
-  async deleteUsersById(
-    @Param('id') id: string,
-  ): Promise<IMessageAndCountResponse> {
+  async deleteById(@Param('id') id: string): Promise<IMessageAndCountResponse> {
     return await this.postService.deleteById(id);
   }
 

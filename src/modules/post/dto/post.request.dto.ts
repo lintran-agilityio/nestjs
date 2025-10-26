@@ -4,6 +4,15 @@ import { IsNotEmpty, IsString, MaxLength } from 'class-validator';
 
 export class PostRequestDto {
   @ApiProperty({
+    example: 'my-first-blog-post',
+    description: 'Slug of Post',
+  })
+  @IsNotEmpty()
+  @MaxLength(255)
+  @IsString()
+  slug: string;
+
+  @ApiProperty({
     example: 'My first blog post',
     description: 'Title of Post',
   })

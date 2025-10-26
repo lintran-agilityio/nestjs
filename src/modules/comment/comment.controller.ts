@@ -14,12 +14,9 @@ import {
   UseInterceptors,
   ClassSerializerInterceptor,
 } from '@nestjs/common';
+import { ApiBearerAuth } from '@nestjs/swagger';
 
-import {
-  RolesGuard,
-  JwtAuthGuard,
-  UserOwnershipProtected,
-} from '@app/shared/guard';
+import { RolesGuard, JwtAuthGuard } from '@app/shared/guard';
 import {
   ApiCreatedResponseDto,
   ApiOkResponseDto,
@@ -49,6 +46,7 @@ const { USER, ADMIN } = UserRole;
  * Implements authentication, authorization, and proper response types
  */
 @Controller('comments')
+@ApiBearerAuth()
 @UseInterceptors(ClassSerializerInterceptor)
 @UseGuards(JwtAuthGuard, RolesGuard)
 export class CommentController {
