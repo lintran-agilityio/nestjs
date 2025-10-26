@@ -13,6 +13,7 @@ import { AppLoggerService } from './modules/logger/logger.service';
 import { APP_GUARD } from '@nestjs/core';
 import { RolesGuard } from './shared/guard';
 import { JwtAuthGuard } from './shared/guard/jwt.guard';
+import { CommentModule } from './modules/comment/comment.module';
 
 @Module({
   imports: [
@@ -25,6 +26,7 @@ import { JwtAuthGuard } from './shared/guard/jwt.guard';
     UserModule,
     AuthModule,
     PostModule,
+    CommentModule,
   ],
   providers: [
     {

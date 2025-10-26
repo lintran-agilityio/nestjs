@@ -5,25 +5,22 @@ import {
   InternalServerErrorException,
   LoggerService,
   NotFoundException,
+  forwardRef,
 } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 
 import { User } from './entities';
-import {
-  DeleteAllUsersDto,
-  UpdateAllUsersDto,
-  UpdateUserByIdDto,
-  UserResponseDto,
-} from './dto';
+import { UpdateAllUsersDto, UpdateUserByIdDto, UserResponseDto } from './dto';
 import { getSelectFields } from '@app/shared/utils';
 import { USER_SELECT_FIELDS } from './config';
-import { IMessageAndCountRepose, OrderBy } from '@app/shared/types';
+import { IMessageAndCountResponse, OrderBy } from '@app/shared/types';
 import { MESSAGES } from '@app/shared/constants';
 import { HashingAbstractService } from '../hashing/hashing.abstract.service';
 import { CUSTOM_PROVIDER_TOKENS } from '@app/shared/common';
 import { AppLoggerService } from '../logger/logger.service';
 import { QueryPaginationParamDto } from '@app/shared/dto';
+import { PostService } from '../post/post.service';
 
 @Injectable()
 export class UserService {
@@ -37,6 +34,9 @@ export class UserService {
     private readonly hashingService: HashingAbstractService,
 
     private readonly appLoggerServices: AppLoggerService,
+
+    @Inject(forwardRef(() => PostService))
+    private readonly postService: PostService,
   ) {
     // Create context name for logger
     this.logger = this.appLoggerServices.getLoggerName(UserService.name);
@@ -186,7 +186,7 @@ export class UserService {
   async updateUserById(
     id: string,
     updateUserDto: UpdateUserByIdDto,
-  ): Promise<IMessageAndCountRepose> {
+  ): Promise<IMessageAndCountResponse> {
     const { password } = updateUserDto;
     this.logger.log('Updated user by ID...');
 
@@ -215,7 +215,7 @@ export class UserService {
     }
   }
 
-  async deleteUsers(_dto: DeleteAllUsersDto): Promise<IMessageAndCountRepose> {
+  async deleteUsers(): Promise<IMessageAndCountResponse> {
     this.logger.log('Delete all users data');
     const users = await this.usersRepo.find();
     if (!users.length) {
@@ -242,7 +242,7 @@ export class UserService {
     }
   }
 
-  async deleteUsersById(id: string): Promise<IMessageAndCountRepose> {
+  async deleteUsersById(id: string): Promise<IMessageAndCountResponse> {
     this.logger.warn(`Delete user by ${id}`);
 
     const existedUser = await this.findUserById(id);
@@ -259,5 +259,12 @@ export class UserService {
       this.logger.error(`[Error] - delete user error ${JSON.stringify(error)}`);
       throw new InternalServerErrorException('Server error');
     }
+  }
+
+  async deleteUserPostById(
+    userId: string,
+    postId: string,
+  ): Promise<IMessageAndCountResponse> {
+    return await this.postService.deleteUserPostById(userId, postId);
   }
 }

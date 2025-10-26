@@ -25,19 +25,22 @@ import {
 import { User } from './entities';
 import { ApiOkResponseDto, Roles } from '@app/shared/decorator';
 import { QueryPaginationParamDto } from '@app/shared/dto';
-import { IMessageAndCountRepose, UserRole } from '@app/shared/types';
-import { OwnUserGuard, RolesGuard } from '@app/shared/guard';
-import { JwtAuthGuard } from '@app/shared/guard/jwt.guard';
+import { IMessageAndCountResponse, UserRole } from '@app/shared/types';
+import {
+  RolesGuard,
+  JwtAuthGuard,
+  UserOwnershipProtected,
+} from '@app/shared/guard';
 
+const { USER, ADMIN } = UserRole;
 @UseInterceptors(ClassSerializerInterceptor)
 @Controller('users')
-// Apply authentication first, then roles guard
 @UseGuards(JwtAuthGuard, RolesGuard)
 export class UserController {
   constructor(private readonly userService: UserService) {}
 
   @Get()
-  @Roles(UserRole.ADMIN, UserRole.USER)
+  @Roles(ADMIN, USER)
   @HttpCode(HttpStatus.OK)
   @ApiOkResponseDto({
     summary: 'Get all user information for ADMIN user role',
@@ -51,7 +54,7 @@ export class UserController {
   }
 
   @Get(':id')
-  @Roles(UserRole.ADMIN, UserRole.USER)
+  @Roles(ADMIN, USER)
   @HttpCode(HttpStatus.OK)
   @ApiOkResponseDto({
     summary: 'Get user info by id for ADMIN user role',
@@ -63,7 +66,7 @@ export class UserController {
   }
 
   @Get('by-email/:email')
-  @Roles(UserRole.ADMIN, UserRole.USER)
+  @Roles(ADMIN, USER)
   @HttpCode(HttpStatus.OK)
   @ApiOkResponseDto({
     summary: 'Get user info by email for ADMIN user role',
@@ -75,8 +78,7 @@ export class UserController {
   }
 
   @Patch(':id')
-  @Roles(UserRole.ADMIN, UserRole.USER)
-  @UseGuards(JwtAuthGuard, RolesGuard, OwnUserGuard)
+  @UserOwnershipProtected('id', [UserRole.ADMIN, UserRole.USER])
   @HttpCode(HttpStatus.OK)
   @ApiOkResponseDto({
     summary: 'Update info of user by id',
@@ -86,12 +88,12 @@ export class UserController {
   async update(
     @Param('id') id: string,
     @Body() updateUserDto: UpdateUserByIdDto,
-  ): Promise<IMessageAndCountRepose> {
+  ): Promise<IMessageAndCountResponse> {
     return await this.userService.updateUserById(id, updateUserDto);
   }
 
   @Put('update-all')
-  @Roles(UserRole.ADMIN)
+  @Roles(ADMIN)
   @HttpCode(HttpStatus.OK)
   @ApiOkResponseDto({
     summary: 'Update multiple users at once',
@@ -104,7 +106,7 @@ export class UserController {
   }
 
   @Delete('delete-all')
-  @Roles(UserRole.ADMIN)
+  @Roles(ADMIN)
   @HttpCode(HttpStatus.OK)
   @ApiOkResponseDto({
     summary: 'Delete multiple users',
@@ -113,13 +115,12 @@ export class UserController {
   })
   async deleteUsers(
     @Body() dto: DeleteAllUsersDto,
-  ): Promise<IMessageAndCountRepose> {
-    return await this.userService.deleteUsers(dto);
+  ): Promise<IMessageAndCountResponse> {
+    return await this.userService.deleteUsers();
   }
 
   @Delete(':id')
-  @Roles(UserRole.ADMIN, UserRole.USER)
-  @UseGuards(JwtAuthGuard, RolesGuard, OwnUserGuard)
+  @UserOwnershipProtected('id', [UserRole.ADMIN, UserRole.USER])
   @HttpCode(HttpStatus.OK)
   @ApiOkResponseDto({
     summary: 'Delete user by ID',
@@ -128,7 +129,23 @@ export class UserController {
   })
   async deleteUsersById(
     @Param('id') id: string,
-  ): Promise<IMessageAndCountRepose> {
+  ): Promise<IMessageAndCountResponse> {
     return await this.userService.deleteUsersById(id);
+  }
+
+  // Delete User post by id
+  @Delete(':id/post/:postId')
+  @UserOwnershipProtected('id', [ADMIN, USER])
+  @HttpCode(HttpStatus.OK)
+  @ApiOkResponseDto({
+    summary: 'Delete specific user post',
+    description: 'Delete a specific post belonging to a user',
+    type: String,
+  })
+  async deleteUserPostById(
+    @Param('id') userId: string,
+    @Param('postId') postId: string,
+  ): Promise<IMessageAndCountResponse> {
+    return await this.userService.deleteUserPostById(userId, postId);
   }
 }
