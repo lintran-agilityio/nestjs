@@ -1,0 +1,77 @@
+services:
+  db:
+    image: postgres:15
+    restart: always
+    secrets:
+      - db-password
+    environment:
+      POSTGRES_DB: instagram
+      POSTGRES_PASSWORD_FILE: /run/secrets/db-password
+      POSTGRES_USER: instagram
+    ports:
+      - "5432:5432"
+    volumes:
+      - ./data:/usr/src/app/data
+    healthcheck:
+      test: ["CMD", "pg_isready", "-U", "instagram"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 30s
+  server:
+    build:
+      context: .
+      target: production # dev / test / prod
+    restart: always
+    ports:
+      - "3001:3001"
+    environment:
+      NODE_ENV: production
+      PORT: 3001
+      DATABASE_URL: postgres://instagram:$(cat /run/secrets/db-password)@db:5432/instagram
+    depends_on:
+      db:
+        condition: service_healthy  
+    secrets:
+      - db-password
+    volumes:
+      - ./logs:/usr/src/app/logs
+
+  dev:
+    build:
+      context: .
+      target: dev
+    environment:
+      NODE_ENV: development
+      PORT: 3001
+      DATABASE_URL: postgres://instagram:$(cat /run/secrets/db-password)@db:5432/instagram
+    ports:
+      - "3002:3001"
+    volumes:
+      - ./src:/usr/src/app/src
+      - ./logs:/usr/src/app/logs
+    depends_on:
+      db:
+        condition: service_healthy
+    secrets:
+      - db-password 
+
+  test:
+    build:
+      context: .
+      target: test
+    environment:
+      NODE_ENV: test
+      DATABASE_URL: postgres://instagram:$(cat /run/secrets/db-password)@db:5432/instagram
+    depends_on:
+      db:
+        condition: service_healthy
+    secrets:
+      - db-password
+  
+      
+volumes:
+  db_data:
+secrets:
+  db-password:
+    file: db/password.txt
