@@ -1,0 +1,184 @@
+direction: right
+
+title: Household Management {
+  shape: text
+  near: top-center
+  style: {
+    font-size: 75
+  }
+}
+
+Person: {
+  shape: sql_table
+  style.fill: red
+
+  id: uuid {constraint: primary_key}
+  first_name: varchar(50)
+  last_name: varchar(50)
+  date_of_birth: date
+  gender: enum('M', 'F', 'O')
+  death_date: date
+}
+
+residency: {
+  shape: sql_table
+
+  id: uuid {constraint: primary_key}
+  person_id: uuid {constraint: foreign_key}
+  address: varchar(255)
+  start_date: date
+  end_date: date
+}
+
+job_status_history: {
+  shape: sql_table
+
+  id: uuid {constraint: primary_key}
+  person_id: uuid {constraint: foreign_key}
+  status: enum('Employed', 'unemployed', 'student', 'retired')
+  start_date: date
+  end_date: date
+}
+
+parent_child: {
+  shape: sql_table
+
+  id: uuid {constraint: primary_key}
+  parent_id: uuid {constraint: foreign_key}
+  child_id: uuid {constraint: foreign_key}
+  start_date: date
+  end_date: date
+}
+
+personal_status: {
+  shape: sql_table
+
+  id: uuid {constraint: primary_key}
+  person_id: uuid {constraint: foreign_key}
+  status: enum('single', 'married', 'divorced', 'widowed')
+  start_date: date
+  end_date: date
+}
+
+household: {
+  shape: sql_table
+  style.fill: orange
+
+  id: uuid {constraint: primary_key}
+  start_date: date
+  end_date: date
+  address: vachar
+}
+
+household_member: {
+  shape: sql_table
+
+  id: uuid {constraint: primary_key}
+  household_id: uuid {constraint: foreign_key}
+  person_id: uuid {constraint: foreign_key}
+  member_since: date
+  member_until: date
+  relationship_to_head: char(50)
+}
+
+income: {
+  shape: sql_table
+
+  id: uuid {constraint: primary_key}
+  household_id: uuid {constraint: foreign_key}
+  person_id: uuid {constraint: foreign_key}
+  amount: numeric(12,2)
+  income_type: enum('salary', 'pension', 'business', 'investment', 'other')
+  period_start: date
+  period_end: date
+}
+
+parent_child_closure: {
+  shape: sql_table
+
+  ancestor_id: uuid {constraint: foreign_key}
+  descendant_id: uuid {constraint: foreign_key}
+  depth: int not null
+  PRIMARY KEY (ancestor_id, descendant_id)
+}
+
+# Relationships with better styling
+Person.id -> residency.person_id: {
+  label: "1:N"
+  style.stroke-width: 2
+}
+
+Person.id -> job_status_history.person_id: {
+  label: "1:N"
+  style.stroke-width: 2
+}
+
+Person.id -> parent_child.parent_id: {
+  label: "1:N"
+  style.stroke-width: 2
+}
+
+Person.id -> parent_child.child_id: {
+  label: "1:N"
+  style.stroke-width: 2
+}
+
+Person.id -> personal_status.person_id: {
+  label: "1:N"
+  style.stroke-width: 2
+}
+
+Person.id -> household_member.person_id: {
+  label: "1:N"
+  style.stroke-width: 2
+}
+household.id -> household_member.household_id: {
+  label: "1:N"
+  style.stroke-width: 2
+}
+
+Person.id -> income.person_id: {
+  label: "1:N"
+  style.stroke-width: 2
+}
+household.id -> income.household_id: {
+  label: "1:N"
+  style.stroke-width: 2
+}
+
+Person.id -> parent_child_closure.ancestor_id: {
+  label: "1:N"
+  style.stroke-width: 2
+}
+
+Person.id -> parent_child_closure.descendant_id: {
+  label: "1:N"
+  style.stroke-width: 2
+}
+
+# Enhanced legend with better styling
+legend: {
+  style.font-size: 16
+  shape: text
+  style.fill: "#f7fafc"
+  style.stroke: "#2d3748"
+  style.stroke-width: 1
+  style.border-radius: 8
+  style.shadow: true
+  label: |md
+    ## Database Relationship Diagram
+
+    ### 1:N Relationships
+    - **Person → residency**: N:1 – Each person belongs to one residency
+    - **Person → Episode**: 1:N – Each series has many job
+    - **Person → Parent_Child**: 1:N – Each Person can have multiple childrent
+    - **Person → Personal_status**: N:1 – Each Person has multiple status
+    - **HouseHold → HouseHold_member**: N:1 – Each HouseHold has one or multiple household member
+
+    ### M:N Relationships (via linking tables)
+    - **Person ↔ HouseHold**: M:N – Through HouseHold_member (Person and household)
+
+    ### Note:
+    - Each table automatically has a soft delete flag (deleted) and start_date and end_date columns.
+  |
+}

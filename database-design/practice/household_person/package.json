@@ -1,0 +1,21 @@
+{
+  "name": "household_person",
+  "version": "1.0.0",
+  "type": "module",
+  "main": "scripts/data/generate-mock-data.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1",
+    "generate:mock": "node scripts/data/generate-mock-data.js",
+    "migrate:test": "cross-env DOTENV_CONFIG_PATH=.env.test prisma migrate deploy --schema=./prisma/schema.prisma"
+  },
+  "author": "",
+  "license": "ISC",
+  "description": "",
+  "devDependencies": {
+    "@faker-js/faker": "^10.0.0",
+    "prisma": "^6.16.2"
+  },
+  "dependencies": {
+    "@prisma/client": "^6.16.2"
+  }
+}
