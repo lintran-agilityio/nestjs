@@ -1,0 +1,19 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"   // or "mysql" | "sqlite" | "mongodb"
+  url      = env("DATABASE_URL")
+}
+
+model Person {
+  id                String    @id @default(uuid()) @db.Uuid
+  first_name        String    @db.VarChar(50)
+  last_name         String?   @db.VarChar(50)
+  email             String    @unique
+  birthday          DateTime
+  death_date        DateTime?
+  gender            String     @default("M") @db.VarChar(1)
+  path_relationship String?    @db.VarChar(255)
+}
