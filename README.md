@@ -23,21 +23,24 @@
 
 ## Description
 
-The User social network is a RESTful API build by NestJs. 
-It's building APIs for our fakeTwitter project we will have three main resource: User, Post, Comment. The project uses PostgreSQL as the database and Prisma ORM for database access and schema management.
+The User social network is a RESTful API build by NestJs.
+It's building APIs for our fakeTwitter project we will have three main resource: User, Post, Comment. The project uses PostgreSQL as the database and TypeORM for database access and schema management.
+
+- Trainee: Lin Tran(lin.tran@asnet.com.vn)
+- Supporter: Duy Tran (duytran@asnet.com.vn)
 
 ## Technical stacks
+
 - [Nest](https://github.com/nestjs/nest) framework TypeScript starter repository.
 
-- [Drizzle ORM](https://orm.drizzle.team/) Drizzle ORM is a lightweight, type-safe, SQL-first ORM (Object Relational Mapper) for JavaScript and TypeScript. It’s designed to give developers full control over SQL while providing excellent TypeScript support, fast performance, and simple migrations — without the heavy abstractions of traditional ORMs like Prisma or TypeORM.
-
-- [Drizzle ORM](https://orm.drizzle.team/docs/guides)
+- [TypeORM](https://typeorm.io/) TypeORM provides a beautiful, simple API for interacting with your database that takes full advantage of TypeScript's type system.
 
 - [Swagger Docs](https://swagger.io/docs/)
 
 - [Testing with Jest](https://jestjs.io/docs/getting-started)
 
 ## Features
+
 - ** User Management **
   - Login
   - Logout
@@ -54,10 +57,10 @@ It's building APIs for our fakeTwitter project we will have three main resource:
   - Unit tests for services and controllers
   - E2E tests for authentication, posts, and comments
 - **Database**
-  - PostgreSQL via Prisma ORM
+  - PostgreSQL via TypeORM
   - Docker support for local development
 - **ORM**
-  - Drizzle ORM
+  - TypeORM
 
 ## Prerequisites
 
@@ -78,22 +81,7 @@ cd user-social-network
 
 ## Environment Variables
 
-Create a `.env` file in the root of your project with the following variables:
-
-```bash
-# Database configuration
-POSTGRES_USER=postgres
-POSTGRES_PASSWORD=your_postgres_password
-POSTGRES_DB=fake_social
-DATABASE_URL="prisma+postgres://accelerate.prisma-data.net/?api_key=your_api_key"
-
-# JWT authentication
-JWT_SECRET="your_jwt_secret"
-JWT_REFRESH_SECRET="your_jwt_refresh_secret"
-
-# Optional: Server port
-PORT=3000
-```
+Create a `.env` file in the root of your project with the following the env.template
 
 ## Project setup
 
@@ -102,6 +90,7 @@ $ pnpm install
 ```
 
 ## Run database
+
 ```bash
 $ docker compose up
 ```
@@ -136,13 +125,14 @@ $ pnpm run test:cov
 
 ```bash
 src/
-├─ auth/          # JWT auth, guards, DTOs
-├─ users/         # Users CRUD
-├─ posts/         # Posts CRUD
-├─ comments/      # Comments CRUD
-├─ prisma/        # Prisma client
+├─modules
+  ├─ auth/          # JWT auth, guards, DTOs
+  ├─ users/         # Users CRUD
+  ├─ posts/         # Posts CRUD
+  ├─ comments/      # Comments CRUD
 ├─ shared/        # Common DTOs, constants, decorators
 ├─ app.module.ts
+├─ main.ts
 ```
 
 ## API Documentation
@@ -150,5 +140,5 @@ src/
 Swagger is enabled and can be accessed in development:
 
 ```bash
-http://localhost:3000/api
+http://localhost:8080/api/docs
 ```
