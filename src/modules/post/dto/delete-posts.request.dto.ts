@@ -1,4 +1,4 @@
-// libs
+// Libs
 import { IsArray, IsNotEmpty, IsUUID } from 'class-validator';
 import { ApiProperty } from '@nestjs/swagger';
 
@@ -17,6 +17,6 @@ export class DeletePostsRequestDto {
   })
   @IsArray()
   @IsNotEmpty()
-  @IsUUID()
+  @IsUUID(undefined, { each: true })
   postIds: string[];
 }

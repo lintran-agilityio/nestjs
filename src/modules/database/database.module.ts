@@ -1,5 +1,5 @@
-// libs
-import { typeOrmConfig } from '@app/config/typeorm.config';
+// Libs
+import { clientConfig } from '@app/config/client.config';
 import { Module } from '@nestjs/common';
 import { ConfigModule, ConfigService } from '@nestjs/config';
 
@@ -10,7 +10,7 @@ import { TypeOrmModule } from '@nestjs/typeorm';
     TypeOrmModule.forRootAsync({
       imports: [ConfigModule],
       inject: [ConfigService],
-      useFactory: typeOrmConfig,
+      useFactory: clientConfig,
     }),
   ],
 })

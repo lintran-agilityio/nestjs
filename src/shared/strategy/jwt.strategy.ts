@@ -1,4 +1,4 @@
-// libs
+// Libs
 import { Injectable, UnauthorizedException } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { PassportStrategy } from '@nestjs/passport';
@@ -24,6 +24,8 @@ export class JwtStrategy extends PassportStrategy(JwtStrategyBase, 'jwt') {
   }
 
   async validate(payload: IJwtPayload) {
+    console.log('---as');
+
     try {
       // Handle both 'id' and 'sub' fields for compatibility
       const userId = payload.id || payload.sub;

@@ -1,4 +1,4 @@
-// libs
+// Libs
 import { SetMetadata } from '@nestjs/common';
 
 import { IS_PUBLIC, IS_ADMIN_ONLY } from '../common';

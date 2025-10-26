@@ -1,9 +1,13 @@
-// libs
-import { Entity, Column, OneToMany } from 'typeorm';
-import { UserRole, UserStatus } from '../../../shared/types';
-import { BaseEntity } from '../../../shared/entities';
-import { Post } from '../../post/entities';
+// Libs
 import { Exclude } from 'class-transformer';
+import { Column, Entity, OneToMany } from 'typeorm';
+
+// App sources
+import { BaseEntity } from '@app/shared/entities';
+import { UserRole, UserStatus } from '@app/shared/types';
+
+// Local sources
+import { Post } from '@app/modules/post/entities';
 
 @Entity('users')
 export class User extends BaseEntity {

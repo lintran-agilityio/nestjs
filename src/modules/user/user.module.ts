@@ -1,13 +1,16 @@
-// libs
-import { Module, forwardRef } from '@nestjs/common';
+// Libs
+import { forwardRef, Module } from '@nestjs/common';
 import { TypeOrmModule } from '@nestjs/typeorm';
 
-import { UserService } from './user.service';
-import { UserController } from './user.controller';
-import { User } from './entities';
+// App sources
 import { CUSTOM_PROVIDER_TOKENS } from '@app/shared/common';
-import { BcryptService } from '../hashing/bcrypt.service';
-import { PostModule } from '../post/post.module';
+import { BcryptService } from '@app/modules/hashing/bcrypt.service';
+import { PostModule } from '@app/modules/post/post.module';
+
+// Local sources
+import { UserController } from './user.controller';
+import { UserService } from './user.service';
+import { User } from './entities';
 
 @Module({
   imports: [TypeOrmModule.forFeature([User]), forwardRef(() => PostModule)],

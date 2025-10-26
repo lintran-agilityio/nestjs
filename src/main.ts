@@ -1,8 +1,8 @@
-// libs
+// Libs
 import { NestFactory } from '@nestjs/core';
-import { ValidationPipe, VersioningType } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import * as basicAuth from 'express-basic-auth';
+import { ValidationPipe, VersioningType } from '@nestjs/common';
 
 import { AppModule } from './app.module';
 import { DocumentBuilder, SwaggerModule } from '@nestjs/swagger';
@@ -43,7 +43,6 @@ async function bootstrap() {
         `/${apiPrefix}/debugging`,
       ],
 
-      // eslint-disable-next-line @typescript-eslint/no-unsafe-call
       basicAuth({
         challenge: true,
         users: {
@@ -58,10 +57,13 @@ async function bootstrap() {
     .setDescription('The API documentation for the NestJs Practice project')
     .setVersion('1.0')
     .addBasicAuth()
+    .addBearerAuth()
     .build();
 
   const document = SwaggerModule.createDocument(app, config);
   SwaggerModule.setup(`${apiPrefix}/docs`, app, document);
-  await app.listen(process.env.PORT ?? 3000);
+
+  await app.listen(process.env.PORT ?? 8080);
 }
-bootstrap();
+
+void bootstrap();

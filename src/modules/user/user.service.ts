@@ -1,26 +1,29 @@
-// libs
+// Libs
 import {
+  forwardRef,
   Inject,
   Injectable,
   InternalServerErrorException,
   LoggerService,
   NotFoundException,
-  forwardRef,
 } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 
-import { User } from './entities';
-import { UpdateAllUsersDto, UpdateUserByIdDto, UserResponseDto } from './dto';
-import { getSelectFields } from '@app/shared/utils';
-import { USER_SELECT_FIELDS } from './config';
-import { IMessageAndCountResponse, OrderBy } from '@app/shared/types';
-import { MESSAGES } from '@app/shared/constants';
-import { HashingAbstractService } from '../hashing/hashing.abstract.service';
+// App sources
 import { CUSTOM_PROVIDER_TOKENS } from '@app/shared/common';
-import { AppLoggerService } from '../logger/logger.service';
+import { MESSAGES } from '@app/shared/constants';
 import { QueryPaginationParamDto } from '@app/shared/dto';
-import { PostService } from '../post/post.service';
+import { IMessageAndCountResponse, OrderBy } from '@app/shared/types';
+import { getSelectFields } from '@app/shared/utils';
+import { HashingAbstractService } from '@app/modules/hashing/hashing.abstract.service';
+import { AppLoggerService } from '@app/modules/logger/logger.service';
+import { PostService } from '@app/modules/post/post.service';
+
+// Local sources
+import { USER_SELECT_FIELDS } from './config';
+import { UpdateAllUsersDto, UpdateUserByIdDto, UserResponseDto } from './dto';
+import { User } from './entities';
 
 @Injectable()
 export class UserService {
@@ -42,11 +45,17 @@ export class UserService {
     this.logger = this.appLoggerServices.getLoggerName(UserService.name);
   }
 
-  async getUsers(queryUrl: QueryPaginationParamDto): Promise<UserResponseDto> {
+  /**
+   * Get all users with pagination
+   * @param queryUrl - Query parameters for pagination, sorting, and filtering
+   * @returns Paginated list of users with metadata
+   * @throws InternalServerErrorException on server error
+   */
+  async getAll(queryUrl: QueryPaginationParamDto): Promise<UserResponseDto> {
     this.logger.log('Get all users...');
 
     try {
-      this.logger.warn(`Query get all users: ${JSON.stringify(queryUrl)}`);
+      this.logger.log(`Query get all users: ${JSON.stringify(queryUrl)}`);
       const { limit, orderBy, page, sortBy, search } = queryUrl;
       const query = {
         limit: limit || 1,
@@ -59,7 +68,7 @@ export class UserService {
       const numberLimit = Number(limit) || 10;
       const skip = (numberPage - 1) * numberLimit;
 
-      this.logger.warn(`Query get all users: ${JSON.stringify(query)}`);
+      this.logger.log(`Query get all users: ${JSON.stringify(query)}`);
 
       // Fields selected
       const selectFields = getSelectFields(USER_SELECT_FIELDS);
@@ -104,18 +113,29 @@ export class UserService {
         `[Error] - Get error when get all user: ${JSON.stringify(error)}`,
       );
 
-      throw new InternalServerErrorException('Server error');
+      throw new InternalServerErrorException(MESSAGES.SERVER_ERROR);
     }
   }
 
+  /**
+   * Get user by email without throwing error
+   * @param email - User email
+   * @returns User or null if not found
+   */
   async getUserByEmail(email: string): Promise<User | null> {
-    this.logger.warn(`Query get user by email: ${email}`);
+    this.logger.log(`Query get user by email: ${email}`);
     return await this.usersRepo.findOne({
       where: { email },
     });
   }
 
-  async findUserByEmail(email: string): Promise<User | null> {
+  /**
+   * Find user by email, throws error if not found
+   * @param email - User email
+   * @returns User details
+   * @throws NotFoundException if user not found
+   */
+  async getByEmail(email: string): Promise<User> {
     this.logger.log('Get user by email...');
     const user = await this.getUserByEmail(email);
 
@@ -128,14 +148,25 @@ export class UserService {
     return user;
   }
 
+  /**
+   * Get user by ID without throwing error
+   * @param id - User ID
+   * @returns User or null if not found
+   */
   async getUserById(id: string): Promise<User | null> {
-    this.logger.warn(`Query get user by id: ${id}`);
+    this.logger.log(`Query get user by id: ${id}`);
     return await this.usersRepo.findOne({
       where: { id },
     });
   }
 
-  async findUserById(id: string): Promise<User | null> {
+  /**
+   * Get user by ID, throws error if not found
+   * @param id - User ID
+   * @returns User details
+   * @throws NotFoundException if user not found
+   */
+  async getById(id: string): Promise<User> {
     this.logger.log('Get user by id...');
     const user = await this.getUserById(id);
 
@@ -148,13 +179,24 @@ export class UserService {
     return user;
   }
 
-  async updateRefreshToken(id: string, refreshToken: string) {
+  /**
+   * Update refresh token for user
+   * @param id - User ID
+   * @param refreshToken - New refresh token
+   */
+  async updateRefreshToken(id: string, refreshToken: string): Promise<void> {
     this.logger.log('Update refresh token when token is expire...');
     await this.usersRepo.update(id, { refreshToken });
   }
 
-  async updateAllUsers(updateUsersDto: UpdateAllUsersDto) {
-    this.logger.warn(
+  /**
+   * Update multiple users at once
+   * @param updateUsersDto - DTO containing array of users to update
+   * @returns Array of updated users
+   * @throws InternalServerErrorException on server error
+   */
+  async updateAll(updateUsersDto: UpdateAllUsersDto): Promise<User[]> {
+    this.logger.log(
       `Update all user' information have  ${JSON.stringify(updateUsersDto)}`,
     );
     const users = updateUsersDto.users || [];
@@ -163,7 +205,7 @@ export class UserService {
     try {
       for (const userDto of users) {
         const { id } = userDto;
-        const existingUser = await this.findUserById(id);
+        const existingUser = await this.getById(id);
         userDto.password = await this.hashingService.hash(userDto.password);
         const userUpdating = this.usersRepo.merge(existingUser, userDto);
         const userUpdated = await this.usersRepo.save(userUpdating);
@@ -179,25 +221,33 @@ export class UserService {
         [Error] - Error log: ${JSON.stringify(error, null, 2)}
       `);
 
-      throw new InternalServerErrorException('Server error');
+      throw new InternalServerErrorException(MESSAGES.SERVER_ERROR);
     }
   }
 
-  async updateUserById(
+  /**
+   * Update a user by ID
+   * @param id - User ID
+   * @param updateUserDto - Updated user data
+   * @returns Success message
+   * @throws NotFoundException if user not found
+   * @throws InternalServerErrorException on server error
+   */
+  async updateById(
     id: string,
     updateUserDto: UpdateUserByIdDto,
   ): Promise<IMessageAndCountResponse> {
     const { password } = updateUserDto;
     this.logger.log('Updated user by ID...');
 
-    const existedUser = await this.findUserById(id);
+    const existedUser = await this.getById(id);
 
     try {
       const hashedPassword = password
         ? await this.hashingService.hash(updateUserDto.password)
         : existedUser.password;
 
-      this.logger.warn(
+      this.logger.log(
         `Update user by id: ${id} and use update ${JSON.stringify(updateUserDto)}`,
       );
       await this.usersRepo.update(id, {
@@ -211,11 +261,17 @@ export class UserService {
       };
     } catch (error) {
       this.logger.error(`[Error] - update user error ${JSON.stringify(error)}`);
-      throw new InternalServerErrorException('Server error');
+      throw new InternalServerErrorException(MESSAGES.SERVER_ERROR);
     }
   }
 
-  async deleteUsers(): Promise<IMessageAndCountResponse> {
+  /**
+   * Delete all users
+   * @returns Success message with deletion count
+   * @throws NotFoundException if no users found
+   * @throws InternalServerErrorException on server error
+   */
+  async deleteAll(): Promise<IMessageAndCountResponse> {
     this.logger.log('Delete all users data');
     const users = await this.usersRepo.find();
     if (!users.length) {
@@ -238,14 +294,21 @@ export class UserService {
       this.logger.error(
         `[Error] - delete users error ${JSON.stringify(error)}`,
       );
-      throw new InternalServerErrorException('Server error');
+      throw new InternalServerErrorException(MESSAGES.SERVER_ERROR);
     }
   }
 
-  async deleteUsersById(id: string): Promise<IMessageAndCountResponse> {
-    this.logger.warn(`Delete user by ${id}`);
+  /**
+   * Delete a user by ID
+   * @param id - User ID
+   * @returns Success message
+   * @throws NotFoundException if user not found
+   * @throws InternalServerErrorException on server error
+   */
+  async deleteById(id: string): Promise<IMessageAndCountResponse> {
+    this.logger.log(`Delete user by ${id}`);
 
-    const existedUser = await this.findUserById(id);
+    const existedUser = await this.getById(id);
 
     try {
       await this.usersRepo.remove(existedUser);
@@ -257,11 +320,18 @@ export class UserService {
       };
     } catch (error) {
       this.logger.error(`[Error] - delete user error ${JSON.stringify(error)}`);
-      throw new InternalServerErrorException('Server error');
+      throw new InternalServerErrorException(MESSAGES.SERVER_ERROR);
     }
   }
 
-  async deleteUserPostById(
+  /**
+   * Delete a user's post by ID
+   * @param userId - User ID
+   * @param postId - Post ID
+   * @returns Success message
+   * @throws InternalServerErrorException on server error
+   */
+  async deletePostById(
     userId: string,
     postId: string,
   ): Promise<IMessageAndCountResponse> {

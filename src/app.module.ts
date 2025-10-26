@@ -1,6 +1,7 @@
-// libs
-import { Module, Scope } from '@nestjs/common';
+// Libs
+import { APP_GUARD } from '@nestjs/core';
 import { ConfigModule } from '@nestjs/config';
+import { Module, Scope } from '@nestjs/common';
 import { PassportModule } from '@nestjs/passport';
 
 // database module
@@ -10,10 +11,9 @@ import { DatabaseModule } from './modules/database/database.module';
 import { LoggerModule } from './modules/logger/logger.module';
 import { PostModule } from './modules/post/post.module';
 import { AppLoggerService } from './modules/logger/logger.service';
-import { APP_GUARD } from '@nestjs/core';
-import { RolesGuard } from './shared/guard';
-import { JwtAuthGuard } from './shared/guard/jwt.guard';
 import { CommentModule } from './modules/comment/comment.module';
+
+import { JwtAuthGuard, RolesGuard } from '@app/shared/guard';
 
 @Module({
   imports: [

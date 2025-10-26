@@ -1,4 +1,4 @@
-// libs
+// Libs
 import { applyDecorators, SetMetadata, UseGuards } from '@nestjs/common';
 
 import { OwnUserGuard } from './own-user.guard';

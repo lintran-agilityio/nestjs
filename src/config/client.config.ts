@@ -1,9 +1,9 @@
-// libs
+// Libs
 import { ConfigService } from '@nestjs/config';
 
 import { DataSourceOptions } from 'typeorm';
 
-export const typeOrmConfig = async (
+export const clientConfig = async (
   configService: ConfigService,
 ): Promise<DataSourceOptions> => {
   return Promise.resolve({
