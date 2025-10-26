@@ -1,19 +1,26 @@
-// libs
+// Libs
 import { ApiProperty } from '@nestjs/swagger';
 
-import { IPaginationResponse } from '@app/shared/interfaces';
+// Local sources
 import { Post } from '../entities';
-import { MetadataResponseDto } from '@app/shared/dto';
 
+// App sources
+import { MetadataResponseDto } from '@app/shared/dto';
+import { IPaginationResponse } from '@app/shared/interfaces';
+
+/**
+ * DTO for paginated post response
+ * Contains array of posts and pagination metadata
+ */
 export class PostPaginationResponseDto implements IPaginationResponse<Post> {
   @ApiProperty({
-    description: 'List Post of User',
+    description: 'Array of posts',
     type: [Post],
   })
   data: Post[];
 
   @ApiProperty({
-    description: 'Metadata pagination',
+    description: 'Pagination metadata',
     type: MetadataResponseDto,
   })
   meta: MetadataResponseDto;

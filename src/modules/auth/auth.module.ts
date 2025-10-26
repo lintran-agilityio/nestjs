@@ -1,18 +1,26 @@
-// libs
+// Libs
 import { Module } from '@nestjs/common';
-import { TypeOrmModule } from '@nestjs/typeorm';
 import { ConfigModule, ConfigService } from '@nestjs/config';
-import { PassportModule } from '@nestjs/passport';
-
-import { AuthService } from './auth.service';
 import { JwtModule, JwtModuleOptions } from '@nestjs/jwt';
-import { AuthController } from './auth.controller';
-import { User } from '@app/modules/user/entities';
+import { PassportModule } from '@nestjs/passport';
+import { TypeOrmModule } from '@nestjs/typeorm';
+
+// App sources
 import { BcryptService } from '@app/modules/hashing/bcrypt.service';
-import { UserModule } from '../user/user.module';
+import { User } from '@app/modules/user/entities';
+import { UserModule } from '@app/modules/user/user.module';
 import { CUSTOM_PROVIDER_TOKENS } from '@app/shared/common';
 import { JwtStrategy } from '@app/shared/strategy';
 
+// Local sources
+import { AuthController } from './auth.controller';
+import { AuthService } from './auth.service';
+
+/**
+ * Authentication module
+ * Handles user registration, login, and token refresh
+ * Provides JWT authentication strategy and password hashing service
+ */
 @Module({
   imports: [
     TypeOrmModule.forFeature([User]),

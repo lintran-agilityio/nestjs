@@ -1,9 +1,12 @@
-import { IntersectionType, PartialType } from '@nestjs/mapped-types';
-import { RegisterRequestDto } from '@app/modules/auth/dto';
+// Libs
 import { ApiProperty } from '@nestjs/swagger';
-import { IsArray, ValidateNested } from 'class-validator';
 import { Type } from 'class-transformer';
+import { IntersectionType, PartialType } from '@nestjs/mapped-types';
+import { IsArray, ValidateNested } from 'class-validator';
+
+// App sources
 import { UuidDto } from '@app/shared/dto';
+import { RegisterRequestDto } from '@app/modules/auth/dto';
 
 export class UpdateUserByIdDto extends PartialType(RegisterRequestDto) {}
 

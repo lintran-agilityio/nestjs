@@ -1,4 +1,4 @@
-// libs
+// Libs
 import { Column, Entity, JoinColumn, ManyToOne } from 'typeorm';
 
 import { User } from '@app/modules/user/entities';

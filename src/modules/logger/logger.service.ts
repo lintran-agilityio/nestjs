@@ -1,3 +1,4 @@
+// Libs
 import { Logger, LoggerService } from '@nestjs/common';
 
 export class AppLoggerService implements LoggerService {
@@ -16,7 +17,7 @@ export class AppLoggerService implements LoggerService {
   }
 
   warn(message: string) {
-    this.logger.warn(message);
+    this.logger.log(message);
   }
 
   debug(message: string) {

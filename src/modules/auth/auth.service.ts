@@ -1,33 +1,35 @@
-// libs
+// Libs
 import {
-  Injectable,
-  ConflictException,
-  InternalServerErrorException,
-  NotFoundException,
   BadRequestException,
-  UnauthorizedException,
+  ConflictException,
+  Inject,
+  Injectable,
+  InternalServerErrorException,
   LoggerService,
+  UnauthorizedException,
 } from '@nestjs/common';
-import { Repository, DeepPartial } from 'typeorm';
-import { InjectRepository } from '@nestjs/typeorm';
 import { ConfigService } from '@nestjs/config';
 import { JwtService } from '@nestjs/jwt';
 import type { JwtSignOptions } from '@nestjs/jwt';
+import { InjectRepository } from '@nestjs/typeorm';
+import { DeepPartial, Repository } from 'typeorm';
 
+// App sources
+import { HashingAbstractService } from '@app/modules/hashing/hashing.abstract.service';
+import { AppLoggerService } from '@app/modules/logger/logger.service';
+import { User } from '@app/modules/user/entities';
+import { UserService } from '@app/modules/user/user.service';
+import { CUSTOM_PROVIDER_TOKENS } from '@app/shared/common';
+import { MESSAGES } from '@app/shared/constants';
+import { IJwtAuthPayload } from '@app/shared/types';
+
+// Local sources
 import {
   LoginRequestDto,
   LoginResponseDto,
   RegisterRequestDto,
   RegisterResponseDto,
 } from './dto';
-import { User } from '@app/modules/user/entities';
-import { MESSAGES } from '@app/shared/constants';
-import { HashingAbstractService } from '@app/modules/hashing/hashing.abstract.service';
-import { Inject } from '@nestjs/common';
-import { UserService } from '../user/user.service';
-import { IJwtAuthPayload } from '@app/shared/types';
-import { CUSTOM_PROVIDER_TOKENS } from '@app/shared/common';
-import { AppLoggerService } from '../logger/logger.service';
 
 @Injectable()
 export class AuthService {
@@ -38,30 +40,35 @@ export class AuthService {
     private readonly usersRepo: Repository<User>,
     @Inject(CUSTOM_PROVIDER_TOKENS.PASSWORD_HASHING_SERVICE)
     private readonly hashingService: HashingAbstractService,
-    private configService: ConfigService,
-    private jwtService: JwtService,
+    private readonly configService: ConfigService,
+    private readonly jwtService: JwtService,
     private readonly userService: UserService,
-    private readonly appLoggerServices: AppLoggerService,
+    private readonly appLoggerService: AppLoggerService,
   ) {
-    // Create context name for logger
-    this.logger = this.appLoggerServices.getLoggerName(AuthService.name);
+    this.logger = this.appLoggerService.getLoggerName(AuthService.name);
   }
 
+  /**
+   * Register a new user
+   * @param registerDto - User registration data
+   * @returns Registered user information
+   * @throws ConflictException if user already exists
+   * @throws InternalServerErrorException on server error
+   */
   async register(
     registerDto: RegisterRequestDto,
   ): Promise<RegisterResponseDto> {
     const { email, password, role, firstName, lastName, status } =
       registerDto || {};
 
-    // Show the user data by logger
-    this.logger.warn(`
+    this.logger.log(`
       Register user data: ${JSON.stringify(registerDto, null, 2)}
     `);
 
     const existingUser = await this.userService.getUserByEmail(email);
 
     if (existingUser) {
-      this.logger.warn(`
+      this.logger.log(`
         User already exists: ${JSON.stringify(existingUser, null, 2)}
       `);
 
@@ -71,7 +78,7 @@ export class AuthService {
     const hashedPassword = await this.hashingService.hash(password);
 
     try {
-      const userRes = this.usersRepo.create({
+      const newUser = this.usersRepo.create({
         email,
         password: hashedPassword,
         firstName,
@@ -80,7 +87,7 @@ export class AuthService {
         status,
       } as DeepPartial<User>);
 
-      const savedUser = (await this.usersRepo.save(userRes)) as unknown as User;
+      const savedUser = await this.usersRepo.save(newUser);
 
       return new RegisterResponseDto({
         id: savedUser.id,
@@ -89,31 +96,40 @@ export class AuthService {
         status: savedUser.status,
       });
     } catch (error) {
-      this.logger.error(`
-        [Error] - Error log: ${JSON.stringify(error, null, 2)}
-      `);
+      this.logger.error(`[Register Error] - ${JSON.stringify(error, null, 2)}`);
 
-      throw new InternalServerErrorException('Server error');
+      throw new InternalServerErrorException(MESSAGES.SERVER_ERROR);
     }
   }
 
+  /**
+   * Authenticate user and return access tokens
+   * @param loginDto - User login credentials (email and password)
+   * @returns Access token, refresh token, and user information
+   * @throws UnauthorizedException if user not found or invalid credentials
+   * @throws BadRequestException if password is incorrect
+   * @throws InternalServerErrorException on server error
+   */
   async login(loginDto: LoginRequestDto): Promise<LoginResponseDto> {
     const { email, password } = loginDto;
 
-    // Logger user login
-    this.logger.warn(`Login user data: ${JSON.stringify(loginDto, null, 2)}`);
+    this.logger.log(`Login user data: ${JSON.stringify(loginDto, null, 2)}`);
 
-    const existingUser = await this.userService.findUserByEmail(email);
+    const existingUser = await this.userService.getUserByEmail(email);
+
+    if (!existingUser) {
+      this.logger.error(`User not found: ${email}`);
+      throw new UnauthorizedException(MESSAGES.USER_WRONG_PASSWORD);
+    }
 
     try {
-      // compare password
       const isValidPassword = await this.hashingService.compare(
         password,
         existingUser.password,
       );
 
       if (!isValidPassword) {
-        this.logger.error(`Login wrong password: ${password})}`);
+        this.logger.error(`Wrong password for user: ${email}`);
 
         throw new BadRequestException(MESSAGES.USER_WRONG_PASSWORD);
       }
@@ -138,7 +154,6 @@ export class AuthService {
           '7d') as JwtSignOptions['expiresIn'],
       });
 
-      // store refresh token in DB
       const hashedRefreshToken = await this.hashingService.hash(refreshToken);
       await this.userService.updateRefreshToken(
         existingUser.id,
@@ -156,15 +171,19 @@ export class AuthService {
         },
       };
     } catch (error) {
-      this.logger.error(`
-        [Error] - Login Error: ${JSON.stringify(error, null, 2)}
-      `);
+      this.logger.error(`[Login Error] - ${JSON.stringify(error, null, 2)}`);
 
-      throw new InternalServerErrorException('Server error');
+      throw new InternalServerErrorException(MESSAGES.SERVER_ERROR);
     }
   }
 
-  async refreshTokens(refreshToken: string) {
+  /**
+   * Refresh access token using refresh token
+   * @param refreshToken - The refresh token string
+   * @returns New access token
+   * @throws UnauthorizedException if refresh token is invalid or expired
+   */
+  async refreshTokens(refreshToken: string): Promise<{ accessToken: string }> {
     try {
       const payload = await this.jwtService.verifyAsync<IJwtAuthPayload>(
         refreshToken,
@@ -202,7 +221,7 @@ export class AuthService {
       return { accessToken: newAccessToken };
     } catch (error) {
       this.logger.error(
-        `[Error] - Error log: ${MESSAGES.USER_TOKEN_EXPIRED} - ${JSON.stringify(error, null, 2)}`,
+        `[Refresh Token Error] - ${MESSAGES.USER_TOKEN_EXPIRED} - ${JSON.stringify(error, null, 2)}`,
       );
       throw new UnauthorizedException(MESSAGES.USER_INVALID_REFRESH_TOKEN);
     }

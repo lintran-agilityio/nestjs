@@ -1,4 +1,7 @@
+// Libs
 import { Test, TestingModule } from '@nestjs/testing';
+
+// Local sources
 import { UserService } from './user.service';
 
 describe('UserService', () => {

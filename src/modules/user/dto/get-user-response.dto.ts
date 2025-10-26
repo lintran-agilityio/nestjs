@@ -1,6 +1,11 @@
+// Libs
+import { ApiProperty } from '@nestjs/swagger';
+
+// App sources
 import { MetadataResponseDto } from '@app/shared/dto';
 import { IPaginationResponse } from '@app/shared/interfaces';
-import { ApiProperty } from '@nestjs/swagger';
+
+// Local sources
 import { User } from '../entities';
 
 export class UserResponseDto implements IPaginationResponse<User> {

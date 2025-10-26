@@ -1,4 +1,4 @@
-// libs
+// Libs
 import { ExecutionContext, Injectable } from '@nestjs/common';
 import { Reflector } from '@nestjs/core';
 import { AuthGuard } from '@nestjs/passport';
@@ -20,11 +20,14 @@ export class JwtAuthGuard extends AuthGuard('jwt') {
 
     if (isPublic) return true;
 
-    const result = super.canActivate(context);
+    const result = await super.canActivate(context);
+
+    console.log('result: ', result);
+    console.log('======');
 
     // Handle Promise result
     if (result instanceof Promise) {
-      return await result;
+      return result;
     }
 
     // Handle Observable result

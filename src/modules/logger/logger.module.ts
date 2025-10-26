@@ -1,4 +1,4 @@
-// libs
+// Libs
 import { Global, Module } from '@nestjs/common';
 
 import { AppLoggerService } from './logger.service';

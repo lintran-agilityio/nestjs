@@ -1,13 +1,18 @@
 // Libs
-import { IsEmail, IsNotEmpty, IsString, IsUUID } from 'class-validator';
 import { ApiProperty } from '@nestjs/swagger';
+import { IsEmail, IsNotEmpty, IsString, IsUUID } from 'class-validator';
+
+// App sources
 import { UserRole, UserStatus } from '@app/shared/types';
 
-// Create dto for user registration response
+/**
+ * DTO for user registration response
+ * Contains created user information after successful registration
+ */
 export class RegisterResponseDto {
   @ApiProperty({
     type: String,
-    description: 'Id of user',
+    description: 'Unique identifier of the user',
     example: 'abcd2312-ab12-ab12-aB11-abcd122345678',
   })
   @IsNotEmpty()
@@ -17,8 +22,8 @@ export class RegisterResponseDto {
 
   @ApiProperty({
     type: String,
-    description: 'Email login',
-    example: 'lin.tran@gmail.com',
+    description: 'Email address of the registered user',
+    example: 'some.one@gmail.com',
   })
   @IsEmail()
   @IsNotEmpty()
@@ -26,7 +31,7 @@ export class RegisterResponseDto {
 
   @ApiProperty({
     type: String,
-    description: 'User role',
+    description: 'User role (USER or ADMIN)',
     example: 'USER',
   })
   @IsString()
@@ -35,7 +40,7 @@ export class RegisterResponseDto {
 
   @ApiProperty({
     type: String,
-    description: 'User status',
+    description: 'User status (ACTIVE or INACTIVE)',
     example: 'ACTIVE',
   })
   @IsString()

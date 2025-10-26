@@ -1,26 +1,40 @@
-// libs
-import { Controller, Post, Body, HttpStatus, HttpCode } from '@nestjs/common';
+// Libs
+import { Body, Controller, HttpCode, HttpStatus, Post } from '@nestjs/common';
 
-import { AuthService } from './auth.service';
+// App sources
+import {
+  ApiCreatedResponseDto,
+  ApiOkResponseDto,
+  Public,
+} from '@app/shared/decorators';
+
+// Local sources
 import {
   LoginRequestDto,
   LoginResponseDto,
   RegisterRequestDto,
   RegisterResponseDto,
 } from './dto';
-import { Public } from '@app/shared/decorators/public.decorator';
-import { ApiCreatedResponseDto, ApiOkResponseDto } from '@app/shared/decorator';
+import { AuthService } from './auth.service';
 
 @Controller('auth')
 export class AuthController {
   constructor(private readonly authService: AuthService) {}
 
+  /**
+   * Register a new user
+   * @param registerDto - User registration data
+   * @returns Registered user information
+   * @throws ConflictException if user already exists
+   * @throws InternalServerErrorException on server error
+   */
   @Post('register')
   @Public()
   @HttpCode(HttpStatus.CREATED)
   @ApiCreatedResponseDto({
-    summary: 'User register',
-    description: 'Register successfully',
+    summary: 'Register a new user',
+    description:
+      'Create a new user account with email, password, and other details',
     type: RegisterResponseDto,
   })
   async register(
@@ -29,21 +43,44 @@ export class AuthController {
     return await this.authService.register(registerDto);
   }
 
+  /**
+   * Authenticate user and return access tokens
+   * @param loginDto - User login credentials (email and password)
+   * @returns Access token, refresh token, and user information
+   * @throws UnauthorizedException if user not found or invalid credentials
+   * @throws BadRequestException if password is incorrect
+   * @throws InternalServerErrorException on server error
+   */
   @Post('login')
   @Public()
   @HttpCode(HttpStatus.OK)
   @ApiOkResponseDto({
-    summary: 'Login',
-    description: 'Login successfully',
+    summary: 'User login',
+    description:
+      'Authenticate user with email and password to receive access and refresh tokens',
     type: LoginResponseDto,
   })
   async login(@Body() loginDto: LoginRequestDto): Promise<LoginResponseDto> {
     return await this.authService.login(loginDto);
   }
 
+  /**
+   * Refresh access token using refresh token
+   * @param refreshToken - The refresh token string
+   * @returns New access token
+   * @throws UnauthorizedException if refresh token is invalid or expired
+   */
   @Post('refresh')
   @Public()
-  async refresh(@Body('refreshToken') refreshToken: string) {
-    return this.authService.refreshTokens(refreshToken);
+  @HttpCode(HttpStatus.OK)
+  @ApiOkResponseDto({
+    summary: 'Refresh access token',
+    description: 'Get a new access token using a valid refresh token',
+    type: Object,
+  })
+  async refresh(
+    @Body('refreshToken') refreshToken: string,
+  ): Promise<{ accessToken: string }> {
+    return await this.authService.refreshTokens(refreshToken);
   }
 }
