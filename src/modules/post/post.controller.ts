@@ -35,10 +35,9 @@ import {
 
 // Local sources
 import {
-  CreateUserPostRequestDto,
   DeletePostsRequestDto,
   PostPaginationResponseDto,
-  UpdateUserPostRequestDto,
+  PostRequestDto,
 } from './dto';
 import { Post as PostEntities } from './entities';
 import { PostService } from './post.service';
@@ -99,7 +98,6 @@ export class PostController {
    * @throws InternalServerErrorException on server error
    */
   @Post()
-  @UserOwnershipProtected('authorId', [USER])
   @HttpCode(HttpStatus.CREATED)
   @ApiCreatedResponseDto({
     summary: 'Create a new post',
@@ -108,7 +106,7 @@ export class PostController {
   })
   async createUsersPost(
     @GetCurrentUser() user: IUserInfo,
-    @Body() postDto: CreateUserPostRequestDto,
+    @Body() postDto: PostRequestDto,
   ): Promise<PostEntities> {
     return await this.postService.create(user.id, postDto);
   }
@@ -131,7 +129,7 @@ export class PostController {
   })
   async updateUsersPostById(
     @Param('id') id: string,
-    @Body() updatePostDto: UpdateUserPostRequestDto,
+    @Body() updatePostDto: PostRequestDto,
   ): Promise<PostEntities> {
     return await this.postService.updateById(id, updatePostDto);
   }
@@ -171,6 +169,6 @@ export class PostController {
   async deleteUserPosts(
     @Body() postIdsDto: DeletePostsRequestDto,
   ): Promise<IMessageAndCountResponse> {
-    return await this.postService.detele(postIdsDto);
+    return await this.postService.delete(postIdsDto);
   }
 }

@@ -24,6 +24,13 @@ export const MESSAGES = {
   DELETE_NO_POST: 'No posts were deleted as none were found',
   NO_POST_PROCESS: 'No posts were processed',
 
+  // comment error
+  COMMENT_NOT_FOUND: 'Comment not found',
+  COMMENT_DELETE_SUCCESS: 'The Comment has been deleted successfully',
+  COMMENT_CREATE_SUCCESS: 'Comment created successfully',
+  COMMENT_UPDATE_SUCCESS: 'Comment updated successfully',
+  COMMENT_NO_AUTHORIZED: 'You are not authorized to modify this comment',
+
   // validation
   INVALID_PASSWORD:
     'Password must contain at least one uppercase letter, one lowercase letter, and one special character',

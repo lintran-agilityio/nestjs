@@ -26,10 +26,9 @@ import { UserService } from '@app/modules/user/user.service';
 // Local sources
 import { POST_SELECT_FIELDS } from './config';
 import {
-  CreateUserPostRequestDto,
   DeletePostsRequestDto,
   PostPaginationResponseDto,
-  UpdateUserPostRequestDto,
+  PostRequestDto,
 } from './dto';
 import { Post } from './entities';
 
@@ -152,22 +151,17 @@ export class PostService {
    * @throws NotFoundException if user not found
    * @throws InternalServerErrorException on server error
    */
-  async create(
-    authorId: string,
-    postDto: CreateUserPostRequestDto,
-  ): Promise<Post> {
+  async create(authorId: string, postDto: PostRequestDto): Promise<Post> {
     this.logger.log(`Param of post ${JSON.stringify(postDto)}`);
 
     // Find the existed user
-    const existedUser = await this.usersService.getUserById(authorId);
-
-    if (!existedUser) {
-      this.logger.log(`User not found with ID: ${authorId}`);
-      throw new NotFoundException(MESSAGES.USER_NOT_FOUND);
-    }
+    await this.usersService.getById(authorId);
 
     try {
-      return this.postsRepo.save(postDto);
+      return this.postsRepo.save({
+        ...postDto,
+        authorId,
+      });
     } catch (error) {
       this.logger.error(`
         [Error] - Error log: ${JSON.stringify(error, null, 2)}
@@ -185,10 +179,7 @@ export class PostService {
    * @throws NotFoundException if post not found
    * @throws InternalServerErrorException on server error
    */
-  async updateById(
-    id: string,
-    updateDto: UpdateUserPostRequestDto,
-  ): Promise<Post> {
+  async updateById(id: string, updateDto: PostRequestDto): Promise<Post> {
     this.logger.log(
       `Post id ${id} need to update with body ${JSON.stringify(updateDto)}`,
     );
@@ -243,7 +234,7 @@ export class PostService {
    * @returns Success message with deletion count
    * @throws InternalServerErrorException on server error
    */
-  async detele(
+  async delete(
     postIdsDto: DeletePostsRequestDto,
   ): Promise<IMessageAndCountResponse> {
     const { postIds } = postIdsDto;

@@ -1,7 +1,8 @@
 // Libs
-import { Column, Entity, JoinColumn, ManyToOne } from 'typeorm';
+import { Column, Entity, JoinColumn, ManyToOne, OneToMany } from 'typeorm';
 
 import { User } from '@app/modules/user/entities';
+import { Comment } from '@app/modules/comment/entities';
 import { BaseEntity } from '@app/shared/entities';
 
 @Entity('posts')
@@ -19,4 +20,8 @@ export class Post extends BaseEntity {
   @ManyToOne(() => User, (user) => user.posts, { onDelete: 'CASCADE' })
   @JoinColumn({ name: 'author_id' })
   author: User;
+
+  // Relationship to Comments
+  @OneToMany(() => Comment, (comment) => comment.post)
+  comments: Comment[];
 }

@@ -8,6 +8,7 @@ import { UserRole, UserStatus } from '@app/shared/types';
 
 // Local sources
 import { Post } from '@app/modules/post/entities';
+import { Comment } from '@app/modules/comment/entities';
 
 @Entity('users')
 export class User extends BaseEntity {
@@ -38,10 +39,17 @@ export class User extends BaseEntity {
   })
   status: UserStatus;
 
+  @Exclude()
   @Column({ nullable: true })
   refreshToken?: string;
 
   // Relationship to Post
+  @Exclude()
   @OneToMany(() => Post, (post) => post.author)
   posts: Post[];
+
+  // Relationship to Comment
+  @Exclude()
+  @OneToMany(() => Comment, (comment) => comment.user)
+  comments: Comment[];
 }
