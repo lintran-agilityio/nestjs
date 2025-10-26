@@ -21,6 +21,8 @@ export const MESSAGES = {
   // post error
   POST_NOT_FOUND: 'Post not found',
   POST_DELETE_SUCCESS: 'The Post has been deleted successfully',
+  DELETE_NO_POST: 'No posts were deleted as none were found',
+  NO_POST_PROCESS: 'No posts were processed',
 
   // validation
   INVALID_PASSWORD:

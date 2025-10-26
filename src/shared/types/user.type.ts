@@ -14,3 +14,8 @@ export interface IJwtAuthPayload {
   role: UserRole;
   status: UserStatus;
 }
+
+export interface IUserInfo extends IJwtAuthPayload {
+  firstName: string;
+  lastName: string;
+}

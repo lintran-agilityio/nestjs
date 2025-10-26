@@ -8,3 +8,5 @@ export const JWT_EXPIRES = {
 
 export const IS_PUBLIC_KEY = IS_PUBLIC;
 export const ROLES_KEY = 'roles';
+
+export const BATCH_SIZE = 50;

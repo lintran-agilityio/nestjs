@@ -10,24 +10,44 @@ import {
   Body,
   Patch,
   Delete,
+  UseGuards,
 } from '@nestjs/common';
 
-import { PostService } from './post.service';
-import { ApiCreatedResponseDto, ApiOkResponseDto } from '@app/shared/decorator';
+import {
+  RolesGuard,
+  JwtAuthGuard,
+  UserOwnershipProtected,
+} from '@app/shared/guard';
+import {
+  ApiCreatedResponseDto,
+  ApiOkResponseDto,
+  Roles,
+} from '@app/shared/decorator';
+import { QueryPaginationParamDto } from '@app/shared/dto';
+import {
+  IMessageAndCountResponse,
+  IUserInfo,
+  UserRole,
+} from '@app/shared/types';
+import { Post as PostEntities } from './entities';
 import {
   CreateUserPostRequestDto,
   PostPaginationResponseDto,
   UpdateUserPostRequestDto,
+  DeletePostsRequestDto,
 } from './dto';
-import { QueryPaginationParamDto } from '@app/shared/dto';
-import { Post as PostEntities } from './entities';
-import { IMessageAndCountRepose } from '@app/shared/types';
+import { PostService } from './post.service';
+import { GetCurrentUser } from '@app/shared/decorators';
+
+const { USER, ADMIN } = UserRole;
 
 @Controller('posts')
+@UseGuards(JwtAuthGuard, RolesGuard)
 export class PostController {
   constructor(private readonly postService: PostService) {}
 
   @Get()
+  @Roles(ADMIN, USER)
   @HttpCode(HttpStatus.OK)
   @ApiOkResponseDto({
     summary: 'Get all post for ADMIN user role',
@@ -41,6 +61,7 @@ export class PostController {
   }
 
   @Get(':id')
+  @Roles(ADMIN, USER)
   @HttpCode(HttpStatus.OK)
   @ApiOkResponseDto({
     summary: 'Get post by id for ADMIN user role',
@@ -52,6 +73,7 @@ export class PostController {
   }
 
   @Post('create-post')
+  @UserOwnershipProtected('authorId', [USER])
   @HttpCode(HttpStatus.CREATED)
   @ApiCreatedResponseDto({
     summary: 'Create post of user',
@@ -59,12 +81,14 @@ export class PostController {
     type: PostEntities,
   })
   async postUsersPost(
+    @GetCurrentUser() user: IUserInfo,
     @Body() postDto: CreateUserPostRequestDto,
   ): Promise<PostEntities> {
-    return await this.postService.postUsersPost(postDto);
+    return await this.postService.postUsersPost(user.id, postDto);
   }
 
   @Patch(':id')
+  @UserOwnershipProtected('id', [ADMIN, USER])
   @HttpCode(HttpStatus.OK)
   @ApiOkResponseDto({
     summary: 'Update post of user by id post',
@@ -87,7 +111,21 @@ export class PostController {
   })
   async deleteUsersById(
     @Param('id') id: string,
-  ): Promise<IMessageAndCountRepose> {
+  ): Promise<IMessageAndCountResponse> {
     return await this.postService.deleteUsersPostById(id);
+  }
+
+  @Delete()
+  @Roles(ADMIN)
+  @HttpCode(HttpStatus.OK)
+  @ApiOkResponseDto({
+    summary: 'Delete posts',
+    description: 'Delete multiple posts at once with comprehensive results',
+    type: String,
+  })
+  async deleteUserPosts(
+    @Body() postIdsDto: DeletePostsRequestDto,
+  ): Promise<IMessageAndCountResponse> {
+    return await this.postService.deletePosts(postIdsDto);
   }
 }

@@ -10,6 +10,6 @@ export class CreateUserPostRequestDto extends UpdateUserPostRequestDto {
   })
   @IsNotEmpty()
   @IsString()
-  @IsUUID('4', { message: 'authorId must be a valid UUID v4' })
+  @IsUUID()
   authorId: string;
 }

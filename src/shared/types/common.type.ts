@@ -3,7 +3,7 @@ export enum OrderBy {
   DESC = 'DESC',
 }
 
-export interface IMessageAndCountRepose {
+export interface IMessageAndCountResponse {
   message: string;
   count?: number;
 }
