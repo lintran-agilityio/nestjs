@@ -8,9 +8,9 @@ import { TypeOrmModule } from '@nestjs/typeorm';
 // App sources
 import { BcryptService } from '@app/modules/hashing/bcrypt.service';
 import { User } from '@app/modules/user/entities';
-import { UserModule } from '@app/modules/user/user.module';
+import { UserModule } from '@app/modules/user/users.module';
 import { CUSTOM_PROVIDER_TOKENS } from '@app/shared/common';
-import { JwtStrategy } from '@app/shared/strategy';
+import { JwtStrategy } from '@app/shared/strategies';
 
 // Local sources
 import { AuthController } from './auth.controller';

@@ -5,15 +5,15 @@ import { Module, Scope } from '@nestjs/common';
 import { PassportModule } from '@nestjs/passport';
 
 // database module
-import { UserModule } from './modules/user/user.module';
+import { UserModule } from './modules/user/users.module';
 import { AuthModule } from './modules/auth/auth.module';
 import { DatabaseModule } from './modules/database/database.module';
 import { LoggerModule } from './modules/logger/logger.module';
-import { PostModule } from './modules/post/post.module';
+import { PostModule } from './modules/posts/posts.module';
 import { AppLoggerService } from './modules/logger/logger.service';
-import { CommentModule } from './modules/comment/comment.module';
+import { CommentModule } from './modules/comments/comments.module';
 
-import { JwtAuthGuard, RolesGuard } from '@app/shared/guard';
+import { JwtAuthGuard, RolesGuard } from '@app/shared/guards';
 
 @Module({
   imports: [

@@ -2,7 +2,7 @@
 import { Column, Entity, ManyToOne, JoinColumn } from 'typeorm';
 
 import { User } from '@app/modules/user/entities';
-import { Post } from '@app/modules/post/entities';
+import { Post } from '@app/modules/posts/entities';
 import { BaseEntity } from '@app/shared/entities';
 
 /**

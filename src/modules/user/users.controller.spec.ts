@@ -2,8 +2,8 @@
 import { Test, TestingModule } from '@nestjs/testing';
 
 // Local sources
-import { UserController } from './user.controller';
-import { UserService } from './user.service';
+import { UserController } from './users.controller';
+import { UserService } from './users.service';
 
 describe('UserController', () => {
   let controller: UserController;

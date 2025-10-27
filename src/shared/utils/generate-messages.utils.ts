@@ -5,6 +5,7 @@ import { MESSAGES } from '../constants';
  * Uses TypeScript string templates and conditional logic
  */
 export const generateDeleteMessage = (
+  entity: string,
   deletedCount: number,
   notFoundCount: number,
 ): string => {
@@ -13,12 +14,12 @@ export const generateDeleteMessage = (
   }
 
   if (deletedCount > 0 && notFoundCount === 0) {
-    return `Successfully deleted ${deletedCount} post${deletedCount === 1 ? '' : 's'}`;
+    return `Successfully deleted ${deletedCount} ${entity}${deletedCount === 1 ? '' : 's'}`;
   }
 
   if (deletedCount > 0 && notFoundCount > 0) {
-    return `Deleted ${deletedCount} post${deletedCount === 1 ? '' : 's'}, ${notFoundCount} post${notFoundCount === 1 ? ' was' : 's were'} not found`;
+    return `Deleted ${deletedCount} ${entity}${deletedCount === 1 ? '' : 's'}, ${notFoundCount} ${entity}${notFoundCount === 1 ? ' was' : 's were'} not found`;
   }
 
-  return MESSAGES.NO_POST_PROCESS;
+  return `No ${entity} were processed`;
 };

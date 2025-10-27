@@ -5,7 +5,7 @@ import { ApiProperty } from '@nestjs/swagger';
 import { Post } from '../entities';
 
 // App sources
-import { MetadataResponseDto } from '@app/shared/dto';
+import { MetadataResponseDto } from '@app/shared/dtos';
 import { IPaginationResponse } from '@app/shared/interfaces';
 
 /**

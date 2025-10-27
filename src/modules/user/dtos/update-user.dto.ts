@@ -5,7 +5,7 @@ import { IntersectionType, PartialType } from '@nestjs/mapped-types';
 import { IsArray, ValidateNested } from 'class-validator';
 
 // App sources
-import { UuidDto } from '@app/shared/dto';
+import { UuidDto } from '@app/shared/dtos';
 import { RegisterRequestDto } from '@app/modules/auth/dto';
 
 export class UpdateUserByIdDto extends PartialType(RegisterRequestDto) {}

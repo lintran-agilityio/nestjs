@@ -7,8 +7,8 @@ import { BaseEntity } from '@app/shared/entities';
 import { UserRole, UserStatus } from '@app/shared/types';
 
 // Local sources
-import { Post } from '@app/modules/post/entities';
-import { Comment } from '@app/modules/comment/entities';
+import { Post } from '@app/modules/posts/entities';
+import { Comment } from '@app/modules/comments/entities';
 
 @Entity('users')
 export class User extends BaseEntity {

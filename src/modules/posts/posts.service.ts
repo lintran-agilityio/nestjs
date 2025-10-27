@@ -20,7 +20,7 @@ import {
   getSelectFields,
 } from '@app/shared/utils';
 import { AppLoggerService } from '@app/modules/logger/logger.service';
-import { UserService } from '@app/modules/user/user.service';
+import { UserService } from '@app/modules/user/users.service';
 
 // Local sources
 import { POST_SELECT_FIELDS } from './config';
@@ -28,7 +28,7 @@ import {
   DeletePostsRequestDto,
   PostPaginationResponseDto,
   PostRequestDto,
-} from './dto';
+} from './dtos';
 import { Post } from './entities';
 
 @Injectable()

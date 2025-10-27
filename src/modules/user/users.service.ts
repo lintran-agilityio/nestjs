@@ -13,16 +13,16 @@ import { Repository } from 'typeorm';
 // App sources
 import { CUSTOM_PROVIDER_TOKENS } from '@app/shared/common';
 import { MESSAGES } from '@app/shared/constants';
-import { QueryPaginationParamDto } from '@app/shared/dto';
+import { QueryPaginationParamDto } from '@app/shared/dtos';
 import { IMessageAndCountResponse, OrderBy } from '@app/shared/types';
 import { getSelectFields } from '@app/shared/utils';
 import { HashingAbstractService } from '@app/modules/hashing/hashing.abstract.service';
 import { AppLoggerService } from '@app/modules/logger/logger.service';
-import { PostService } from '@app/modules/post/post.service';
+import { PostService } from '@app/modules/posts/posts.service';
 
 // Local sources
 import { USER_SELECT_FIELDS } from './config';
-import { UpdateAllUsersDto, UpdateUserByIdDto, UserResponseDto } from './dto';
+import { UpdateAllUsersDto, UpdateUserByIdDto, UserResponseDto } from './dtos';
 import { User } from './entities';
 
 @Injectable()
@@ -75,7 +75,7 @@ export class UserService {
       const allowedSortFields = selectFields;
       const sortField = allowedSortFields.includes(sortBy ?? '')
         ? sortBy
-        : 'id';
+        : 'createdAt';
 
       let queryBuilder = this.usersRepo
         .createQueryBuilder('user')

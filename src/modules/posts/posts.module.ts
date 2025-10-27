@@ -3,11 +3,11 @@ import { forwardRef, Module } from '@nestjs/common';
 import { TypeOrmModule } from '@nestjs/typeorm';
 
 // App sources
-import { UserModule } from '@app/modules/user/user.module';
+import { UserModule } from '@app/modules/user/users.module';
 
 // Local sources
-import { PostController } from './post.controller';
-import { PostService } from './post.service';
+import { PostController } from './posts.controller';
+import { PostService } from './posts.service';
 import { Post } from './entities';
 
 /**

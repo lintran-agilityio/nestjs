@@ -16,7 +16,7 @@ import {
 } from '@nestjs/common';
 import { ApiBearerAuth } from '@nestjs/swagger';
 
-import { RolesGuard, JwtAuthGuard } from '@app/shared/guard';
+import { RolesGuard, JwtAuthGuard } from '@app/shared/guards';
 import {
   ApiCreatedResponseDto,
   ApiOkResponseDto,
@@ -34,8 +34,8 @@ import {
   UpdateCommentRequestDto,
   DeleteCommentsRequestDto,
   QueryCommentParamDto,
-} from './dto';
-import { CommentService } from './comment.service';
+} from './dtos';
+import { CommentService } from './comments.service';
 import { GetCurrentUser } from '@app/shared/decorators';
 
 const { USER, ADMIN } = UserRole;

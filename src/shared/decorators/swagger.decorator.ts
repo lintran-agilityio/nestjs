@@ -11,7 +11,7 @@ import {
 } from '@nestjs/swagger';
 import { MESSAGES } from '../constants';
 import { ISwaggerResponseOptions } from '../interfaces';
-import { ErrorResponseDto } from '../dto';
+import { ErrorResponseDto } from '../dtos';
 
 // Base Decorator for successful
 export const ApiOkResponseDto = ({

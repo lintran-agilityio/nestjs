@@ -1,10 +1,10 @@
 import { Module, forwardRef } from '@nestjs/common';
 import { TypeOrmModule } from '@nestjs/typeorm';
 import { Comment } from './entities';
-import { CommentService } from './comment.service';
-import { CommentController } from './comment.controller';
-import { UserModule } from '../user/user.module';
-import { PostModule } from '../post/post.module';
+import { CommentService } from './comments.service';
+import { CommentController } from './comments.controller';
+import { UserModule } from '../user/users.module';
+import { PostModule } from '../posts/posts.module';
 
 /**
  * Comment Module

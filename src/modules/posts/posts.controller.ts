@@ -21,12 +21,12 @@ import {
   GetCurrentUser,
   Roles,
 } from '@app/shared/decorators';
-import { QueryPaginationParamDto } from '@app/shared/dto';
+import { QueryPaginationParamDto } from '@app/shared/dtos';
 import {
   JwtAuthGuard,
   RolesGuard,
   UserOwnershipProtected,
-} from '@app/shared/guard';
+} from '@app/shared/guards';
 import {
   IMessageAndCountResponse,
   IUserInfo,
@@ -38,9 +38,9 @@ import {
   DeletePostsRequestDto,
   PostPaginationResponseDto,
   PostRequestDto,
-} from './dto';
+} from './dtos';
 import { Post as PostEntities } from './entities';
-import { PostService } from './post.service';
+import { PostService } from './posts.service';
 
 const { USER, ADMIN } = UserRole;
 

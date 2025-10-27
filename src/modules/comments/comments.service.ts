@@ -21,15 +21,15 @@ import { IMessageAndCountResponse, OrderBy } from '@app/shared/types';
 import { Comment } from './entities';
 import { COMMENT_SELECT_FIELDS } from './config';
 import { AppLoggerService } from '../logger/logger.service';
-import { UserService } from '../user/user.service';
-import { PostService } from '../post/post.service';
+import { UserService } from '../user/users.service';
+import { PostService } from '../posts/posts.service';
 import {
   CreateCommentRequestDto,
   UpdateCommentRequestDto,
   CommentPaginationResponseDto,
   QueryCommentParamDto,
   DeleteCommentsRequestDto,
-} from './dto';
+} from './dtos';
 
 /**
  * Comment Service

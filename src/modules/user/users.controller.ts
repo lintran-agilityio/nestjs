@@ -18,18 +18,18 @@ import { ApiBearerAuth } from '@nestjs/swagger';
 
 // App sources
 import { ApiOkResponseDto, Roles } from '@app/shared/decorators';
-import { QueryPaginationParamDto } from '@app/shared/dto';
+import { QueryPaginationParamDto } from '@app/shared/dtos';
 import {
   JwtAuthGuard,
   RolesGuard,
   UserOwnershipProtected,
-} from '@app/shared/guard';
+} from '@app/shared/guards';
 import { IMessageAndCountResponse, UserRole } from '@app/shared/types';
 
 // Local sources
-import { UpdateAllUsersDto, UpdateUserByIdDto, UserResponseDto } from './dto';
+import { UpdateAllUsersDto, UpdateUserByIdDto, UserResponseDto } from './dtos';
 import { User } from './entities';
-import { UserService } from './user.service';
+import { UserService } from './users.service';
 
 const { USER, ADMIN } = UserRole;
 

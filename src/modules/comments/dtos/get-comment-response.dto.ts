@@ -2,7 +2,7 @@
 import { ApiProperty } from '@nestjs/swagger';
 import { IsOptional, IsString } from 'class-validator';
 import { Comment } from '../entities';
-import { MetadataResponseDto, QueryPaginationParamDto } from '@app/shared/dto';
+import { MetadataResponseDto, QueryPaginationParamDto } from '@app/shared/dtos';
 
 /**
  * DTO for paginated comment responses
