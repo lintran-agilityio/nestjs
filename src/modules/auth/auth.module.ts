@@ -7,8 +7,8 @@ import { TypeOrmModule } from '@nestjs/typeorm';
 
 // App sources
 import { BcryptService } from '@app/modules/hashing/bcrypt.service';
-import { User } from '@app/modules/user/entities';
-import { UserModule } from '@app/modules/user/users.module';
+import { User } from '@app/modules/users/entities';
+import { UserModule } from '@app/modules/users/users.module';
 import { CUSTOM_PROVIDER_TOKENS } from '@app/shared/common';
 import { JwtStrategy } from '@app/shared/strategies';
 

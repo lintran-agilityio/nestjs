@@ -12,14 +12,15 @@ import { Repository } from 'typeorm';
 // App sources
 import { MESSAGES } from '@app/shared/constants';
 import { QueryPaginationParamDto } from '@app/shared/dtos';
-import { IMessageAndCountResponse, OrderBy } from '@app/shared/types';
+import { IMessageAndCountResponse } from '@app/shared/types';
 import {
   deleteItemsInArray,
   generateDeleteMessage,
   getSelectFields,
+  getDataPagination,
 } from '@app/shared/utils';
 import { AppLoggerService } from '@app/modules/logger/logger.service';
-import { UserService } from '@app/modules/user/users.service';
+import { UserService } from '@app/modules/users/users.service';
 
 // Local sources
 import { POST_SELECT_FIELDS } from './config';
@@ -61,26 +62,11 @@ export class PostService {
 
     try {
       this.logger.log(`Query get all posts: ${JSON.stringify(queryUrl)}`);
-      const { limit, orderBy, page, sortBy, search } = queryUrl;
-      const query = {
-        limit: limit || 1,
-        orderBy: orderBy?.toUpperCase() === 'DESC' ? OrderBy.DESC : OrderBy.ASC,
-        page: page || 1,
-        sortBy,
-        search,
-      };
-      const numberPage = Number(page) || 1;
-      const numberLimit = Number(limit) || 10;
-      const skip = (numberPage - 1) * numberLimit;
 
-      this.logger.log(`Query get all posts: ${JSON.stringify(query)}`);
+      const { search } = queryUrl;
 
-      // Fields selected
+      // Get select fields
       const selectFields = getSelectFields(POST_SELECT_FIELDS);
-      const allowedSortFields = selectFields;
-      const sortField = allowedSortFields.includes(sortBy ?? '')
-        ? sortBy
-        : 'createdAt';
 
       let queryBuilder = this.postsRepo
         .createQueryBuilder('post')
@@ -94,25 +80,13 @@ export class PostService {
         );
       }
 
-      // Apply sorting and pagination
-      queryBuilder = queryBuilder
-        .orderBy(`post.${sortField}`, orderBy)
-        .skip(skip)
-        .take(limit);
-
-      const [data, total] = await queryBuilder.getManyAndCount();
-
-      this.logger.log(`Get all posts successful: ${JSON.stringify(data)}`);
-
-      return {
-        data,
-        meta: {
-          total,
-          page,
-          limit,
-          totalPages: Math.ceil(total / limit),
-        },
-      };
+      return await getDataPagination<Post>({
+        selectFields,
+        queryUrl,
+        queryBuilder,
+        logger: this.logger,
+        entity: 'post',
+      });
     } catch (error) {
       this.logger.error(
         `[Error] - Get error when get all posts: ${JSON.stringify(error)}`,

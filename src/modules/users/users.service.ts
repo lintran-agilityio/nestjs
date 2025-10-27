@@ -13,8 +13,8 @@ import { Repository } from 'typeorm';
 import { CUSTOM_PROVIDER_TOKENS } from '@app/shared/common';
 import { MESSAGES } from '@app/shared/constants';
 import { QueryPaginationParamDto } from '@app/shared/dtos';
-import { IMessageAndCountResponse, OrderBy } from '@app/shared/types';
-import { getSelectFields } from '@app/shared/utils';
+import { IMessageAndCountResponse } from '@app/shared/types';
+import { getSelectFields, getDataPagination } from '@app/shared/utils';
 import { HashingAbstractService } from '@app/modules/hashing/hashing.abstract.service';
 import { AppLoggerService } from '@app/modules/logger/logger.service';
 import { PostService } from '@app/modules/posts/posts.service';
@@ -56,27 +56,13 @@ export class UserService {
 
     try {
       this.logger.log(`Query get all users: ${JSON.stringify(queryUrl)}`);
-      const { limit, orderBy, page, sortBy, search } = queryUrl;
-      const query = {
-        limit: limit || 1,
-        orderBy: orderBy || OrderBy.ASC,
-        page: page || 1,
-        sortBy,
-        search,
-      };
-      const numberPage = Number(page) || 1;
-      const numberLimit = Number(limit) || 10;
-      const skip = (numberPage - 1) * numberLimit;
 
-      this.logger.log(`Query get all users: ${JSON.stringify(query)}`);
+      const { search } = queryUrl;
 
-      // Fields selected
+      // Get select fields for allowed sorting
       const selectFields = getSelectFields(USER_SELECT_FIELDS);
-      const allowedSortFields = selectFields;
-      const sortField = allowedSortFields.includes(sortBy ?? '')
-        ? sortBy
-        : 'createdAt';
 
+      // Build query
       let queryBuilder = this.usersRepo
         .createQueryBuilder('user')
         .select(selectFields.map((field) => `user.${field}`));
@@ -89,25 +75,13 @@ export class UserService {
         );
       }
 
-      // Apply sorting and pagination
-      queryBuilder = queryBuilder
-        .orderBy(`user.${sortField}`, orderBy)
-        .skip(skip)
-        .take(limit);
-
-      const [data, total] = await queryBuilder.getManyAndCount();
-
-      this.logger.log(`Get all users successful: ${JSON.stringify(data)}`);
-
-      return {
-        data,
-        meta: {
-          total,
-          page,
-          limit,
-          totalPages: Math.ceil(total / limit),
-        },
-      };
+      return await getDataPagination<User>({
+        selectFields,
+        queryUrl,
+        queryBuilder,
+        logger: this.logger,
+        entity: 'user',
+      });
     } catch (error) {
       this.logger.error(
         `[Error] - Get error when get all user: ${JSON.stringify(error)}`,

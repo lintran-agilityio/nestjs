@@ -5,7 +5,7 @@ import { Module, Scope } from '@nestjs/common';
 import { PassportModule } from '@nestjs/passport';
 
 // database module
-import { UserModule } from './modules/user/users.module';
+import { UserModule } from './modules/users/users.module';
 import { AuthModule } from './modules/auth/auth.module';
 import { DatabaseModule } from './modules/database/database.module';
 import { LoggerModule } from './modules/logger/logger.module';

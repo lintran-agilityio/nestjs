@@ -16,8 +16,8 @@ import { DeepPartial, Repository } from 'typeorm';
 // App sources
 import { HashingAbstractService } from '@app/modules/hashing/hashing.abstract.service';
 import { AppLoggerService } from '@app/modules/logger/logger.service';
-import { User } from '@app/modules/user/entities';
-import { UserService } from '@app/modules/user/users.service';
+import { User } from '@app/modules/users/entities';
+import { UserService } from '@app/modules/users/users.service';
 import { CUSTOM_PROVIDER_TOKENS } from '@app/shared/common';
 import { MESSAGES } from '@app/shared/constants';
 import { IJwtAuthPayload } from '@app/shared/types';

@@ -15,12 +15,13 @@ import {
   getSelectFields,
   deleteItemsInArray,
   generateDeleteMessage,
+  getDataPagination,
 } from '@app/shared/utils';
-import { IMessageAndCountResponse, OrderBy } from '@app/shared/types';
+import { IMessageAndCountResponse } from '@app/shared/types';
 import { Comment } from './entities';
 import { COMMENT_SELECT_FIELDS } from './config';
 import { AppLoggerService } from '../logger/logger.service';
-import { UserService } from '../user/users.service';
+import { UserService } from '../users/users.service';
 import { PostService } from '../posts/posts.service';
 import {
   CreateCommentRequestDto,
@@ -67,29 +68,11 @@ export class CommentService {
 
     try {
       this.logger.warn(`Query get all comments: ${JSON.stringify(queryUrl)}`);
-      const { limit, orderBy, page, sortBy, search, postId } = queryUrl;
 
-      const query = {
-        limit: limit || 10,
-        orderBy: orderBy?.toUpperCase() === 'DESC' ? OrderBy.DESC : OrderBy.ASC,
-        page: page || 1,
-        sortBy: sortBy || 'createdAt',
-        search,
-        postId,
-      };
-
-      const numberPage = Number(page) || 1;
-      const numberLimit = Number(limit) || 10;
-      const skip = (numberPage - 1) * numberLimit;
-
-      this.logger.warn(`Query get all comments: ${JSON.stringify(query)}`);
+      const { search, postId } = queryUrl;
 
       // Get select fields from config
       const selectFields = getSelectFields(COMMENT_SELECT_FIELDS);
-      const allowedSortFields = selectFields;
-      const sortField = allowedSortFields.includes(sortBy ?? '')
-        ? sortBy
-        : 'createdAt';
 
       // Build query
       let queryBuilder = this.commentsRepo
@@ -112,25 +95,13 @@ export class CommentService {
         });
       }
 
-      // Apply sorting and pagination
-      queryBuilder = queryBuilder
-        .orderBy(`comment.${sortField}`, orderBy)
-        .skip(skip)
-        .take(numberLimit);
-
-      const [data, total] = await queryBuilder.getManyAndCount();
-
-      this.logger.log(`Get all comments successful: ${JSON.stringify(data)}`);
-
-      return {
-        data,
-        meta: {
-          total,
-          page: numberPage,
-          limit: numberLimit,
-          totalPages: Math.ceil(total / numberLimit),
-        },
-      };
+      return await getDataPagination<Comment>({
+        selectFields,
+        queryUrl,
+        queryBuilder,
+        logger: this.logger,
+        entity: 'comment',
+      });
     } catch (error) {
       this.logger.error(
         `[Error] - Get error when get all comments: ${JSON.stringify(error)}`,
