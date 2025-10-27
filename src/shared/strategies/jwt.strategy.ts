@@ -9,6 +9,7 @@ import { Repository } from 'typeorm';
 import { IJwtPayload } from '../types';
 import { User } from '@app/modules/user/entities';
 import { MESSAGES } from '../constants';
+import { handleErrorException } from '../utils/error.utils';
 
 @Injectable()
 export class JwtStrategy extends PassportStrategy(JwtStrategyBase, 'jwt') {
@@ -30,7 +31,10 @@ export class JwtStrategy extends PassportStrategy(JwtStrategyBase, 'jwt') {
       // Handle both 'id' and 'sub' fields for compatibility
       const userId = payload.id || payload.sub;
       if (!userId) {
-        throw new UnauthorizedException(MESSAGES.USER_NOT_FOUND);
+        handleErrorException({
+          defaultMessage: MESSAGES.USER_NOT_FOUND,
+          ExceptionClass: UnauthorizedException,
+        });
       }
 
       const user = await this.userRepo.findOne({
@@ -39,7 +43,10 @@ export class JwtStrategy extends PassportStrategy(JwtStrategyBase, 'jwt') {
       });
 
       if (!user) {
-        throw new UnauthorizedException(MESSAGES.USER_NOT_FOUND);
+        handleErrorException({
+          defaultMessage: MESSAGES.USER_NOT_FOUND,
+          ExceptionClass: UnauthorizedException,
+        });
       }
 
       return user;
@@ -47,7 +54,11 @@ export class JwtStrategy extends PassportStrategy(JwtStrategyBase, 'jwt') {
       if (error instanceof UnauthorizedException) {
         throw error;
       }
-      throw new UnauthorizedException(MESSAGES.USER_NOT_FOUND);
+
+      handleErrorException({
+        defaultMessage: MESSAGES.USER_NOT_FOUND,
+        ExceptionClass: UnauthorizedException,
+      });
     }
   }
 }

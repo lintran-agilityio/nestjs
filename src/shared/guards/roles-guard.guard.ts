@@ -10,6 +10,7 @@ import { Reflector } from '@nestjs/core';
 import { UserRole } from '../types';
 import { ROLES_KEY } from '../common';
 import { MESSAGES } from '../constants';
+import { handleErrorException } from '../utils/error.utils';
 
 @Injectable()
 export class RolesGuard implements CanActivate {
@@ -29,11 +30,17 @@ export class RolesGuard implements CanActivate {
       .getRequest<{ user?: { role?: UserRole } }>();
 
     if (!user) {
-      throw new ForbiddenException(MESSAGES.UNAUTHORIZED);
+      handleErrorException({
+        defaultMessage: MESSAGES.UNAUTHORIZED,
+        ExceptionClass: ForbiddenException,
+      });
     }
 
     if (!requiredRoles.some((role) => user.role === role)) {
-      throw new ForbiddenException(MESSAGES.NO_PERMISSION);
+      handleErrorException({
+        defaultMessage: MESSAGES.NO_PERMISSION,
+        ExceptionClass: ForbiddenException,
+      });
     }
 
     return true;

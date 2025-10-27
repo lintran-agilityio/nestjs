@@ -4,7 +4,6 @@ import {
   ConflictException,
   Inject,
   Injectable,
-  InternalServerErrorException,
   LoggerService,
   UnauthorizedException,
 } from '@nestjs/common';
@@ -30,6 +29,7 @@ import {
   RegisterRequestDto,
   RegisterResponseDto,
 } from './dto';
+import { handleErrorException } from '@app/shared/utils/error.utils';
 
 @Injectable()
 export class AuthService {
@@ -72,7 +72,10 @@ export class AuthService {
         User already exists: ${JSON.stringify(existingUser, null, 2)}
       `);
 
-      throw new ConflictException(MESSAGES.USER_ALREADY_EXISTS);
+      handleErrorException({
+        defaultMessage: MESSAGES.USER_ALREADY_EXISTS,
+        ExceptionClass: ConflictException,
+      });
     }
 
     const hashedPassword = await this.hashingService.hash(password);
@@ -98,7 +101,10 @@ export class AuthService {
     } catch (error) {
       this.logger.error(`[Register Error] - ${JSON.stringify(error, null, 2)}`);
 
-      throw new InternalServerErrorException(MESSAGES.SERVER_ERROR);
+      handleErrorException({
+        error,
+        defaultMessage: MESSAGES.REGISTER_FAILED,
+      });
     }
   }
 
@@ -119,7 +125,11 @@ export class AuthService {
 
     if (!existingUser) {
       this.logger.error(`User not found: ${email}`);
-      throw new UnauthorizedException(MESSAGES.USER_WRONG_PASSWORD);
+
+      handleErrorException({
+        defaultMessage: MESSAGES.USER_NOT_FOUND,
+        ExceptionClass: UnauthorizedException,
+      });
     }
 
     try {
@@ -131,7 +141,10 @@ export class AuthService {
       if (!isValidPassword) {
         this.logger.error(`Wrong password for user: ${email}`);
 
-        throw new BadRequestException(MESSAGES.USER_WRONG_PASSWORD);
+        handleErrorException({
+          defaultMessage: MESSAGES.USER_WRONG_PASSWORD,
+          ExceptionClass: BadRequestException,
+        });
       }
 
       const payload: IJwtAuthPayload = {
@@ -173,7 +186,10 @@ export class AuthService {
     } catch (error) {
       this.logger.error(`[Login Error] - ${JSON.stringify(error, null, 2)}`);
 
-      throw new InternalServerErrorException(MESSAGES.SERVER_ERROR);
+      handleErrorException({
+        error,
+        defaultMessage: MESSAGES.LOGIN_FAILED,
+      });
     }
   }
 
@@ -198,7 +214,11 @@ export class AuthService {
 
       if (!user || !user.refreshToken) {
         this.logger.error(MESSAGES.INVALID_REFRESH_TOKEN);
-        throw new UnauthorizedException(MESSAGES.USER_INVALID_REFRESH_TOKEN);
+
+        handleErrorException({
+          defaultMessage: MESSAGES.USER_INVALID_REFRESH_TOKEN,
+          ExceptionClass: UnauthorizedException,
+        });
       }
 
       const isValid = await this.hashingService.compare(
@@ -208,7 +228,11 @@ export class AuthService {
 
       if (!isValid) {
         this.logger.error(MESSAGES.INVALID_REFRESH_TOKEN);
-        throw new UnauthorizedException(MESSAGES.USER_INVALID_REFRESH_TOKEN);
+
+        handleErrorException({
+          defaultMessage: MESSAGES.USER_INVALID_REFRESH_TOKEN,
+          ExceptionClass: UnauthorizedException,
+        });
       }
 
       const newAccessToken = await this.jwtService.signAsync(payload, {
@@ -223,7 +247,11 @@ export class AuthService {
       this.logger.error(
         `[Refresh Token Error] - ${MESSAGES.USER_TOKEN_EXPIRED} - ${JSON.stringify(error, null, 2)}`,
       );
-      throw new UnauthorizedException(MESSAGES.USER_INVALID_REFRESH_TOKEN);
+
+      handleErrorException({
+        error,
+        defaultMessage: MESSAGES.USER_INVALID_REFRESH_TOKEN,
+      });
     }
   }
 }

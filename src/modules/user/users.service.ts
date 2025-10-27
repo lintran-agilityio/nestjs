@@ -24,6 +24,7 @@ import { PostService } from '@app/modules/posts/posts.service';
 import { USER_SELECT_FIELDS } from './config';
 import { UpdateAllUsersDto, UpdateUserByIdDto, UserResponseDto } from './dtos';
 import { User } from './entities';
+import { handleErrorException } from '@app/shared/utils/error.utils';
 
 @Injectable()
 export class UserService {
@@ -113,7 +114,10 @@ export class UserService {
         `[Error] - Get error when get all user: ${JSON.stringify(error)}`,
       );
 
-      throw new InternalServerErrorException(MESSAGES.SERVER_ERROR);
+      handleErrorException({
+        error,
+        defaultMessage: MESSAGES.GET_USER_FAILED,
+      });
     }
   }
 
@@ -142,7 +146,10 @@ export class UserService {
     if (!user) {
       this.logger.error(`User not found by: ${email}`);
 
-      throw new NotFoundException(MESSAGES.USER_NOT_FOUND);
+      handleErrorException({
+        defaultMessage: MESSAGES.USER_NOT_FOUND,
+        ExceptionClass: NotFoundException,
+      });
     }
 
     return user;
@@ -173,7 +180,10 @@ export class UserService {
     if (!user) {
       this.logger.log(`User not found by: ${id}`);
 
-      throw new NotFoundException(MESSAGES.USER_NOT_FOUND);
+      handleErrorException({
+        defaultMessage: MESSAGES.USER_NOT_FOUND,
+        ExceptionClass: NotFoundException,
+      });
     }
 
     return user;
@@ -213,7 +223,7 @@ export class UserService {
       }
 
       this.logger.log(
-        `Update all users successful ${JSON.stringify(updatedUsers)}`,
+        `[Success] - Update all users successful ${JSON.stringify(updatedUsers)}`,
       );
       return updatedUsers;
     } catch (error) {
@@ -221,7 +231,10 @@ export class UserService {
         [Error] - Error log: ${JSON.stringify(error, null, 2)}
       `);
 
-      throw new InternalServerErrorException(MESSAGES.SERVER_ERROR);
+      handleErrorException({
+        error,
+        defaultMessage: MESSAGES.UPDATE_USER_FAILED,
+      });
     }
   }
 
@@ -251,7 +264,6 @@ export class UserService {
         `Update user by id: ${id} and use update ${JSON.stringify(updateUserDto)}`,
       );
       await this.usersRepo.update(id, {
-        // ...existedUser,
         ...updateUserDto,
         password: hashedPassword,
       });
@@ -261,7 +273,10 @@ export class UserService {
       };
     } catch (error) {
       this.logger.error(`[Error] - update user error ${JSON.stringify(error)}`);
-      throw new InternalServerErrorException(MESSAGES.SERVER_ERROR);
+      handleErrorException({
+        error,
+        defaultMessage: MESSAGES.UPDATE_USER_FAILED,
+      });
     }
   }
 
@@ -276,7 +291,10 @@ export class UserService {
     const users = await this.usersRepo.find();
     if (!users.length) {
       this.logger.error('[Error] - No users for delete');
-      throw new NotFoundException('No users for delete');
+      handleErrorException({
+        defaultMessage: 'No users for delete',
+        ExceptionClass: NotFoundException,
+      });
     }
 
     try {
@@ -294,7 +312,11 @@ export class UserService {
       this.logger.error(
         `[Error] - delete users error ${JSON.stringify(error)}`,
       );
-      throw new InternalServerErrorException(MESSAGES.SERVER_ERROR);
+
+      handleErrorException({
+        error,
+        defaultMessage: MESSAGES.DELETE_USER_FAILED,
+      });
     }
   }
 
@@ -320,7 +342,10 @@ export class UserService {
       };
     } catch (error) {
       this.logger.error(`[Error] - delete user error ${JSON.stringify(error)}`);
-      throw new InternalServerErrorException(MESSAGES.SERVER_ERROR);
+      handleErrorException({
+        error,
+        defaultMessage: MESSAGES.DELETE_USER_FAILED,
+      });
     }
   }
 

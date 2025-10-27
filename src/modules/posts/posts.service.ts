@@ -3,7 +3,6 @@ import {
   forwardRef,
   Inject,
   Injectable,
-  InternalServerErrorException,
   LoggerService,
   NotFoundException,
 } from '@nestjs/common';
@@ -30,6 +29,7 @@ import {
   PostRequestDto,
 } from './dtos';
 import { Post } from './entities';
+import { handleErrorException } from '@app/shared/utils/error.utils';
 
 @Injectable()
 export class PostService {
@@ -118,7 +118,10 @@ export class PostService {
         `[Error] - Get error when get all posts: ${JSON.stringify(error)}`,
       );
 
-      throw new InternalServerErrorException(MESSAGES.SERVER_ERROR);
+      handleErrorException({
+        error,
+        defaultMessage: MESSAGES.GET_POST_FAILED,
+      });
     }
   }
 
@@ -151,7 +154,11 @@ export class PostService {
 
     if (!post) {
       this.logger.log(`Post not found by: ${id}`);
-      throw new NotFoundException(MESSAGES.POST_NOT_FOUND);
+
+      handleErrorException({
+        defaultMessage: MESSAGES.POST_NOT_FOUND,
+        ExceptionClass: NotFoundException,
+      });
     }
 
     return post;
@@ -175,7 +182,11 @@ export class PostService {
 
     if (post) {
       this.logger.log(`Post slug already exists: ${postDto.slug}`);
-      throw new NotFoundException(MESSAGES.POST_SLUG_IS_EXISTED);
+
+      handleErrorException({
+        defaultMessage: MESSAGES.POST_SLUG_IS_EXISTED,
+        ExceptionClass: NotFoundException,
+      });
     }
 
     try {
@@ -188,7 +199,10 @@ export class PostService {
         [Error] - Error log: ${JSON.stringify(error, null, 2)}
       `);
 
-      throw new InternalServerErrorException(MESSAGES.SERVER_ERROR);
+      handleErrorException({
+        error,
+        defaultMessage: MESSAGES.CREATE_POST_FAILED,
+      });
     }
   }
 
@@ -216,7 +230,10 @@ export class PostService {
         [Error] - Error log: ${JSON.stringify(error, null, 2)}
       `);
 
-        throw new InternalServerErrorException(MESSAGES.SERVER_ERROR);
+        handleErrorException({
+          error,
+          defaultMessage: MESSAGES.UPDATE_POST_FAILED,
+        });
       }
     }
   }
@@ -244,7 +261,11 @@ export class PostService {
         this.logger.error(
           `[Error] - delete Post by id - ${id} error ${JSON.stringify(error)}`,
         );
-        throw new InternalServerErrorException(MESSAGES.SERVER_ERROR);
+
+        handleErrorException({
+          error,
+          defaultMessage: MESSAGES.DELETED_POST_FAILED,
+        });
       }
     }
   }
@@ -286,7 +307,7 @@ export class PostService {
         });
         deletedCount = deleteResult.deletedCount;
         deletedIds.push(...deleteResult.deletedIds);
-}
+      }
 
       this.logger.log('Post deleted successfully');
 
@@ -302,7 +323,11 @@ export class PostService {
       this.logger.error(
         `[Error] - Bulk delete posts error: ${JSON.stringify(error, null, 2)}`,
       );
-      throw new InternalServerErrorException(MESSAGES.SERVER_ERROR);
+
+      handleErrorException({
+        error,
+        defaultMessage: MESSAGES.DELETED_POST_FAILED,
+      });
     }
   }
 
@@ -339,11 +364,7 @@ export class PostService {
 
     try {
       // Validate user exists
-      const user = await this.usersService.getUserById(userId);
-      if (!user) {
-        this.logger.log(`User not found with ID: ${userId}`);
-        throw new NotFoundException(MESSAGES.USER_NOT_FOUND);
-      }
+      await this.usersService.getById(userId);
 
       // Find the post and validate ownership
       const post = await this.postsRepo.findOne({
@@ -352,7 +373,11 @@ export class PostService {
 
       if (!post) {
         this.logger.log(`Post ${postId} not found for user ${userId}`);
-        throw new NotFoundException(MESSAGES.POST_NOT_FOUND);
+
+        handleErrorException({
+          defaultMessage: MESSAGES.POST_NOT_FOUND,
+          ExceptionClass: NotFoundException,
+        });
       }
 
       // Delete the post
@@ -365,14 +390,14 @@ export class PostService {
         count: 1,
       };
     } catch (error) {
-      if (error instanceof NotFoundException) {
-        throw error;
-      }
-
       this.logger.error(
         `[Error] - Failed to delete post ${postId} for user ${userId}: ${JSON.stringify(error, null, 2)}`,
       );
-      throw new InternalServerErrorException(MESSAGES.SERVER_ERROR);
+
+      handleErrorException({
+        error,
+        defaultMessage: MESSAGES.DELETED_POST_FAILED,
+      });
     }
   }
 }

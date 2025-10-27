@@ -9,6 +9,7 @@ import { Reflector } from '@nestjs/core';
 import { Observable } from 'rxjs';
 import { UserRole } from '../types';
 import { MESSAGES } from '../constants';
+import { handleErrorException } from '../utils/error.utils';
 
 interface AuthenticatedRequest extends Request {
   user?: {
@@ -32,7 +33,10 @@ export class OwnUserGuard implements CanActivate {
     const user = request.user;
 
     if (!user) {
-      throw new ForbiddenException(MESSAGES.UNAUTHORIZED);
+      handleErrorException({
+        defaultMessage: MESSAGES.UNAUTHORIZED,
+        ExceptionClass: ForbiddenException,
+      });
     }
 
     // If user is ADMIN, allow access
@@ -62,12 +66,18 @@ export class OwnUserGuard implements CanActivate {
     }
 
     if (!targetId) {
-      throw new ForbiddenException(MESSAGES.NO_PERMISSION);
+      handleErrorException({
+        defaultMessage: MESSAGES.NO_PERMISSION,
+        ExceptionClass: ForbiddenException,
+      });
     }
 
     // For USER role, check if the target ID matches their user ID
     if (user.role === UserRole.USER && user.id !== targetId) {
-      throw new ForbiddenException(MESSAGES.NO_PERMISSION);
+      handleErrorException({
+        defaultMessage: MESSAGES.NO_PERMISSION,
+        ExceptionClass: ForbiddenException,
+      });
     }
 
     return true;

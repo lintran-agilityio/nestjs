@@ -1,7 +1,6 @@
 // libs
 import {
   Injectable,
-  InternalServerErrorException,
   LoggerService,
   NotFoundException,
   Inject,
@@ -30,6 +29,7 @@ import {
   QueryCommentParamDto,
   DeleteCommentsRequestDto,
 } from './dtos';
+import { handleErrorException } from '@app/shared/utils/error.utils';
 
 /**
  * Comment Service
@@ -136,7 +136,10 @@ export class CommentService {
         `[Error] - Get error when get all comments: ${JSON.stringify(error)}`,
       );
 
-      throw new InternalServerErrorException('Server error');
+      handleErrorException({
+        error,
+        defaultMessage: MESSAGES.GET_COMMENT_FAILED,
+      });
     }
   }
 
@@ -160,7 +163,6 @@ export class CommentService {
           title: true,
         },
       },
-      // relations: ['user', 'post'],
       relations: {
         user: true,
         post: true,
@@ -169,7 +171,10 @@ export class CommentService {
 
     if (!comment) {
       this.logger.log(`Comment not found by: ${id}`);
-      throw new NotFoundException(MESSAGES.COMMENT_NOT_FOUND);
+      handleErrorException({
+        defaultMessage: MESSAGES.COMMENT_NOT_FOUND,
+        ExceptionClass: NotFoundException,
+      });
     }
 
     return comment;
@@ -211,7 +216,10 @@ export class CommentService {
         `[Error] - Error creating comment: ${JSON.stringify(error)}`,
       );
 
-      throw new InternalServerErrorException('Server error');
+      handleErrorException({
+        error,
+        defaultMessage: MESSAGES.CREATE_COMMENT_FAILED,
+      });
     }
   }
 
@@ -233,7 +241,11 @@ export class CommentService {
       this.logger.warn(
         `User ${userId} attempted to update comment ${id} owned by ${comment.userId}`,
       );
-      throw new UnauthorizedException(MESSAGES.COMMENT_NO_AUTHORIZED);
+
+      handleErrorException({
+        defaultMessage: MESSAGES.COMMENT_NO_AUTHORIZED,
+        ExceptionClass: UnauthorizedException,
+      });
     }
 
     try {
@@ -248,7 +260,10 @@ export class CommentService {
         `[Error] - Error updating comment: ${JSON.stringify(error)}`,
       );
 
-      throw new InternalServerErrorException('Server error');
+      handleErrorException({
+        error,
+        defaultMessage: MESSAGES.UPDATE_COMMENT_FAILED,
+      });
     }
   }
 
@@ -269,7 +284,11 @@ export class CommentService {
       this.logger.warn(
         `User ${userId} attempted to delete comment ${id} owned by ${comment.userId}`,
       );
-      throw new UnauthorizedException(MESSAGES.COMMENT_NO_AUTHORIZED);
+
+      handleErrorException({
+        defaultMessage: MESSAGES.COMMENT_NO_AUTHORIZED,
+        ExceptionClass: UnauthorizedException,
+      });
     }
 
     try {
@@ -282,7 +301,11 @@ export class CommentService {
       this.logger.error(
         `[Error] - Error deleting comment: ${JSON.stringify(error)}`,
       );
-      throw new InternalServerErrorException('Server error');
+
+      handleErrorException({
+        error,
+        defaultMessage: MESSAGES.DELETE_COMMENT_FAILED,
+      });
     }
   }
 
@@ -341,7 +364,11 @@ export class CommentService {
       this.logger.error(
         `[Error] - Delete comments error: ${JSON.stringify(error, null, 2)}`,
       );
-      throw new InternalServerErrorException('Server error');
+
+      handleErrorException({
+        error,
+        defaultMessage: MESSAGES.DELETE_COMMENT_FAILED,
+      });
     }
   }
 
