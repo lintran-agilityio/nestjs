@@ -11,12 +11,11 @@ import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 
 // App sources
-import { BATCH_SIZE } from '@app/shared/common';
 import { MESSAGES } from '@app/shared/constants';
-import { QueryPaginationParamDto } from '@app/shared/dto';
+import { QueryPaginationParamDto } from '@app/shared/dtos';
 import { IMessageAndCountResponse, OrderBy } from '@app/shared/types';
 import {
-  chunkArray,
+  deleteItemsInArray,
   generateDeleteMessage,
   getSelectFields,
 } from '@app/shared/utils';
@@ -81,7 +80,7 @@ export class PostService {
       const allowedSortFields = selectFields;
       const sortField = allowedSortFields.includes(sortBy ?? '')
         ? sortBy
-        : 'id';
+        : 'createdAt';
 
       let queryBuilder = this.postsRepo
         .createQueryBuilder('post')
@@ -280,15 +279,23 @@ export class PostService {
 
       // Delete posts in batches for better performance
       if (existingPosts.length > 0) {
-        const deleteResult = await this.deleteInBatches(existingPosts);
+        const deleteResult = await deleteItemsInArray({
+          items: existingPosts,
+          itemRepository: this.postsRepo,
+          logger: this.logger,
+        });
         deletedCount = deleteResult.deletedCount;
         deletedIds.push(...deleteResult.deletedIds);
-      }
+}
 
       this.logger.log('Post deleted successfully');
 
       return {
-        message: generateDeleteMessage(deletedCount, notFoundIds.length),
+        message: generateDeleteMessage(
+          'post',
+          deletedCount,
+          notFoundIds.length,
+        ),
         count: deletedCount,
       };
     } catch (error) {
@@ -314,41 +321,6 @@ export class PostService {
       .select(['post.id', 'post.title', 'post.authorId'])
       .where('post.id IN (:...postIds)', { postIds })
       .getMany();
-  }
-
-  /**
-   * Delete posts in batches for better performance
-   * @param posts - Array of posts to delete
-   * @returns Object with deleted count and deleted IDs
-   */
-  private async deleteInBatches(posts: Post[]): Promise<{
-    deletedCount: number;
-    deletedIds: string[];
-  }> {
-    const batches = chunkArray(posts, BATCH_SIZE);
-    let totalDeletedCount = 0;
-    const allDeletedIds: string[] = [];
-
-    for (const batch of batches) {
-      try {
-        const batchIds = batch.map((post) => post.id);
-        await this.postsRepo.delete(batchIds);
-
-        totalDeletedCount += batch.length;
-        allDeletedIds.push(...batchIds);
-
-        this.logger.log(`Successfully deleted batch of ${batch.length} posts`);
-      } catch (error) {
-        this.logger.error(
-          `[Error] - Failed to delete batch: ${JSON.stringify(error)}`,
-        );
-      }
-    }
-
-    return {
-      deletedCount: totalDeletedCount,
-      deletedIds: allDeletedIds,
-    };
   }
 
   /**

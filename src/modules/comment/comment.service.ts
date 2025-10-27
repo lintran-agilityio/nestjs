@@ -12,11 +12,14 @@ import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 
 import { MESSAGES } from '@app/shared/constants';
-import { chunkArray, getSelectFields } from '@app/shared/utils';
+import {
+  getSelectFields,
+  deleteItemsInArray,
+  generateDeleteMessage,
+} from '@app/shared/utils';
 import { IMessageAndCountResponse, OrderBy } from '@app/shared/types';
 import { Comment } from './entities';
 import { COMMENT_SELECT_FIELDS } from './config';
-import { BATCH_SIZE } from '@app/shared/common';
 import { AppLoggerService } from '../logger/logger.service';
 import { UserService } from '../user/user.service';
 import { PostService } from '../post/post.service';
@@ -284,7 +287,7 @@ export class CommentService {
   }
 
   /**
-   * Bulk delete comments by IDs
+   * Delete comments by IDs
    * Uses TypeScript generics and batch processing for performance
    */
   async deleteComments(
@@ -315,8 +318,11 @@ export class CommentService {
 
       // Delete comments in batches for better performance
       if (existingComments.length > 0) {
-        const deleteResult =
-          await this.deleteCommentsInBatches(existingComments);
+        const deleteResult = await deleteItemsInArray({
+          items: existingComments,
+          itemRepository: this.commentsRepo,
+          logger: this.logger,
+        });
         deletedCount = deleteResult.deletedCount;
         deletedIds.push(...deleteResult.deletedIds);
       }
@@ -324,12 +330,16 @@ export class CommentService {
       this.logger.log('Comments deleted successfully');
 
       return {
-        message: this.generateDeleteMessage(deletedCount, notFoundIds.length),
+        message: generateDeleteMessage(
+          'comment',
+          deletedCount,
+          notFoundIds.length,
+        ),
         count: deletedCount,
       };
     } catch (error) {
       this.logger.error(
-        `[Error] - Bulk delete comments error: ${JSON.stringify(error, null, 2)}`,
+        `[Error] - Delete comments error: ${JSON.stringify(error, null, 2)}`,
       );
       throw new InternalServerErrorException('Server error');
     }
@@ -349,64 +359,6 @@ export class CommentService {
       .select(['comment.id', 'comment.content', 'comment.userId'])
       .where('comment.id IN (:...commentIds)', { commentIds })
       .getMany();
-  }
-
-  /**
-   * Delete comments in batches for better performance
-   * Uses TypeScript generics and advanced error handling
-   */
-  private async deleteCommentsInBatches(comments: Comment[]): Promise<{
-    deletedCount: number;
-    deletedIds: string[];
-  }> {
-    const batches = chunkArray(comments, BATCH_SIZE);
-    let totalDeletedCount = 0;
-    const allDeletedIds: string[] = [];
-
-    for (const batch of batches) {
-      try {
-        const batchIds = batch.map((comment) => comment.id);
-        await this.commentsRepo.delete(batchIds);
-
-        totalDeletedCount += batch.length;
-        allDeletedIds.push(...batchIds);
-
-        this.logger.log(
-          `Successfully deleted batch of ${batch.length} comments`,
-        );
-      } catch (error) {
-        this.logger.error(
-          `[Error] - Failed to delete batch: ${JSON.stringify(error)}`,
-        );
-      }
-    }
-
-    return {
-      deletedCount: totalDeletedCount,
-      deletedIds: allDeletedIds,
-    };
-  }
-
-  /**
-   * Generate appropriate message based on deletion results
-   */
-  private generateDeleteMessage(
-    deletedCount: number,
-    notFoundCount: number,
-  ): string {
-    if (deletedCount === 0 && notFoundCount > 0) {
-      return 'No comments were deleted as none were found';
-    }
-
-    if (deletedCount > 0 && notFoundCount === 0) {
-      return `Successfully deleted ${deletedCount} comment${deletedCount === 1 ? '' : 's'}`;
-    }
-
-    if (deletedCount > 0 && notFoundCount > 0) {
-      return `Deleted ${deletedCount} comment${deletedCount === 1 ? '' : 's'}, ${notFoundCount} comment${notFoundCount === 1 ? ' was' : 's were'} not found`;
-    }
-
-    return 'No comments were processed';
   }
 
   /**
