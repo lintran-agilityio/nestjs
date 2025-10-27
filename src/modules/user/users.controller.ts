@@ -7,6 +7,7 @@ import {
   HttpCode,
   HttpStatus,
   Param,
+  ParseUUIDPipe,
   Patch,
   Put,
   Query,
@@ -74,7 +75,7 @@ export class UserController {
     description: 'Get users by id successful',
     type: User,
   })
-  async getById(@Param('id') id: string): Promise<User> {
+  async getById(@Param('id', ParseUUIDPipe) id: string): Promise<User> {
     return this.userService.getById(id);
   }
 
@@ -113,7 +114,7 @@ export class UserController {
     type: User,
   })
   async update(
-    @Param('id') id: string,
+    @Param('id', ParseUUIDPipe) id: string,
     @Body() updateUserDto: UpdateUserByIdDto,
   ): Promise<IMessageAndCountResponse> {
     return await this.userService.updateById(id, updateUserDto);
@@ -171,7 +172,9 @@ export class UserController {
     description: 'Deleted user successfully',
     type: String,
   })
-  async deleteById(@Param('id') id: string): Promise<IMessageAndCountResponse> {
+  async deleteById(
+    @Param('id', ParseUUIDPipe) id: string,
+  ): Promise<IMessageAndCountResponse> {
     return await this.userService.deleteById(id);
   }
 
@@ -192,8 +195,8 @@ export class UserController {
     type: String,
   })
   async deletePostById(
-    @Param('id') userId: string,
-    @Param('postId') postId: string,
+    @Param('id', ParseUUIDPipe) userId: string,
+    @Param('postId', ParseUUIDPipe) postId: string,
   ): Promise<IMessageAndCountResponse> {
     return await this.userService.deletePostById(userId, postId);
   }

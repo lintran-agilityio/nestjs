@@ -5,6 +5,7 @@ import {
   HttpCode,
   HttpStatus,
   Param,
+  ParseUUIDPipe,
   Query,
   Post,
   Body,
@@ -82,7 +83,7 @@ export class CommentController {
     type: CommentPaginationResponseDto,
   })
   async getCommentsByPostId(
-    @Param('postId') postId: string,
+    @Param('postId', ParseUUIDPipe) postId: string,
     @Query() paramQueryDto: QueryCommentParamDto,
   ): Promise<CommentPaginationResponseDto> {
     return await this.commentService.getCommentsByPostId(postId, paramQueryDto);
@@ -99,7 +100,7 @@ export class CommentController {
     description: 'Get a specific comment by its ID',
     type: Comment,
   })
-  async getCommentById(@Param('id') id: string): Promise<any> {
+  async getCommentById(@Param('id', ParseUUIDPipe) id: string): Promise<any> {
     return await this.commentService.getCommentById(id);
   }
 
@@ -133,7 +134,7 @@ export class CommentController {
     type: Comment,
   })
   async updateCommentById(
-    @Param('id') id: string,
+    @Param('id', ParseUUIDPipe) id: string,
     @GetCurrentUser() user: IUserInfo,
     @Body() updateCommentDto: UpdateCommentRequestDto,
   ): Promise<any> {
@@ -157,7 +158,7 @@ export class CommentController {
     type: String,
   })
   async deleteCommentById(
-    @Param('id') id: string,
+    @Param('id', ParseUUIDPipe) id: string,
     @GetCurrentUser() user: IUserInfo,
   ): Promise<IMessageAndCountResponse> {
     return await this.commentService.deleteCommentById(id, user.id);

@@ -2,10 +2,15 @@
 import { NestFactory } from '@nestjs/core';
 import { ConfigService } from '@nestjs/config';
 import * as basicAuth from 'express-basic-auth';
-import { ValidationPipe, VersioningType } from '@nestjs/common';
+import {
+  BadRequestException,
+  ValidationPipe,
+  VersioningType,
+} from '@nestjs/common';
 
 import { AppModule } from './app.module';
 import { DocumentBuilder, SwaggerModule } from '@nestjs/swagger';
+import { handleErrorException } from './shared/utils/error.utils';
 
 async function bootstrap() {
   const app = await NestFactory.create(AppModule);
@@ -27,7 +32,22 @@ async function bootstrap() {
   app.enableCors();
 
   // Validation
-  app.useGlobalPipes(new ValidationPipe({ transform: true }));
+  app.useGlobalPipes(
+    new ValidationPipe({
+      transform: true,
+      whitelist: true,
+      forbidNonWhitelisted: true,
+      exceptionFactory: (validationErrors = []) => {
+        const messages = validationErrors.flatMap((err) =>
+          Object.values(err.constraints ?? {}),
+        );
+        handleErrorException({
+          defaultMessage: messages[0],
+          ExceptionClass: BadRequestException,
+        });
+      },
+    }),
+  );
 
   // Swagger
   const swaggerUser: string = configService.get<string>('SWAGGER_USER') ?? '';

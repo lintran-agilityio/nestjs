@@ -7,6 +7,7 @@ import {
   HttpCode,
   HttpStatus,
   Param,
+  ParseUUIDPipe,
   Patch,
   Post,
   Query,
@@ -86,7 +87,7 @@ export class PostController {
     description: 'Retrieve a specific post by its unique identifier',
     type: PostEntities,
   })
-  async get(@Param('id') id: string): Promise<PostEntities> {
+  async get(@Param('id', ParseUUIDPipe) id: string): Promise<PostEntities> {
     return await this.postService.getById(id);
   }
 
@@ -129,7 +130,7 @@ export class PostController {
     type: PostEntities,
   })
   async updateById(
-    @Param('id') id: string,
+    @Param('id', ParseUUIDPipe) id: string,
     @Body() updatePostDto: PostRequestDto,
   ): Promise<PostEntities> {
     return await this.postService.updateById(id, updatePostDto);
@@ -148,7 +149,7 @@ export class PostController {
     description: 'Delete a post by its unique identifier',
     type: String,
   })
-  async deleteById(@Param('id') id: string): Promise<IMessageAndCountResponse> {
+  async deleteById(@Param('id', ParseUUIDPipe) id: string): Promise<IMessageAndCountResponse> {
     return await this.postService.deleteById(id);
   }
 
