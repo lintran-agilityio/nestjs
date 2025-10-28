@@ -12,6 +12,7 @@ import { LoggerModule } from './modules/logger/logger.module';
 import { PostModule } from './modules/posts/posts.module';
 import { AppLoggerService } from './modules/logger/logger.service';
 import { CommentModule } from './modules/comments/comments.module';
+import { HealthModule } from './modules/health/health.module';
 
 import { JwtAuthGuard, RolesGuard } from '@app/shared/guards';
 
@@ -27,6 +28,7 @@ import { JwtAuthGuard, RolesGuard } from '@app/shared/guards';
     AuthModule,
     PostModule,
     CommentModule,
+    HealthModule,
   ],
   providers: [
     {
