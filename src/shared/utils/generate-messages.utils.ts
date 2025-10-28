@@ -1,5 +1,3 @@
-import { MESSAGES } from '../constants';
-
 /**
  * Generate appropriate message based on deletion results
  * Uses TypeScript string templates and conditional logic
@@ -10,7 +8,7 @@ export const generateDeleteMessage = (
   notFoundCount: number,
 ): string => {
   if (deletedCount === 0 && notFoundCount > 0) {
-    return MESSAGES.DELETE_NO_POST;
+    return `No ${entity} were deleted as none were found`;
   }
 
   if (deletedCount > 0 && notFoundCount === 0) {
