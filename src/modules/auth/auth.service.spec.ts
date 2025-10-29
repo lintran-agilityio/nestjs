@@ -17,6 +17,12 @@ import { User } from '@app/modules/users/entities';
 // Local sources
 import { AuthService } from './auth.service';
 import { LoginRequestDto, RegisterRequestDto } from './dto';
+import {
+  mockingUserInfo,
+  mockingUserLogin,
+  mockingUserRegister,
+  mockUuidUser,
+} from '@app/shared/mocks/mockingUserData.mock';
 
 describe('AuthService', () => {
   let service: AuthService;
@@ -87,14 +93,7 @@ describe('AuthService', () => {
   });
 
   describe('register', () => {
-    const dto: RegisterRequestDto = new RegisterRequestDto({
-      email: 'john.doe@example.com',
-      password: 'Password@123',
-      firstName: 'John',
-      lastName: 'Doe',
-      role: UserRole.USER,
-      status: UserStatus.ACTIVE,
-    });
+    const dto: RegisterRequestDto = new RegisterRequestDto(mockingUserRegister);
 
     it('should throw ConflictException if user exists', async () => {
       userService.getUserByEmail.mockResolvedValue({ id: '1' } as User);
@@ -133,10 +132,7 @@ describe('AuthService', () => {
   });
 
   describe('login', () => {
-    const dto: LoginRequestDto = new LoginRequestDto({
-      email: 'john.doe@example.com',
-      password: 'Password@123',
-    });
+    const dto: LoginRequestDto = new LoginRequestDto(mockingUserLogin);
 
     it('should throw UnauthorizedException if user not found', async () => {
       userService.getUserByEmail.mockResolvedValue(null);
@@ -227,13 +223,11 @@ describe('AuthService', () => {
 
     it('should return new accessToken on success', async () => {
       jwtService.verifyAsync.mockResolvedValue({
-        id: 'u1',
-        email: 'john.doe@example.com',
-        role: UserRole.USER,
-        status: UserStatus.ACTIVE,
+        id: mockUuidUser,
+        ...mockingUserInfo,
       });
       userService.getUserById.mockResolvedValue({
-        id: 'u1',
+        id: mockUuidUser,
         refreshToken: 'stored.hash',
       } as User);
       hashingService.compare.mockResolvedValue(true);
