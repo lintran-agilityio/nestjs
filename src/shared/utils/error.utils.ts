@@ -1,4 +1,4 @@
-import { HttpException } from '@nestjs/common';
+import { HttpException, InternalServerErrorException } from '@nestjs/common';
 import {
   IErrorResponse,
   IHandleErrorResponse,
@@ -16,7 +16,7 @@ import {
 export const handleErrorException = ({
   error,
   defaultMessage,
-  ExceptionClass,
+  ExceptionClass = InternalServerErrorException,
 }: IHandleErrorResponse): void => {
   if (error instanceof HttpException) {
     const response = error.getResponse() as IHttpExceptionResponse;
