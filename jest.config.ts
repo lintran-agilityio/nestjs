@@ -9,6 +9,7 @@ const config: JestConfigWithTsJest = {
   collectCoverage: true,
   collectCoverageFrom: [
     'src/**/*.{ts,tsx}',
+    'src/**/**/*.{ts,tsx}',
     '**/*.(t|j)s',
     '!**/*.module.ts',
     '!dist/**/*',
@@ -23,8 +24,8 @@ const config: JestConfigWithTsJest = {
     '!**/health.service.ts',
     '!src/modules/**/config/*',
     '!src/scripts/**/*',
-    '!src/test/**/*',
   ],
+  coveragePathIgnorePatterns: ['<rootDir>/test/'],
   moduleNameMapper: {
     '^(\\.{1,2}/.*)\\.js$': '$1',
     '^@app/(.*)$': '<rootDir>/src/$1',

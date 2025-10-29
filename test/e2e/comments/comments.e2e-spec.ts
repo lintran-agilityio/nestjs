@@ -18,6 +18,10 @@ import {
 import { MetadataResponseDto } from '@app/shared/dtos';
 import { JwtAuthGuard, RolesGuard } from '@app/shared/guards';
 import { configureApp, url } from '@e2e/helpers/app';
+import {
+  createMockJwtGuard,
+  createMockRolesGuard,
+} from '@e2e/helpers/guards';
 import { MockHandleErrorArgs } from '@app/shared/interfaces';
 import { OrderBy } from '@app/shared/types';
 import { PATHS } from '@app/shared/constants';
@@ -82,12 +86,13 @@ describe('Comments - Modules (e2e)', () => {
   beforeAll(async () => {
     const moduleRef = await Test.createTestingModule({
       controllers: [CommentController],
-      providers: [
-        { provide: CommentService, useValue: mockCommentService },
-        { provide: JwtAuthGuard, useValue: { canActivate: () => true } },
-        { provide: RolesGuard, useValue: { canActivate: () => true } },
-      ],
-    }).compile();
+      providers: [{ provide: CommentService, useValue: mockCommentService }],
+    })
+      .overrideGuard(JwtAuthGuard)
+      .useValue(createMockJwtGuard())
+      .overrideGuard(RolesGuard)
+      .useValue(createMockRolesGuard())
+      .compile();
 
     app = moduleRef.createNestApplication();
     configureApp(app);
@@ -215,6 +220,7 @@ describe('Comments - Modules (e2e)', () => {
 
       const res = await request(server)
         .post(url(COMMENTS_PATH))
+        .set('Content-Type', 'application/json')
         .send(payload)
         .expect(HttpStatus.CREATED);
 
@@ -335,6 +341,7 @@ describe('Comments - Modules (e2e)', () => {
 
       const res = await request(server)
         .delete(url(COMMENTS_PATH))
+        .set('Content-Type', 'application/json')
         .send(payload)
         .expect(HttpStatus.OK);
 

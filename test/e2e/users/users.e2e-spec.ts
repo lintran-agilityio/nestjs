@@ -10,11 +10,17 @@ import { UserService } from '@app/modules/users/users.service';
 import { User } from '@app/modules/users/entities';
 import { UserResponseDto } from '@app/modules/users/dtos';
 import { MetadataResponseDto, QueryPaginationParamDto } from '@app/shared/dtos';
-import { JwtAuthGuard, RolesGuard } from '@app/shared/guards';
+import { JwtAuthGuard, RolesGuard, OwnUserGuard } from '@app/shared/guards';
 import { configureApp, url } from '@e2e/helpers/app';
+import {
+  createMockJwtGuard,
+  createMockRolesGuard,
+  createMockOwnershipGuard,
+} from '@e2e/helpers/guards';
 import { MockHandleErrorArgs } from '@app/shared/interfaces';
 import {
   mockingMetadata,
+  mockingUser,
   mockingUserInfo,
   mockingUserResponse,
   mockUuidUser,
@@ -59,12 +65,8 @@ describe('Users - Modules (e2e)', () => {
     deletePostById: jest.fn(),
   };
 
-  const mockUser: User = Object.assign(new User(), {
-    ...mockingUserResponse,
-    createdAt: new Date(mockingUserResponse.createdAt),
-    updatedAt: new Date(mockingUserResponse.updatedAt),
-  } as Partial<User>);
-  const mockUsers: User[] = [mockUser];
+  
+  const mockUsers: User[] = [mockingUser];
 
   const mockMeta: MetadataResponseDto = mockingMetadata;
 
@@ -76,13 +78,15 @@ describe('Users - Modules (e2e)', () => {
   beforeAll(async () => {
     const moduleRef = await Test.createTestingModule({
       controllers: [UserController],
-      providers: [
-        { provide: UserService, useValue: mockUserService },
-        // Bypass auth/role guards for controller-level @UseGuards
-        { provide: JwtAuthGuard, useValue: { canActivate: () => true } },
-        { provide: RolesGuard, useValue: { canActivate: () => true } },
-      ],
-    }).compile();
+      providers: [{ provide: UserService, useValue: mockUserService }],
+    })
+      .overrideGuard(JwtAuthGuard)
+      .useValue(createMockJwtGuard())
+      .overrideGuard(RolesGuard)
+      .useValue(createMockRolesGuard())
+      .overrideGuard(OwnUserGuard)
+      .useValue(createMockOwnershipGuard())
+      .compile();
 
     app = moduleRef.createNestApplication();
     configureApp(app);
@@ -148,7 +152,7 @@ describe('Users - Modules (e2e)', () => {
   describe('GET /api/v1/users/:id', () => {
     it('should return 200 with user when id is valid UUID', async () => {
       const id = mockUuidUser;
-      mockUserService.getById.mockResolvedValueOnce(mockUser);
+      mockUserService.getById.mockResolvedValueOnce(mockingUser);
 
       const res = await request(server)
         .get(url(`${USERS_PATH}/${id}`))
@@ -222,8 +226,8 @@ describe('Users - Modules (e2e)', () => {
     });
   });
 
-  describe('PUT - Update all users with USERS_PATH: /api/v1/users/update-all', () => {
-    const UPDATE_ALL_USERS_PATH = `${USERS_PATH}/update-all`;
+  describe('PUT - Update all users with USERS_PATH: /api/v1/users', () => {
+    const UPDATE_ALL_USERS_PATH = USERS_PATH;
 
     it('should return 200 and list of users updated', async () => {
       const payload = {
@@ -234,10 +238,11 @@ describe('Users - Modules (e2e)', () => {
           },
         ],
       };
-      mockUserService.updateAll.mockResolvedValueOnce([mockUser]);
+      mockUserService.updateAll.mockResolvedValueOnce([mockingUser]);
 
       const res = await request(server)
         .put(url(UPDATE_ALL_USERS_PATH))
+        .set('Content-Type', 'application/json')
         .send(payload)
         .expect(HttpStatus.OK);
 

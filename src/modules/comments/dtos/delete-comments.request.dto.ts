@@ -1,6 +1,7 @@
 // libs
 import { ApiProperty } from '@nestjs/swagger';
-import { IsArray, IsUUID, ArrayNotEmpty } from 'class-validator';
+import { IsArray, ArrayNotEmpty, Matches } from 'class-validator';
+import { REGEX } from '@app/shared/constants';
 
 /**
  * DTO for deleting comments
@@ -17,6 +18,6 @@ export class DeleteCommentsRequestDto {
   })
   @IsArray()
   @ArrayNotEmpty()
-  @IsUUID('4', { each: true })
+  @Matches(REGEX.UUID_ANY, { each: true })
   commentIds: string[];
 }

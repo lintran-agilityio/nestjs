@@ -10,8 +10,13 @@ import { UserService } from '@app/modules/users/users.service';
 import { User } from '@app/modules/users/entities';
 import { UserResponseDto } from '@app/modules/users/dtos';
 import { MetadataResponseDto, QueryPaginationParamDto } from '@app/shared/dtos';
-import { JwtAuthGuard, RolesGuard } from '@app/shared/guards';
+import { JwtAuthGuard, RolesGuard, OwnUserGuard } from '@app/shared/guards';
 import { configureApp, url } from '@e2e/helpers/app';
+import {
+  createMockJwtGuard,
+  createMockRolesGuard,
+  createMockOwnershipGuard,
+} from '@e2e/helpers/guards';
 import { MockHandleErrorArgs } from '@app/shared/interfaces';
 import {
   mockingMetadata,
@@ -75,13 +80,15 @@ describe('Users - Modules (e2e)', () => {
   beforeAll(async () => {
     const moduleRef = await Test.createTestingModule({
       controllers: [UserController],
-      providers: [
-        { provide: UserService, useValue: mockUserService },
-        // Bypass auth/role guards for controller-level @UseGuards
-        { provide: JwtAuthGuard, useValue: { canActivate: () => true } },
-        { provide: RolesGuard, useValue: { canActivate: () => true } },
-      ],
-    }).compile();
+      providers: [{ provide: UserService, useValue: mockUserService }],
+    })
+      .overrideGuard(JwtAuthGuard)
+      .useValue(createMockJwtGuard())
+      .overrideGuard(RolesGuard)
+      .useValue(createMockRolesGuard())
+      .overrideGuard(OwnUserGuard)
+      .useValue(createMockOwnershipGuard())
+      .compile();
 
     app = moduleRef.createNestApplication();
     configureApp(app);
@@ -221,8 +228,8 @@ describe('Users - Modules (e2e)', () => {
     });
   });
 
-  describe('PUT - Update all users with path: /api/v1/users/update-all', () => {
-    const UPDATE_ALL_PATH = `${PATH}/update-all`;
+  describe('PUT - Update all users with path: /api/v1/users', () => {
+    const UPDATE_ALL_PATH = PATH;
 
     it('should return 200 and list of users updated', async () => {
       const payload = {
@@ -237,6 +244,7 @@ describe('Users - Modules (e2e)', () => {
 
       const res = await request(server)
         .put(url(UPDATE_ALL_PATH))
+        .set('Content-Type', 'application/json')
         .send(payload)
         .expect(HttpStatus.OK);
 

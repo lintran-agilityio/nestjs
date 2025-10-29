@@ -364,6 +364,11 @@ export class PostService {
         count: 1,
       };
     } catch (error) {
+      // Preserve NotFoundException if it was thrown
+      if (error instanceof NotFoundException) {
+        throw error;
+      }
+
       this.logger.error(
         `[Error] - Failed to delete post ${postId} for user ${userId}: ${JSON.stringify(error, null, 2)}`,
       );

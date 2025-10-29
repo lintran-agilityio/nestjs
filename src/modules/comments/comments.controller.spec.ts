@@ -4,26 +4,89 @@ import { Test, TestingModule } from '@nestjs/testing';
 // Local sources
 import { CommentController } from './comments.controller';
 import { CommentService } from './comments.service';
+import { Comment } from './entities';
 import {
+  CreateCommentRequestDto,
+  UpdateCommentRequestDto,
+  DeleteCommentsRequestDto,
+  CommentPaginationResponseDto,
+  QueryCommentParamDto,
+} from './dtos';
+import { IUserInfo, IMessageAndCountResponse } from '@app/shared/types';
+import {
+  mockingCommentInfo,
   mockingCommentUuid,
   mockingPostUuid,
+  mockingUserResponse,
   mockUuidUser,
-} from '@app/shared/mocks';
+} from '../../shared/mocks';
 
 describe('CommentController', () => {
   let controller: CommentController;
-  let commentService: any;
+  let commentService: {
+    getComments: jest.Mock<
+      Promise<CommentPaginationResponseDto>,
+      [QueryCommentParamDto]
+    >;
+    getCommentsByPostId: jest.Mock<
+      Promise<CommentPaginationResponseDto>,
+      [string, QueryCommentParamDto]
+    >;
+    getCommentById: jest.Mock<Promise<Comment>, [string]>;
+    createComment: jest.Mock<
+      Promise<Comment>,
+      [string, CreateCommentRequestDto]
+    >;
+    updateCommentById: jest.Mock<
+      Promise<Comment>,
+      [string, string, UpdateCommentRequestDto]
+    >;
+    deleteCommentById: jest.Mock<
+      Promise<IMessageAndCountResponse>,
+      [string, string]
+    >;
+    deleteComments: jest.Mock<
+      Promise<IMessageAndCountResponse>,
+      [DeleteCommentsRequestDto]
+    >;
+  };
   const successMessage = 'ok';
+  const mockUser: IUserInfo = {
+    id: mockUuidUser,
+    email: mockingUserResponse.email,
+    role: mockingUserResponse.role,
+    status: mockingUserResponse.status,
+    firstName: mockingUserResponse.firstName,
+    lastName: mockingUserResponse.lastName,
+  };
 
   beforeEach(async () => {
     commentService = {
-      getComments: jest.fn(),
-      getCommentsByPostId: jest.fn(),
-      getCommentById: jest.fn(),
-      createComment: jest.fn(),
-      updateCommentById: jest.fn(),
-      deleteCommentById: jest.fn(),
-      deleteComments: jest.fn(),
+      getComments: jest.fn<
+        Promise<CommentPaginationResponseDto>,
+        [QueryCommentParamDto]
+      >(),
+      getCommentsByPostId: jest.fn<
+        Promise<CommentPaginationResponseDto>,
+        [string, QueryCommentParamDto]
+      >(),
+      getCommentById: jest.fn<Promise<Comment>, [string]>(),
+      createComment: jest.fn<
+        Promise<Comment>,
+        [string, CreateCommentRequestDto]
+      >(),
+      updateCommentById: jest.fn<
+        Promise<Comment>,
+        [string, string, UpdateCommentRequestDto]
+      >(),
+      deleteCommentById: jest.fn<
+        Promise<IMessageAndCountResponse>,
+        [string, string]
+      >(),
+      deleteComments: jest.fn<
+        Promise<IMessageAndCountResponse>,
+        [DeleteCommentsRequestDto]
+      >(),
     };
 
     const module: TestingModule = await Test.createTestingModule({
@@ -39,55 +102,80 @@ describe('CommentController', () => {
   });
 
   it('getComments should delegate', async () => {
-    commentService.getComments.mockResolvedValue({ data: [], total: 0 });
-    const result = await controller.getComments({});
+    const mockResponse: CommentPaginationResponseDto = {
+      data: [],
+      meta: {
+        total: 0,
+        totalPages: 0,
+        page: 1,
+        limit: 10,
+      },
+    };
+    commentService.getComments.mockResolvedValue(mockResponse);
+    const result: CommentPaginationResponseDto = await controller.getComments(
+      {},
+    );
     expect(commentService.getComments).toHaveBeenCalled();
-    expect(result).toEqual({ data: [], total: 0 });
+    expect(result).toEqual(mockResponse);
   });
 
   it('getCommentsByPostId should delegate', async () => {
-    commentService.getCommentsByPostId.mockResolvedValue({
+    const mockResponse: CommentPaginationResponseDto = {
       data: [],
-      total: 0,
-    });
-    const result = await controller.getCommentsByPostId(mockingPostUuid, {});
+      meta: {
+        total: 0,
+        totalPages: 0,
+        page: 1,
+        limit: 10,
+      },
+    };
+    commentService.getCommentsByPostId.mockResolvedValue(mockResponse);
+    const result: CommentPaginationResponseDto =
+      await controller.getCommentsByPostId(mockingPostUuid, {});
     expect(commentService.getCommentsByPostId).toHaveBeenCalledWith(
       mockingPostUuid,
       {},
     );
-    expect(result).toEqual({ data: [], total: 0 });
+    expect(result).toEqual(mockResponse);
   });
 
   it('getCommentById should delegate', async () => {
-    commentService.getCommentById.mockResolvedValue({ id: mockingCommentUuid });
-    const result = await controller.getCommentById(mockingCommentUuid);
+    const mockComment = Object.assign(new Comment(), {
+      id: mockingCommentUuid,
+    } as Partial<Comment>);
+    commentService.getCommentById.mockResolvedValue(mockComment);
+    const result: Comment = await controller.getCommentById(mockingCommentUuid);
     expect(commentService.getCommentById).toHaveBeenCalledWith(
       mockingCommentUuid,
     );
-    expect(result).toEqual({ id: mockingCommentUuid });
+    expect(result).toEqual(mockComment);
   });
 
   it('createComment should delegate', async () => {
-    commentService.createComment.mockResolvedValue({ id: mockingCommentUuid });
-    const result = await controller.createComment(
-      { id: mockUuidUser },
-      { postId: mockingPostUuid, content },
-    );
+    const mockComment = Object.assign(new Comment(), {
+      id: mockingCommentUuid,
+    } as Partial<Comment>);
+    commentService.createComment.mockResolvedValue(mockComment);
+    const result: Comment = await controller.createComment(mockUser, {
+      postId: mockingPostUuid,
+      content: mockingCommentInfo.content,
+    });
     expect(commentService.createComment).toHaveBeenCalledWith(mockUuidUser, {
       postId: mockingPostUuid,
-      content: mockingcommentinfo.content,
+      content: mockingCommentInfo.content,
     });
-    expect(result).toEqual({ id: mockingCommentUuid });
+    expect(result).toEqual(mockComment);
   });
 
   it('updateCommentById should delegate', async () => {
-    commentService.updateCommentById.mockResolvedValue({
+    const mockComment = Object.assign(new Comment(), {
       id: mockingCommentUuid,
       content: 'new',
-    });
-    const result = await controller.updateCommentById(
+    } as Partial<Comment>);
+    commentService.updateCommentById.mockResolvedValue(mockComment);
+    const result: Comment = await controller.updateCommentById(
       mockingCommentUuid,
-      { id: mockUuidUser },
+      mockUser,
       { content: 'new' },
     );
     expect(commentService.updateCommentById).toHaveBeenCalledWith(
@@ -97,16 +185,17 @@ describe('CommentController', () => {
         content: 'new',
       },
     );
-    expect(result).toEqual({ id: mockingCommentUuid, content: 'new' });
+    expect(result).toEqual(mockComment);
   });
 
   it('deleteCommentById should delegate', async () => {
     commentService.deleteCommentById.mockResolvedValue({
       message: successMessage,
     });
-    const result = await controller.deleteCommentById(mockingCommentUuid, {
-      id: mockUuidUser,
-    });
+    const result: IMessageAndCountResponse = await controller.deleteCommentById(
+      mockingCommentUuid,
+      mockUser,
+    );
     expect(commentService.deleteCommentById).toHaveBeenCalledWith(
       mockingCommentUuid,
       mockUuidUser,
@@ -119,7 +208,7 @@ describe('CommentController', () => {
       message: successMessage,
       count: 1,
     });
-    const result = await controller.deleteComments({
+    const result: IMessageAndCountResponse = await controller.deleteComments({
       commentIds: [mockingCommentUuid],
     });
     expect(commentService.deleteComments).toHaveBeenCalledWith({

@@ -1,3 +1,4 @@
+import { User } from '@app/modules/users/entities';
 import { UserRole, UserStatus } from '@app/shared/types';
 
 export const mockingUserInfo = {
@@ -46,3 +47,9 @@ export const mockingMetadata = {
 };
 
 export const MOCKING_TOKEN = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9';
+
+export const mockingUser: User = Object.assign(new User(), {
+  ...mockingUserResponse,
+  createdAt: new Date(mockingUserResponse.createdAt),
+  updatedAt: new Date(mockingUserResponse.updatedAt),
+} as Partial<User>);

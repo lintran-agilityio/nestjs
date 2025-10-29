@@ -16,9 +16,14 @@ import { MetadataResponseDto, QueryPaginationParamDto } from '@app/shared/dtos';
 import {
   JwtAuthGuard,
   RolesGuard,
-  UserOwnershipProtected,
+  OwnUserGuard,
 } from '@app/shared/guards';
 import { configureApp, url } from '@e2e/helpers/app';
+import {
+  createMockJwtGuard,
+  createMockRolesGuard,
+  createMockOwnershipGuard,
+} from '@e2e/helpers/guards';
 import { MockHandleErrorArgs } from '@app/shared/interfaces';
 import { OrderBy } from '@app/shared/types';
 import {
@@ -82,17 +87,15 @@ describe('Posts - Modules (e2e)', () => {
   beforeAll(async () => {
     const moduleRef = await Test.createTestingModule({
       controllers: [PostController],
-      providers: [
-        { provide: PostService, useValue: mockPostService },
-        // Bypass auth/role guards and ownership guard
-        { provide: JwtAuthGuard, useValue: { canActivate: () => true } },
-        { provide: RolesGuard, useValue: { canActivate: () => true } },
-        {
-          provide: UserOwnershipProtected,
-          useValue: { canActivate: () => true },
-        },
-      ],
-    }).compile();
+      providers: [{ provide: PostService, useValue: mockPostService }],
+    })
+      .overrideGuard(JwtAuthGuard)
+      .useValue(createMockJwtGuard())
+      .overrideGuard(RolesGuard)
+      .useValue(createMockRolesGuard())
+      .overrideGuard(OwnUserGuard)
+      .useValue(createMockOwnershipGuard())
+      .compile();
 
     app = moduleRef.createNestApplication();
     configureApp(app);
@@ -282,6 +285,7 @@ describe('Posts - Modules (e2e)', () => {
 
       await request(server)
         .delete(url(POSTS_PATH))
+        .set('Content-Type', 'application/json')
         .send({ postIds: [mockingPostUuid] })
         .expect(HttpStatus.NO_CONTENT);
 

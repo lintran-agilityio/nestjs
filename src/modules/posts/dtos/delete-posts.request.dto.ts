@@ -1,6 +1,7 @@
 // Libs
-import { IsArray, IsNotEmpty, IsUUID } from 'class-validator';
+import { IsArray, IsNotEmpty, Matches } from 'class-validator';
 import { ApiProperty } from '@nestjs/swagger';
+import { REGEX } from '@app/shared/constants';
 
 /**
  * DTO for bulk delete posts operation
@@ -17,6 +18,6 @@ export class DeletePostsRequestDto {
   })
   @IsArray()
   @IsNotEmpty()
-  @IsUUID(undefined, { each: true })
+  @Matches(REGEX.UUID_ANY, { each: true })
   postIds: string[];
 }

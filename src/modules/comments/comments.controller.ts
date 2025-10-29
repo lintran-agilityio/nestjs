@@ -101,7 +101,9 @@ export class CommentController {
     description: 'Get a specific comment by its ID',
     type: Comment,
   })
-  async getCommentById(@Param('id', ParseUUIDPipe) id: string): Promise<any> {
+  async getCommentById(
+    @Param('id', ParseUUIDPipe) id: string,
+  ): Promise<Comment> {
     return await this.commentService.getCommentById(id);
   }
 
@@ -119,7 +121,7 @@ export class CommentController {
   async createComment(
     @GetCurrentUser() user: IUserInfo,
     @Body() commentDto: CreateCommentRequestDto,
-  ): Promise<any> {
+  ): Promise<Comment> {
     return await this.commentService.createComment(user.id, commentDto);
   }
 
@@ -138,7 +140,7 @@ export class CommentController {
     @Param('id', ParseUUIDPipe) id: string,
     @GetCurrentUser() user: IUserInfo,
     @Body() updateCommentDto: UpdateCommentRequestDto,
-  ): Promise<any> {
+  ): Promise<Comment> {
     return await this.commentService.updateCommentById(
       id,
       user.id,

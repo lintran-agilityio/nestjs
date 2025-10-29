@@ -1,6 +1,7 @@
 // libs
 import { ApiProperty } from '@nestjs/swagger';
-import { IsNotEmpty, IsString, IsUUID, MaxLength } from 'class-validator';
+import { IsNotEmpty, IsString, MaxLength, Matches } from 'class-validator';
+import { REGEX } from '@app/shared/constants';
 
 /**
  * DTO for creating a comment on a post
@@ -24,6 +25,6 @@ export class CreateCommentRequestDto {
   })
   @IsNotEmpty()
   @IsString()
-  @IsUUID()
+  @Matches(REGEX.UUID_ANY)
   postId: string;
 }
