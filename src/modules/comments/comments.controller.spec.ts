@@ -4,10 +4,16 @@ import { Test, TestingModule } from '@nestjs/testing';
 // Local sources
 import { CommentController } from './comments.controller';
 import { CommentService } from './comments.service';
+import {
+  mockingCommentUuid,
+  mockingPostUuid,
+  mockUuidUser,
+} from '@app/shared/mocks';
 
 describe('CommentController', () => {
   let controller: CommentController;
   let commentService: any;
+  const successMessage = 'ok';
 
   beforeEach(async () => {
     commentService = {
@@ -34,7 +40,7 @@ describe('CommentController', () => {
 
   it('getComments should delegate', async () => {
     commentService.getComments.mockResolvedValue({ data: [], total: 0 });
-    const result = await controller.getComments({} as any);
+    const result = await controller.getComments({});
     expect(commentService.getComments).toHaveBeenCalled();
     expect(result).toEqual({ data: [], total: 0 });
   });
@@ -44,68 +50,81 @@ describe('CommentController', () => {
       data: [],
       total: 0,
     });
-    const result = await controller.getCommentsByPostId('p1' as any, {} as any);
-    expect(commentService.getCommentsByPostId).toHaveBeenCalledWith('p1', {});
+    const result = await controller.getCommentsByPostId(mockingPostUuid, {});
+    expect(commentService.getCommentsByPostId).toHaveBeenCalledWith(
+      mockingPostUuid,
+      {},
+    );
     expect(result).toEqual({ data: [], total: 0 });
   });
 
   it('getCommentById should delegate', async () => {
-    commentService.getCommentById.mockResolvedValue({ id: 'c1' });
-    const result = await controller.getCommentById('c1' as any);
-    expect(commentService.getCommentById).toHaveBeenCalledWith('c1');
-    expect(result).toEqual({ id: 'c1' });
+    commentService.getCommentById.mockResolvedValue({ id: mockingCommentUuid });
+    const result = await controller.getCommentById(mockingCommentUuid);
+    expect(commentService.getCommentById).toHaveBeenCalledWith(
+      mockingCommentUuid,
+    );
+    expect(result).toEqual({ id: mockingCommentUuid });
   });
 
   it('createComment should delegate', async () => {
-    commentService.createComment.mockResolvedValue({ id: 'c1' });
+    commentService.createComment.mockResolvedValue({ id: mockingCommentUuid });
     const result = await controller.createComment(
-      { id: 'u1' } as any,
-      { postId: 'p1', content: 'hi' } as any,
+      { id: mockUuidUser },
+      { postId: mockingPostUuid, content },
     );
-    expect(commentService.createComment).toHaveBeenCalledWith('u1', {
-      postId: 'p1',
-      content: 'hi',
+    expect(commentService.createComment).toHaveBeenCalledWith(mockUuidUser, {
+      postId: mockingPostUuid,
+      content: mockingcommentinfo.content,
     });
-    expect(result).toEqual({ id: 'c1' });
+    expect(result).toEqual({ id: mockingCommentUuid });
   });
 
   it('updateCommentById should delegate', async () => {
     commentService.updateCommentById.mockResolvedValue({
-      id: 'c1',
+      id: mockingCommentUuid,
       content: 'new',
     });
     const result = await controller.updateCommentById(
-      'c1' as any,
-      { id: 'u1' } as any,
-      { content: 'new' } as any,
+      mockingCommentUuid,
+      { id: mockUuidUser },
+      { content: 'new' },
     );
-    expect(commentService.updateCommentById).toHaveBeenCalledWith('c1', 'u1', {
-      content: 'new',
-    });
-    expect(result).toEqual({ id: 'c1', content: 'new' });
+    expect(commentService.updateCommentById).toHaveBeenCalledWith(
+      mockingCommentUuid,
+      mockUuidUser,
+      {
+        content: 'new',
+      },
+    );
+    expect(result).toEqual({ id: mockingCommentUuid, content: 'new' });
   });
 
   it('deleteCommentById should delegate', async () => {
-    commentService.deleteCommentById.mockResolvedValue({ message: 'ok' });
-    const result = await controller.deleteCommentById(
-      'c1' as any,
-      { id: 'u1' } as any,
+    commentService.deleteCommentById.mockResolvedValue({
+      message: successMessage,
+    });
+    const result = await controller.deleteCommentById(mockingCommentUuid, {
+      id: mockUuidUser,
+    });
+    expect(commentService.deleteCommentById).toHaveBeenCalledWith(
+      mockingCommentUuid,
+      mockUuidUser,
     );
-    expect(commentService.deleteCommentById).toHaveBeenCalledWith('c1', 'u1');
-    expect(result).toEqual({ message: 'ok' });
+    expect(result).toEqual({ message: successMessage });
   });
 
   it('deleteComments should delegate', async () => {
     commentService.deleteComments.mockResolvedValue({
-      message: 'ok',
+      message: successMessage,
       count: 1,
     });
     const result = await controller.deleteComments({
-      commentIds: ['c1'],
-    } as any);
-    expect(commentService.deleteComments).toHaveBeenCalledWith({
-      commentIds: ['c1'],
+      commentIds: [mockingCommentUuid],
     });
-    expect(result).toEqual({ message: 'ok', count: 1 });
+    expect(commentService.deleteComments).toHaveBeenCalledWith({
+      commentIds: [mockingCommentUuid],
+    });
+    expect(result).toEqual({ message: successMessage, count: 1 });
   });
 });

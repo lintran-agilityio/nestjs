@@ -31,11 +31,12 @@ import { IMessageAndCountResponse, UserRole } from '@app/shared/types';
 import { UpdateAllUsersDto, UpdateUserByIdDto, UserResponseDto } from './dtos';
 import { User } from './entities';
 import { UserService } from './users.service';
+import { PATHS } from '@app/shared/constants';
 
 const { USER, ADMIN } = UserRole;
 
 @UseInterceptors(ClassSerializerInterceptor)
-@Controller('users')
+@Controller(PATHS.USERS)
 @ApiBearerAuth()
 @UseGuards(JwtAuthGuard, RolesGuard)
 export class UserController {
@@ -126,7 +127,7 @@ export class UserController {
    * @returns Array of updated users
    * @throws InternalServerErrorException on server error
    */
-  @Put('update-all')
+  @Put()
   @Roles(ADMIN)
   @HttpCode(HttpStatus.OK)
   @ApiOkResponseDto({

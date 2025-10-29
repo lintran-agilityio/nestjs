@@ -42,10 +42,11 @@ import {
 } from './dtos';
 import { Post as PostEntities } from './entities';
 import { PostService } from './posts.service';
+import { PATHS } from '@app/shared/constants';
 
 const { USER, ADMIN } = UserRole;
 
-@Controller('posts')
+@Controller(PATHS.POSTS)
 @ApiBearerAuth()
 @UseGuards(JwtAuthGuard, RolesGuard)
 export class PostController {
@@ -149,7 +150,9 @@ export class PostController {
     description: 'Delete a post by its unique identifier',
     type: String,
   })
-  async deleteById(@Param('id', ParseUUIDPipe) id: string): Promise<IMessageAndCountResponse> {
+  async deleteById(
+    @Param('id', ParseUUIDPipe) id: string,
+  ): Promise<IMessageAndCountResponse> {
     return await this.postService.deleteById(id);
   }
 

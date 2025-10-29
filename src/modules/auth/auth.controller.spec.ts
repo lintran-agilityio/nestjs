@@ -11,7 +11,7 @@ import { LoginRequestDto, RegisterRequestDto } from './dto';
 import {
   mockingUserLogin,
   mockingUserRegister,
-} from '@app/shared/mocks/mockingUserData.mock';
+} from '@app/shared/mocks/mocking-user-data.mock';
 
 describe('AuthController', () => {
   let controller: AuthController;

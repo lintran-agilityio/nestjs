@@ -38,6 +38,7 @@ import {
 } from './dtos';
 import { CommentService } from './comments.service';
 import { GetCurrentUser } from '@app/shared/decorators';
+import { PATHS } from '@app/shared/constants';
 
 const { USER, ADMIN } = UserRole;
 
@@ -46,7 +47,7 @@ const { USER, ADMIN } = UserRole;
  * Handles all HTTP requests related to comments
  * Implements authentication, authorization, and proper response types
  */
-@Controller('comments')
+@Controller(PATHS.COMMENTS)
 @ApiBearerAuth()
 @UseInterceptors(ClassSerializerInterceptor)
 @UseGuards(JwtAuthGuard, RolesGuard)

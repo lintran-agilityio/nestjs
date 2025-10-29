@@ -10,7 +10,6 @@ import { Repository } from 'typeorm';
 import { CUSTOM_PROVIDER_TOKENS } from '@app/shared/common';
 import { MESSAGES } from '@app/shared/constants';
 import { UserRole, UserStatus } from '@app/shared/types';
-import { AppLoggerService } from '@app/modules/logger/logger.service';
 import { UserService } from '@app/modules/users/users.service';
 import { User } from '@app/modules/users/entities';
 
@@ -22,7 +21,9 @@ import {
   mockingUserLogin,
   mockingUserRegister,
   mockUuidUser,
-} from '@app/shared/mocks/mockingUserData.mock';
+  createMockLoggerProvider,
+  createRepositoryProvider,
+} from '@app/shared/mocks';
 
 describe('AuthService', () => {
   let service: AuthService;
@@ -40,14 +41,7 @@ describe('AuthService', () => {
     const module: TestingModule = await Test.createTestingModule({
       providers: [
         AuthService,
-        {
-          provide: getRepositoryToken(User),
-          useValue: {
-            create: jest.fn(),
-            save: jest.fn(),
-            update: jest.fn(),
-          },
-        },
+        createRepositoryProvider<User>(User),
         {
           provide: CUSTOM_PROVIDER_TOKENS.PASSWORD_HASHING_SERVICE,
           useValue: { hash: jest.fn(), compare: jest.fn() },
@@ -65,16 +59,7 @@ describe('AuthService', () => {
             updateRefreshToken: jest.fn(),
           },
         },
-        {
-          provide: AppLoggerService,
-          useValue: {
-            getLoggerName: jest.fn().mockReturnValue({
-              log: jest.fn(),
-              error: jest.fn(),
-              warn: jest.fn(),
-            }),
-          },
-        },
+        createMockLoggerProvider(),
       ],
     }).compile();
 

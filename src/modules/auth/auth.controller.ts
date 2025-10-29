@@ -16,8 +16,9 @@ import {
   RegisterResponseDto,
 } from './dto';
 import { AuthService } from './auth.service';
+import { PATHS } from '@app/shared/constants';
 
-@Controller('auth')
+@Controller(PATHS.AUTH)
 export class AuthController {
   constructor(private readonly authService: AuthService) {}
 

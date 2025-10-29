@@ -21,6 +21,9 @@ const config: JestConfigWithTsJest = {
     '!**/database.module.ts',
     '!**/health.controller.ts',
     '!**/health.service.ts',
+    '!src/modules/**/config/*',
+    '!src/scripts/**/*',
+    '!src/test/**/*',
   ],
   moduleNameMapper: {
     '^(\\.{1,2}/.*)\\.js$': '$1',

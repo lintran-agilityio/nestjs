@@ -28,9 +28,7 @@ describe('PostController', () => {
 
     const module: TestingModule = await Test.createTestingModule({
       controllers: [PostController],
-      providers: [
-        { provide: PostService, useValue: postService },
-      ],
+      providers: [{ provide: PostService, useValue: postService }],
     }).compile();
 
     controller = module.get<PostController>(PostController);
@@ -56,15 +54,28 @@ describe('PostController', () => {
 
   it('create should delegate to service', async () => {
     postService.create.mockResolvedValue({ id: 'p1' });
-    const result = await controller.create({ id: 'u1' } as any, { title: 't', contents: 'c', slug: 's' } as any);
-    expect(postService.create).toHaveBeenCalledWith('u1', { title: 't', contents: 'c', slug: 's' });
+    const result = await controller.create(
+      { id: 'u1' } as any,
+      { title: 't', contents: 'c', slug: 's' } as any,
+    );
+    expect(postService.create).toHaveBeenCalledWith('u1', {
+      title: 't',
+      contents: 'c',
+      slug: 's',
+    });
     expect(result).toEqual({ id: 'p1' });
   });
 
   it('updateById should delegate to service', async () => {
     postService.updateById.mockResolvedValue({ id: 'p1', title: 'new' });
-    const result = await controller.updateById('p1' as any, { title: 'new', contents: 'c' } as any);
-    expect(postService.updateById).toHaveBeenCalledWith('p1', { title: 'new', contents: 'c' });
+    const result = await controller.updateById(
+      'p1' as any,
+      { title: 'new', contents: 'c' } as any,
+    );
+    expect(postService.updateById).toHaveBeenCalledWith('p1', {
+      title: 'new',
+      contents: 'c',
+    });
     expect(result).toEqual({ id: 'p1', title: 'new' });
   });
 
