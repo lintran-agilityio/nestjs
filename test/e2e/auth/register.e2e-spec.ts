@@ -12,14 +12,10 @@ import {
   mockingUserInfo,
   mockingUserRegister,
   mockUuidUser,
-} from '@e2e/mocks/mockingUserData.mock';
+} from '@app/shared/mocks';
+import { MockHandleErrorArgs } from '@app/shared/interfaces';
 
 // Silence error.utils throwing in validation factory if used
-type MockHandleErrorArgs = {
-  ExceptionClass?: new (message?: string) => Error;
-  defaultMessage?: string;
-};
-
 jest.mock('@app/shared/utils/error.utils', () => {
   const handleErrorException = jest.fn((args: MockHandleErrorArgs = {}) => {
     const { ExceptionClass, defaultMessage } = args;
@@ -34,6 +30,7 @@ jest.mock('@app/shared/utils/error.utils', () => {
 describe('Auth - Register (e2e)', () => {
   let app: INestApplication;
   let server: Server;
+  const REGISTER_PATH = 'auth/register';
 
   const mockAuthService = {
     register: jest.fn<Promise<RegisterResponseDto>, [RegisterRequestDto]>(),
@@ -72,7 +69,7 @@ describe('Auth - Register (e2e)', () => {
     mockAuthService.register.mockResolvedValueOnce(mockResponse);
 
     const res = await request(server)
-      .post(url('auth/register'))
+      .post(url(REGISTER_PATH))
       .send(payload)
       .expect(HttpStatus.CREATED);
 
@@ -86,7 +83,7 @@ describe('Auth - Register (e2e)', () => {
   it('POST /api/v1/auth/register -> 400 on invalid body', async () => {
     // missing required fields and invalid email/password format
     await request(server)
-      .post(url('auth/register'))
+      .post(url(REGISTER_PATH))
       .send({ email: 'abcb.c' })
       .expect(HttpStatus.BAD_REQUEST);
   });

@@ -21,17 +21,14 @@ import { MESSAGES } from '@app/shared/constants';
 import { configureApp, url } from '@e2e/helpers/app';
 import {
   mockingAdminLogin,
+  MOCKING_TOKEN,
   mockingUserInfo,
   mockingUserLogin,
   mockUuidUser,
-} from '@e2e/mocks/mockingUserData.mock';
+} from '@app/shared/mocks';
+import { MockHandleErrorArgs } from '@app/shared/interfaces';
 
 // Silence error.utils throwing in validation factory if used
-type MockHandleErrorArgs = {
-  ExceptionClass?: new (message?: string) => Error;
-  defaultMessage?: string;
-};
-
 jest.mock('@app/shared/utils/error.utils', () => {
   const handleErrorException = jest.fn((args: MockHandleErrorArgs = {}) => {
     const { ExceptionClass, defaultMessage } = args;
@@ -46,6 +43,7 @@ jest.mock('@app/shared/utils/error.utils', () => {
 describe('Auth - Login (e2e)', () => {
   let app: INestApplication;
   let server: Server;
+  const LOGIN_PATH = 'auth/login';
 
   const mockAuthService = {
     login: jest.fn<Promise<LoginResponseDto>, [LoginRequestDto]>(),
@@ -84,8 +82,8 @@ describe('Auth - Login (e2e)', () => {
     };
 
     const mockLoginResponse: LoginResponseDto = {
-      accessToken: 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.test.access.token',
-      refreshToken: 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.test.refresh.token',
+      accessToken: `${MOCKING_TOKEN}.test.access.token`,
+      refreshToken: `${MOCKING_TOKEN}.test.refresh.token`,
       user: mockUserInfo,
     };
 
@@ -97,7 +95,7 @@ describe('Auth - Login (e2e)', () => {
 
       // Act & Assert
       const res = await request(server)
-        .post(url('auth/login'))
+        .post(url(LOGIN_PATH))
         .send(userPayloadLogin)
         .expect(HttpStatus.OK);
 
@@ -133,7 +131,7 @@ describe('Auth - Login (e2e)', () => {
 
       // Act & Assert
       const res = await request(server)
-        .post(url('auth/login'))
+        .post(url(LOGIN_PATH))
         .send(adminPayloadLogin)
         .expect(HttpStatus.OK);
 
@@ -149,7 +147,7 @@ describe('Auth - Login (e2e)', () => {
 
       // Act & Assert
       await request(server)
-        .post(url('auth/login'))
+        .post(url(LOGIN_PATH))
         .send(userPayloadLogin)
         .expect(HttpStatus.UNAUTHORIZED);
 
@@ -166,7 +164,7 @@ describe('Auth - Login (e2e)', () => {
 
       // Act & Assert
       await request(server)
-        .post(url('auth/login'))
+        .post(url(LOGIN_PATH))
         .send(userPayloadLogin)
         .expect(HttpStatus.BAD_REQUEST);
 
@@ -176,7 +174,7 @@ describe('Auth - Login (e2e)', () => {
     it('should return 400 when request body is empty', async () => {
       // Act & Assert
       await request(server)
-        .post(url('auth/login'))
+        .post(url(LOGIN_PATH))
         .send({})
         .expect(HttpStatus.BAD_REQUEST);
     });
@@ -184,7 +182,7 @@ describe('Auth - Login (e2e)', () => {
     it('should return 400 when email is missing', async () => {
       // Act & Assert
       await request(server)
-        .post(url('auth/login'))
+        .post(url(LOGIN_PATH))
         .send(userPayloadLogin.password)
         .expect(HttpStatus.BAD_REQUEST);
     });
@@ -192,7 +190,7 @@ describe('Auth - Login (e2e)', () => {
     it('should return 400 when password is missing', async () => {
       // Act & Assert
       await request(server)
-        .post(url('auth/login'))
+        .post(url(LOGIN_PATH))
         .send(userPayloadLogin.email)
         .expect(HttpStatus.BAD_REQUEST);
     });
@@ -200,7 +198,7 @@ describe('Auth - Login (e2e)', () => {
     it('should return 400 when email format is invalid', async () => {
       // Act & Assert
       await request(server)
-        .post(url('auth/login'))
+        .post(url(LOGIN_PATH))
         .send(userPayloadLogin)
         .expect(HttpStatus.BAD_REQUEST);
     });
@@ -214,7 +212,7 @@ describe('Auth - Login (e2e)', () => {
 
       // Act & Assert
       await request(server)
-        .post(url('auth/login'))
+        .post(url(LOGIN_PATH))
         .send(payload)
         .expect(HttpStatus.BAD_REQUEST);
     });
@@ -228,7 +226,7 @@ describe('Auth - Login (e2e)', () => {
 
       // Act & Assert
       await request(server)
-        .post(url('auth/login'))
+        .post(url(LOGIN_PATH))
         .send(payload)
         .expect(HttpStatus.BAD_REQUEST);
     });
@@ -242,7 +240,7 @@ describe('Auth - Login (e2e)', () => {
 
       // Act & Assert
       await request(server)
-        .post(url('auth/login'))
+        .post(url(LOGIN_PATH))
         .send(payload)
         .expect(HttpStatus.BAD_REQUEST);
     });
@@ -256,7 +254,7 @@ describe('Auth - Login (e2e)', () => {
 
       // Act & Assert
       await request(server)
-        .post(url('auth/login'))
+        .post(url(LOGIN_PATH))
         .send(payload)
         .expect(HttpStatus.BAD_REQUEST);
     });
@@ -272,7 +270,7 @@ describe('Auth - Login (e2e)', () => {
 
       // Act & Assert
       await request(server)
-        .post(url('auth/login'))
+        .post(url(LOGIN_PATH))
         .send(payload)
         .expect(HttpStatus.BAD_REQUEST);
 
@@ -284,7 +282,7 @@ describe('Auth - Login (e2e)', () => {
 
       // Act
       const requests = Array.from({ length: 3 }, () =>
-        request(server).post(url('auth/login')).send(userPayloadLogin),
+        request(server).post(url(LOGIN_PATH)).send(userPayloadLogin),
       );
 
       const responses = await Promise.all(requests);
@@ -305,7 +303,7 @@ describe('Auth - Login (e2e)', () => {
 
       // Act & Assert
       const res = await request(server)
-        .post(url('auth/login'))
+        .post(url(LOGIN_PATH))
         .send(userPayloadLogin)
         .expect(HttpStatus.OK);
 
@@ -331,7 +329,7 @@ describe('Auth - Login (e2e)', () => {
 
       // Act & Assert
       const res = await request(server)
-        .post(url('auth/login'))
+        .post(url(LOGIN_PATH))
         .send(userPayloadLogin)
         .expect(HttpStatus.OK);
 

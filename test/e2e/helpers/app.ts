@@ -27,3 +27,21 @@ export const configureApp = (app: INestApplication): void => {
 export const url = (path: string): string => {
   return `/${API_PREFIX}/${API_VERSION_PREFIX}${DEFAULT_API_VERSION}/${path.replace(/^\//, '')}`;
 };
+
+/**
+ * Helper comment for mocking error.utils in e2e tests:
+ * Due to Jest hoisting behavior, the mock must be defined inline.
+ * Use this pattern in your test files:
+ *
+ * ```typescript
+ * jest.mock('@app/shared/utils/error.utils', () => ({
+ *   handleErrorException: jest.fn((args = {}) => {
+ *     const { ExceptionClass, defaultMessage } = args;
+ *     if (ExceptionClass) {
+ *       throw new ExceptionClass(defaultMessage ?? 'Validation error');
+ *     }
+ *     throw new Error(defaultMessage ?? 'Validation error');
+ *   }),
+ * }));
+ * ```
+ */
