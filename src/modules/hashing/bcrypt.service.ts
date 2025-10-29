@@ -7,7 +7,7 @@ import { HashingAbstractService } from './hashing.abstract.service';
 @Injectable()
 export class BcryptService implements HashingAbstractService {
   async hash(data: string | Buffer): Promise<string> {
-    const salt = await genSalt(10);
+    const salt = await genSalt(8);
     return hash(data.toString(), salt);
   }
 
