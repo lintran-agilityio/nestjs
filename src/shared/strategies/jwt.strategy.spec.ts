@@ -10,13 +10,29 @@ import { User } from '@app/modules/users/entities';
 
 // Local sources
 import { JwtStrategy } from './jwt.strategy';
-import { MESSAGES } from '../constants';
-import { IJwtPayload } from '../types';
+import { IJwtPayload, UserRole } from '../types';
 
 describe('JwtStrategy', () => {
   let strategy: JwtStrategy;
   let userRepo: Repository<User>;
   let configService: ConfigService;
+
+  // Default test data
+  const defaultUser = {
+    id: 'user-123',
+    email: 'test@example.com',
+    role: 'USER',
+    status: 'ACTIVE',
+    firstName: 'John',
+    lastName: 'Doe',
+  };
+
+  const defaultPayload: IJwtPayload = {
+    sub: 'user-123',
+    id: 'user-123',
+    email: 'test@example.com',
+    role: 'USER',
+  };
 
   beforeEach(async () => {
     const module: TestingModule = await Test.createTestingModule({
@@ -48,49 +64,25 @@ describe('JwtStrategy', () => {
 
   describe('validate', () => {
     it('returns user when payload contains id and user exists', async () => {
-      const payload: IJwtPayload = {
-        sub: 'user-123',
-        id: 'user-123',
-        email: 'test@example.com',
-        role: 'USER' as any,
-      };
-      const mockUser = {
-        id: 'user-123',
-        email: 'test@example.com',
-        role: 'USER',
-        status: 'ACTIVE',
-        firstName: 'John',
-        lastName: 'Doe',
-      };
+      (userRepo.findOne as jest.Mock).mockResolvedValue(defaultUser);
 
-      (userRepo.findOne as jest.Mock).mockResolvedValue(mockUser);
-
-      const result = await strategy.validate(payload);
+      const result = await strategy.validate(defaultPayload);
 
       expect(userRepo.findOne).toHaveBeenCalledWith({
         where: { id: 'user-123' },
         select: ['id', 'email', 'role', 'status', 'firstName', 'lastName'],
       });
-      expect(result).toEqual(mockUser);
+      expect(result).toEqual(defaultUser);
     });
 
     it('returns user when payload contains sub instead of id', async () => {
-      const payload: any = {
+      const payload = {
         sub: 'user-123',
-        email: 'test@example.com',
-        role: 'USER',
-        status: 'ACTIVE',
-      };
-      const mockUser = {
-        id: 'user-123',
-        email: 'test@example.com',
-        role: 'USER',
-        status: 'ACTIVE',
-        firstName: 'John',
-        lastName: 'Doe',
+        email: defaultUser.email,
+        role: UserRole.USER,
       };
 
-      (userRepo.findOne as jest.Mock).mockResolvedValue(mockUser);
+      (userRepo.findOne as jest.Mock).mockResolvedValue(defaultUser);
 
       const result = await strategy.validate(payload);
 
@@ -98,12 +90,14 @@ describe('JwtStrategy', () => {
         where: { id: 'user-123' },
         select: ['id', 'email', 'role', 'status', 'firstName', 'lastName'],
       });
-      expect(result).toEqual(mockUser);
+      expect(result).toEqual(defaultUser);
     });
 
     it('throws UnauthorizedException when payload has neither id nor sub', async () => {
-      const payload: any = {
-        email: 'test@example.com',
+      const payload = {
+        email: defaultUser.email,
+        role: UserRole.USER,
+        sub: 'user-123',
       };
 
       await expect(strategy.validate(payload)).rejects.toThrow(
@@ -113,50 +107,30 @@ describe('JwtStrategy', () => {
     });
 
     it('throws UnauthorizedException when user is not found', async () => {
-      const payload: IJwtPayload = {
-        sub: 'user-123',
-        id: 'user-123',
-        email: 'test@example.com',
-        role: 'USER' as any,
-      };
-
       (userRepo.findOne as jest.Mock).mockResolvedValue(null);
 
-      await expect(strategy.validate(payload)).rejects.toThrow(
+      await expect(strategy.validate(defaultPayload)).rejects.toThrow(
         UnauthorizedException,
       );
     });
 
     it('handles errors and throws UnauthorizedException', async () => {
-      const payload: IJwtPayload = {
-        sub: 'user-123',
-        id: 'user-123',
-        email: 'test@example.com',
-        role: 'USER' as any,
-      };
-
       (userRepo.findOne as jest.Mock).mockRejectedValue(
         new Error('Database error'),
       );
 
-      await expect(strategy.validate(payload)).rejects.toThrow(
+      await expect(strategy.validate(defaultPayload)).rejects.toThrow(
         UnauthorizedException,
       );
     });
 
     it('preserves UnauthorizedException when already thrown', async () => {
-      const payload: IJwtPayload = {
-        sub: 'user-123',
-        id: 'user-123',
-        email: 'test@example.com',
-        role: 'USER' as any,
-      };
-
       const unauthorizedError = new UnauthorizedException('Custom message');
       (userRepo.findOne as jest.Mock).mockRejectedValue(unauthorizedError);
 
-      await expect(strategy.validate(payload)).rejects.toThrow(unauthorizedError);
+      await expect(strategy.validate(defaultPayload)).rejects.toThrow(
+        unauthorizedError,
+      );
     });
   });
 });
-

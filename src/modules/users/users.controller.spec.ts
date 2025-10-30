@@ -12,7 +12,7 @@ import {
 
 describe('UserController', () => {
   let controller: UserController;
-  let userService: any;
+  let userService;
   const messageSuccess = 'ok';
 
   beforeEach(async () => {

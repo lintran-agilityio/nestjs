@@ -14,6 +14,7 @@ import {
   createRepositoryProvider,
   mockingCommentInfo,
   mockingCommentUuid,
+  mockingMetadata,
   mockingPostUuid,
   mockUuidUser,
 } from '@app/shared/mocks';
@@ -55,6 +56,7 @@ describe('CommentService', () => {
     getManyAndCount: jest.Mock;
     getMany: jest.Mock;
   };
+  const differentUserId = '22222222-2222-2222-2222-222222222222';
 
   beforeEach(async () => {
     queryBuilder = {
@@ -173,7 +175,6 @@ describe('CommentService', () => {
   describe('updateCommentById', () => {
     it('throws Unauthorized if ownership mismatch', async () => {
       jest.spyOn(service, 'getCommentById').mockResolvedValue(mockComment);
-      const differentUserId = '22222222-2222-2222-2222-222222222222';
       await expect(
         service.updateCommentById(mockingCommentUuid, differentUserId, {
           content: mockingCommentInfo.content,
@@ -212,7 +213,7 @@ describe('CommentService', () => {
     it('throws Unauthorized if ownership mismatch', async () => {
       jest.spyOn(service, 'getCommentById').mockResolvedValue(mockComment);
       await expect(
-        service.deleteCommentById('c1', 'u1'),
+        service.deleteCommentById(mockingCommentUuid, mockUuidUser),
       ).rejects.toBeInstanceOf(UnauthorizedException);
     });
 
@@ -324,7 +325,7 @@ describe('CommentService', () => {
         userId: mockUuidUser,
       } as Partial<Comment>);
       const comment2 = Object.assign(new Comment(), {
-        id: '22222222-2222-2222-2222-222222222222',
+        id: differentUserId,
         userId: mockUuidUser,
       } as Partial<Comment>);
 
@@ -334,11 +335,11 @@ describe('CommentService', () => {
 
       (utils.deleteItemsInArray as jest.Mock).mockResolvedValue({
         deletedCount: 2,
-        deletedIds: [mockingCommentUuid, '22222222-2222-2222-2222-222222222222'],
+        deletedIds: [mockingCommentUuid, differentUserId],
       });
 
       const result = await service.deleteComments({
-        commentIds: [mockingCommentUuid, '22222222-2222-2222-2222-222222222222'],
+        commentIds: [mockingCommentUuid, differentUserId],
       });
 
       expect(result.count).toBe(2);
@@ -382,13 +383,8 @@ describe('CommentService', () => {
       postService.getById.mockResolvedValue(mockPost);
       jest.spyOn(service, 'getComments').mockResolvedValue({
         data: [mockComment],
-        meta: {
-          total: 1,
-          page: 1,
-          limit: 10,
-          totalPages: 1,
-        },
-      } as any);
+        meta: mockingMetadata,
+      });
 
       const result = await service.getCommentsByPostId(mockingPostUuid, {});
 

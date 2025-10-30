@@ -40,14 +40,14 @@ describe('PostController', () => {
 
   it('getAll should delegate to service', async () => {
     postService.getAll.mockResolvedValue({ data: [], total: 0 });
-    const result = await controller.getAll({} as any);
+    const result = await controller.getAll({});
     expect(postService.getAll).toHaveBeenCalled();
     expect(result).toEqual({ data: [], total: 0 });
   });
 
   it('get should delegate to service', async () => {
     postService.getById.mockResolvedValue({ id: 'p1' });
-    const result = await controller.get('p1' as any);
+    const result = await controller.get('p1');
     expect(postService.getById).toHaveBeenCalledWith('p1');
     expect(result).toEqual({ id: 'p1' });
   });
@@ -55,8 +55,8 @@ describe('PostController', () => {
   it('create should delegate to service', async () => {
     postService.create.mockResolvedValue({ id: 'p1' });
     const result = await controller.create(
-      { id: 'u1' } as any,
-      { title: 't', contents: 'c', slug: 's' } as any,
+      { id: 'u1' },
+      { title: 't', contents: 'c', slug: 's' },
     );
     expect(postService.create).toHaveBeenCalledWith('u1', {
       title: 't',
@@ -69,8 +69,8 @@ describe('PostController', () => {
   it('updateById should delegate to service', async () => {
     postService.updateById.mockResolvedValue({ id: 'p1', title: 'new' });
     const result = await controller.updateById(
-      'p1' as any,
-      { title: 'new', contents: 'c' } as any,
+      'p1',
+      { title: 'new', contents: 'c' },
     );
     expect(postService.updateById).toHaveBeenCalledWith('p1', {
       title: 'new',
@@ -81,14 +81,14 @@ describe('PostController', () => {
 
   it('deleteById should delegate to service', async () => {
     postService.deleteById.mockResolvedValue({ message: 'ok' });
-    const result = await controller.deleteById('p1' as any);
+    const result = await controller.deleteById('p1');
     expect(postService.deleteById).toHaveBeenCalledWith('p1');
     expect(result).toEqual({ message: 'ok' });
   });
 
   it('deleteUserPosts should delegate to service', async () => {
     postService.delete.mockResolvedValue({ message: 'ok', count: 1 });
-    const result = await controller.deleteUserPosts({ postIds: ['p1'] } as any);
+    const result = await controller.deleteUserPosts({ postIds: ['p1'] });
     expect(postService.delete).toHaveBeenCalledWith({ postIds: ['p1'] });
     expect(result).toEqual({ message: 'ok', count: 1 });
   });

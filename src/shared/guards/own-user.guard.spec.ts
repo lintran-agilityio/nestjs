@@ -33,7 +33,7 @@ describe('OwnUserGuard', () => {
   });
 
   describe('canActivate', () => {
-    const createMockContext = (request: any): ExecutionContext => {
+    const createMockContext = (request): ExecutionContext => {
       return {
         switchToHttp: jest.fn().mockReturnValue({
           getRequest: jest.fn().mockReturnValue(request),
