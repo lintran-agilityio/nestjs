@@ -1,4 +1,4 @@
-// test/loadTest/posts-read.ts
+// test/loadTest/posts.loadtest.ts
 import http2 from "k6/http";
 import { sleep, check } from "k6";
 
@@ -44,18 +44,18 @@ var authHeaders = () => ({
   headers: { Authorization: `Bearer ${getToken()}` }
 });
 
-// test/loadTest/posts-read.ts
+// test/loadTest/posts.loadtest.ts
 var options = {
   vus: 20,
   duration: "1m",
   thresholds: commonThresholds
 };
-function posts_read_default() {
+function posts_loadtest_default() {
   const res = http2.get(`${BASE_URL}/posts`, authHeaders());
   check(res, { "status is 200": (r) => r.status === 200 });
   sleep(1);
 }
 export {
-  posts_read_default as default,
+  posts_loadtest_default as default,
   options
 };

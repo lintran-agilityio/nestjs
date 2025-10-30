@@ -24,14 +24,10 @@
     "migration:create": "npm run typeorm -- migration:create",
     "migration:run": "npm run typeorm -- migration:run -d src/config/data-source.config.ts",
     "migration:revert": "npm run typeorm -- migration:revert -d src/config/data-source.config.ts",
-    "load:smoke": "k6 run test/loadTest/smoke.js",
-    "load:ramp": "k6 run test/loadTest/ramping.js",
-    "load:posts": "k6 run test/loadTest/posts-read.js",
     "load:build": "esbuild test/loadTest/*.ts --bundle --external:k6 --external:k6/* --platform=browser --format=esm --target=es2020 --outdir=test/loadTest/dist",
-    "load:smoke:ts": "npm run load:build && k6 run test/loadTest/dist/smoke.js",
-    "load:ramp:ts": "npm run load:build && k6 run test/loadTest/dist/ramping.js",
-    "load:posts:ts": "npm run load:build && k6 run test/loadTest/dist/posts-read.js",
-    "load:user:ts": "npm run load:build && k6 run test/loadTest/dist/user-flow.js"
+    "load:health:ts": "npm run load:build && k6 run test/loadTest/dist/health-check.loadtest.js",
+    "load:posts:ts": "npm run load:build && k6 run test/loadTest/dist/posts.loadtest.js",
+    "load:user:ts": "npm run load:build && k6 run test/loadTest/dist/user-post-flow.loadtest.js"
   },
   "dependencies": {
     "@nestjs-cls/transactional": "^3.1.0",

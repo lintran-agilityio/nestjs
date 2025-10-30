@@ -1,4 +1,4 @@
-// test/loadTest/smoke.ts
+// test/loadTest/health-check.loadtest.ts
 import http from "k6/http";
 import { sleep, check } from "k6";
 
@@ -15,18 +15,18 @@ var commonThresholds = {
   http_req_duration: ["p(95)<500"]
 };
 
-// test/loadTest/smoke.ts
+// test/loadTest/health-check.loadtest.ts
 var options = {
   vus: 5,
   duration: "30s",
   thresholds: commonThresholds
 };
-function smoke_default() {
+function health_check_loadtest_default() {
   const response = http.get(`${BASE_URL}/health`);
   check(response, { "status is 200": (res) => res.status === 200 });
   sleep(1);
 }
 export {
-  smoke_default as default,
+  health_check_loadtest_default as default,
   options
 };

@@ -1,4 +1,4 @@
-// test/loadTest/user-flow.ts
+// test/loadTest/user-post-comment-flow.loadtest.ts
 import http from "k6/http";
 import { check, sleep } from "k6";
 import { Trend } from "k6/metrics";
@@ -16,7 +16,7 @@ var commonThresholds = {
   http_req_duration: ["p(95)<500"]
 };
 
-// test/loadTest/user-flow.ts
+// test/loadTest/user-post-comment-flow.loadtest.ts
 var loginTrend = new Trend("login_duration");
 var createPostTrend = new Trend("create_post_duration");
 var getPostsTrend = new Trend("get_posts_duration");
@@ -25,7 +25,7 @@ var options = {
   duration: "1m",
   thresholds: commonThresholds
 };
-function user_flow_default() {
+function user_post_comment_flow_loadtest_default() {
   const loginRes = http.post(
     `${BASE_URL}${AUTH_PATH}`,
     JSON.stringify({
@@ -68,6 +68,6 @@ function user_flow_default() {
   sleep(1);
 }
 export {
-  user_flow_default as default,
+  user_post_comment_flow_loadtest_default as default,
   options
 };
