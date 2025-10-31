@@ -1,5 +1,5 @@
 import { chunkArray } from './objects.utils';
-import { BATCH_SIZE } from '../common';
+import { BATCH_SIZE } from '../constants';
 import {
   IDeleteItemsInArrayConfig,
   IDeleteItemsInArrayResponse,

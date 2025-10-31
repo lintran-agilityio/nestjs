@@ -1,7 +1,7 @@
 import { LoggerService } from '@nestjs/common';
 import { Repository } from 'typeorm';
 import { deleteItemsInArray } from '../filter.utils';
-import { BATCH_SIZE } from '../../common/keys';
+import { BATCH_SIZE } from '../../constants';
 import { EntityWithStringId } from '../../types';
 
 describe('Filter Utils', () => {

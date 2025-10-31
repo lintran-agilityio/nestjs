@@ -10,6 +10,7 @@ import { IJwtPayload } from '../types';
 import { User } from '@app/modules/users/entities';
 import { MESSAGES } from '../constants';
 import { handleErrorException } from '../utils/error.utils';
+import { JWT_KEYS } from '../common';
 
 @Injectable()
 export class JwtStrategy extends PassportStrategy(JwtStrategyBase, 'jwt') {
@@ -20,7 +21,7 @@ export class JwtStrategy extends PassportStrategy(JwtStrategyBase, 'jwt') {
     super({
       jwtFromRequest: ExtractJwt.fromAuthHeaderAsBearerToken(),
       ignoreExpiration: false,
-      secretOrKey: configService.get<string>('JWT_SECRET') || 'secret',
+      secretOrKey: configService.get<string>(JWT_KEYS.JWT_SECRET) || 'secret',
     });
   }
 

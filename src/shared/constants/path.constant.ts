@@ -3,4 +3,6 @@ export const PATHS = {
   USERS: 'users',
   POSTS: 'posts',
   COMMENTS: 'comments',
+  REDIS: 'redis',
+  HEALTH_CHECK: 'health-check',
 };

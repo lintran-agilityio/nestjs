@@ -3,8 +3,9 @@ import { Controller, Get, HttpCode, HttpStatus } from '@nestjs/common';
 
 // App sources
 import { Public, ApiOkResponseDto } from '@app/shared/decorators';
+import { PATHS } from '@app/shared/constants';
 
-@Controller('health')
+@Controller(PATHS.HEALTH_CHECK)
 export class HealthController {
   @Get()
   @Public()

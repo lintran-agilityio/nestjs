@@ -8,8 +8,7 @@ import {
 import { Reflector } from '@nestjs/core';
 
 import { UserRole } from '../types';
-import { ROLES_KEY } from '../common';
-import { MESSAGES } from '../constants';
+import { MESSAGES, ROLES_KEY } from '../constants';
 import { handleErrorException } from '../utils/error.utils';
 
 @Injectable()

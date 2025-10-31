@@ -6,7 +6,7 @@ import { Reflector } from '@nestjs/core';
 // Local sources
 import { RolesGuard } from './roles-guard.guard';
 import { UserRole } from '../types';
-import { ROLES_KEY } from '../common/keys';
+import { ROLES_KEY } from '../constants';
 
 describe('RolesGuard', () => {
   let guard: RolesGuard;
