@@ -4,6 +4,7 @@ import { TypeOrmModule } from '@nestjs/typeorm';
 
 // App sources
 import { UserModule } from '@app/modules/users/users.module';
+import { RedisModule } from '../redis/redis.module';
 
 // Local sources
 import { PostController } from './posts.controller';
@@ -16,7 +17,11 @@ import { Post } from './entities';
  * Manages user-post relationships and bulk operations
  */
 @Module({
-  imports: [TypeOrmModule.forFeature([Post]), forwardRef(() => UserModule)],
+  imports: [
+    TypeOrmModule.forFeature([Post]),
+    forwardRef(() => UserModule),
+    RedisModule,
+  ],
   controllers: [PostController],
   providers: [PostService],
   exports: [PostService],

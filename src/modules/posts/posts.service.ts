@@ -11,7 +11,7 @@ import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 
 // App sources
-import { MESSAGES } from '@app/shared/constants';
+import { MESSAGES, REDIS_CACHE_KEYS, TTL_CACHE } from '@app/shared/constants';
 import { QueryPaginationParamDto } from '@app/shared/dtos';
 import { IMessageAndCountResponse } from '@app/shared/types';
 import {
@@ -22,6 +22,7 @@ import {
 } from '@app/shared/utils';
 import { AppLoggerService } from '@app/modules/logger/logger.service';
 import { UserService } from '@app/modules/users/users.service';
+import { RedisService } from '../redis/redis.service';
 
 // Local sources
 import { POST_SELECT_FIELDS } from './config';
@@ -45,6 +46,7 @@ export class PostService {
     private readonly usersService: UserService,
 
     private readonly appLoggerService: AppLoggerService,
+    private readonly redisService: RedisService,
   ) {
     // Create context name for logger
     this.logger = this.appLoggerService.getLoggerName(PostService.name);
@@ -64,6 +66,15 @@ export class PostService {
     try {
       this.logger.log(`Query get all posts: ${JSON.stringify(queryUrl)}`);
 
+      // Try cache first using query as part of the key
+      const listCacheKey = `${REDIS_CACHE_KEYS.POSTS.LIST}:${JSON.stringify(queryUrl)}`;
+      const cached =
+        await this.redisService.getKey<PostPaginationResponseDto>(listCacheKey);
+      if (cached) {
+        this.logger.log('Posts list served from cache');
+        return cached;
+      }
+
       const { search } = queryUrl;
 
       // Get select fields
@@ -81,13 +92,22 @@ export class PostService {
         );
       }
 
-      return await getDataPagination<Post>({
+      const result = await getDataPagination<Post>({
         selectFields,
         queryUrl,
         queryBuilder,
         logger: this.logger,
         entity: 'post',
       });
+
+      // Cache the result
+      await this.redisService.setKey(
+        listCacheKey,
+        result,
+        TTL_CACHE.POSTS_LIST,
+      );
+
+      return result;
     } catch (error) {
       this.logger.error(
         `[Error] - Get error when get all posts: ${JSON.stringify(error)}`,
@@ -108,9 +128,25 @@ export class PostService {
    */
   async getBySlug(slug: string): Promise<Post | null> {
     this.logger.log(`Get post by Id - ${slug}...`);
+    // Try cache first
+    const slugCacheKey = `${REDIS_CACHE_KEYS.POSTS.BY_SLUG}:${slug}`;
+    const cached = await this.redisService.getKey<Post>(slugCacheKey);
+    if (cached) {
+      this.logger.log('Post by slug served from cache');
+      return cached;
+    }
+
     const post = await this.postsRepo.findOne({
       where: { slug },
     });
+
+    if (post) {
+      await this.redisService.setKey(
+        slugCacheKey,
+        post,
+        TTL_CACHE.POST_BY_SLUG,
+      );
+    }
 
     return post;
   }
@@ -123,6 +159,14 @@ export class PostService {
    */
   async getById(id: string): Promise<Post | null> {
     this.logger.log(`Get post by Id - ${id}...`);
+    // Try cache first
+    const idCacheKey = `${REDIS_CACHE_KEYS.POSTS.BY_ID}:${id}`;
+    const cached = await this.redisService.getKey<Post>(idCacheKey);
+    if (cached) {
+      this.logger.log('Post by id served from cache');
+      return cached;
+    }
+
     const post = await this.postsRepo.findOne({
       where: { id },
     });
@@ -134,6 +178,10 @@ export class PostService {
         defaultMessage: MESSAGES.POST_NOT_FOUND,
         ExceptionClass: NotFoundException,
       });
+    }
+
+    if (post) {
+      await this.redisService.setKey(idCacheKey, post, TTL_CACHE.POST_BY_ID);
     }
 
     return post;
@@ -165,10 +213,25 @@ export class PostService {
     }
 
     try {
-      return this.postsRepo.save({
+      const newPost = await this.postsRepo.save({
         ...postDto,
         authorId,
       });
+      // Invalidate list caches and set item caches
+      await this.redisService.deleteByPattern(
+        `${REDIS_CACHE_KEYS.POSTS.LIST}:*`,
+      );
+      await this.redisService.setKey(
+        `${REDIS_CACHE_KEYS.POSTS.BY_ID}:${newPost.id}`,
+        newPost,
+        TTL_CACHE.POST_BY_ID,
+      );
+      await this.redisService.setKey(
+        `${REDIS_CACHE_KEYS.POSTS.BY_SLUG}:${newPost.slug}`,
+        newPost,
+        TTL_CACHE.POST_BY_SLUG,
+      );
+      return newPost;
     } catch (error) {
       this.logger.error(`
         [Error] - Error log: ${JSON.stringify(error, null, 2)}
@@ -213,7 +276,32 @@ export class PostService {
       try {
         existedPost.title = updateDto.title;
         existedPost.contents = updateDto.contents;
-        return await this.postsRepo.save(existedPost);
+
+        const saved = await this.postsRepo.save(existedPost);
+
+        // Invalidate caches
+        await this.redisService.deleteKey(
+          `${REDIS_CACHE_KEYS.POSTS.BY_ID}:${id}`,
+        );
+        await this.redisService.deleteKey(
+          `${REDIS_CACHE_KEYS.POSTS.BY_SLUG}:${saved.slug}`,
+        );
+        await this.redisService.deleteByPattern(
+          `${REDIS_CACHE_KEYS.POSTS.LIST}:*`,
+        );
+        // Refresh item caches
+        await this.redisService.setKey(
+          `${REDIS_CACHE_KEYS.POSTS.BY_ID}:${saved.id}`,
+          saved,
+          TTL_CACHE.POST_BY_ID,
+        );
+        await this.redisService.setKey(
+          `${REDIS_CACHE_KEYS.POSTS.BY_SLUG}:${saved.slug}`,
+          saved,
+          TTL_CACHE.POST_BY_SLUG,
+        );
+
+        return saved;
       } catch (error) {
         this.logger.error(`
         [Error] - Error log: ${JSON.stringify(error, null, 2)}
@@ -244,6 +332,17 @@ export class PostService {
         await this.postsRepo.remove(existedPost);
 
         this.logger.log(`User deleted Post id - ${id} successfully`);
+
+        // Invalidate caches
+        await this.redisService.deleteKey(
+          `${REDIS_CACHE_KEYS.POSTS.BY_ID}:${id}`,
+        );
+        await this.redisService.deleteKey(
+          `${REDIS_CACHE_KEYS.POSTS.BY_SLUG}:${existedPost.slug}`,
+        );
+        await this.redisService.deleteByPattern(
+          `${REDIS_CACHE_KEYS.POSTS.LIST}:*`,
+        );
 
         return { message: MESSAGES.POST_DELETE_SUCCESS };
       } catch (error) {
@@ -296,6 +395,17 @@ export class PostService {
         });
         deletedCount = deleteResult.deletedCount;
         deletedIds.push(...deleteResult.deletedIds);
+
+        // Invalidate caches for deleted posts
+        for (const post of existingPosts) {
+          await this.redisService.deleteKey(
+            `${REDIS_CACHE_KEYS.POSTS.BY_ID}:${post.id}`,
+          );
+          // We don't have slug selected here; ignore slug invalidation in bulk
+        }
+        await this.redisService.deleteByPattern(
+          `${REDIS_CACHE_KEYS.POSTS.LIST}:*`,
+        );
       }
 
       this.logger.log('Post deleted successfully');
@@ -373,6 +483,14 @@ export class PostService {
       await this.postsRepo.remove(post);
 
       this.logger.log(`Successfully deleted post ${postId} for user ${userId}`);
+
+      // Invalidate caches
+      await this.redisService.deleteKey(
+        `${REDIS_CACHE_KEYS.POSTS.BY_ID}:${postId}`,
+      );
+      await this.redisService.deleteByPattern(
+        `${REDIS_CACHE_KEYS.POSTS.LIST}:*`,
+      );
 
       return {
         message: MESSAGES.POST_DELETE_SUCCESS,
