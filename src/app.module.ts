@@ -1,20 +1,26 @@
 // Libs
 import { APP_GUARD } from '@nestjs/core';
-import { ConfigModule } from '@nestjs/config';
+import { ConfigModule, ConfigService } from '@nestjs/config';
 import { Module, Scope } from '@nestjs/common';
 import { PassportModule } from '@nestjs/passport';
+import { CacheModule } from '@nestjs/cache-manager';
+import { redisStore } from 'cache-manager-redis-store';
+
+import { JwtAuthGuard, RolesGuard } from '@app/shared/guards';
 
 // database module
 import { UserModule } from './modules/users/users.module';
 import { AuthModule } from './modules/auth/auth.module';
 import { DatabaseModule } from './modules/database/database.module';
+
+// App resource
 import { LoggerModule } from './modules/logger/logger.module';
 import { PostModule } from './modules/posts/posts.module';
 import { AppLoggerService } from './modules/logger/logger.service';
 import { CommentModule } from './modules/comments/comments.module';
 import { HealthModule } from './modules/health/health.module';
-
-import { JwtAuthGuard, RolesGuard } from '@app/shared/guards';
+import { RedisModule } from './modules/redis/redis.module';
+import { REDIS_ENV_KEY } from './shared/common';
 
 @Module({
   imports: [
@@ -29,6 +35,17 @@ import { JwtAuthGuard, RolesGuard } from '@app/shared/guards';
     PostModule,
     CommentModule,
     HealthModule,
+    CacheModule.registerAsync({
+      isGlobal: true,
+      imports: [ConfigModule],
+      useFactory: (configService: ConfigService) => ({
+        store: redisStore,
+        host: configService.get<string>(REDIS_ENV_KEY.REDIS_HOST, 'localhost'),
+        port: configService.get<number>(REDIS_ENV_KEY.REDIS_PORT, 6379),
+      }),
+      inject: [ConfigService],
+    }),
+    RedisModule,
   ],
   providers: [
     {

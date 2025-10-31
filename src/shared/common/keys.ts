@@ -1,4 +1,4 @@
-export const IS_PUBLIC = 'isPublic';
+export const IS_PUBLIC_KEY = 'isPublic';
 export const IS_ADMIN_ONLY = 'isAdminOnly';
 
 export const JWT_EXPIRES = {
@@ -6,7 +6,14 @@ export const JWT_EXPIRES = {
   JWT_REFRESH_EXPIRES_IN: 'JWT_REFRESH_EXPIRES_IN',
 };
 
-export const IS_PUBLIC_KEY = IS_PUBLIC;
-export const ROLES_KEY = 'roles';
+export const REDIS_ENV_KEY = {
+  REDIS_HOST: 'REDIS_HOST',
+  REDIS_PORT: 'REDIS_PORT',
+};
 
-export const BATCH_SIZE = 50;
+export const JWT_KEYS = {
+  JWT_SECRET: 'JWT_SECRET',
+  JWT_EXPIRES_IN: 'JWT_EXPIRES_IN',
+  JWT_REFRESH_EXPIRES_IN: 'JWT_REFRESH_EXPIRES_IN',
+  JWT_REFRESH_SECRET: 'JWT_REFRESH_SECRET',
+};
