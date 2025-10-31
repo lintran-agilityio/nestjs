@@ -21,7 +21,6 @@ var commonThresholds = {
 // test/loadTest/helpers/auth.ts
 var cachedAccessToken = null;
 var getToken = (tokenParam) => {
-  console.log("tokenParam - cachedAccessToken", tokenParam, cachedAccessToken);
   if (tokenParam) return tokenParam;
   if (cachedAccessToken) return cachedAccessToken;
   const payload = JSON.stringify({

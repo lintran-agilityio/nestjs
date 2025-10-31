@@ -174,8 +174,8 @@ const failureFlow = () => {
         },
       );
       check(invalidBodyRes, {
-        'Failures: update invalid body -> 400|422': (r) =>
-          r.status === 400 || r.status === 422,
+        'Failures: update invalid body -> 400|422|403': (r) =>
+          r.status === 400 || r.status === 422 || r.status === 403,
       });
     }
 

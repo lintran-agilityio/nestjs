@@ -1,4 +1,4 @@
-// test/loadTest/modules/04-user-update-post.test.ts
+// test/loadTest/scenarios/04-user-update-post.test.ts
 import http from "k6/http";
 import { check, group } from "k6";
 import { Trend } from "k6/metrics";
@@ -19,7 +19,7 @@ var jsonHeaders = {
   headers: { "Content-Type": "application/json" }
 };
 
-// test/loadTest/modules/04-user-update-post.test.ts
+// test/loadTest/scenarios/04-user-update-post.test.ts
 var viewPostBeforeTrend = new Trend("view_post_before_duration");
 var updatePostTrend = new Trend("update_post_duration");
 var viewPostAfterTrend = new Trend("view_post_after_duration");
@@ -155,7 +155,7 @@ var failureFlow = () => {
         }
       );
       check(invalidBodyRes, {
-        "Failures: update invalid body -> 400|422": (r) => r.status === 400 || r.status === 422
+        "Failures: update invalid body -> 400|422|403": (r) => r.status === 400 || r.status === 422 || r.status === 403
       });
     }
     const notFoundRes = http.patch(

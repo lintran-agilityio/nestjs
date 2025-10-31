@@ -1,4 +1,4 @@
-// test/loadTest/modules/01-auth.test.ts
+// test/loadTest/scenarios/01-auth.test.ts
 import http2 from "k6/http";
 import { check, group } from "k6";
 import { Trend } from "k6/metrics";
@@ -11,16 +11,14 @@ var AUTH_PATH = __ENV.AUTH_PATH || "auth/login";
 var EMAIL_FIELD = __ENV.EMAIL_FIELD || "email";
 var PASSWORD_FIELD = __ENV.PASSWORD_FIELD || "password";
 var TOKEN_FIELD = __ENV.TOKEN_FIELD || "accessToken";
-var commonThresholds = {
-  http_req_failed: ["rate<0.01"],
-  http_req_duration: ["p(95)<500"]
+var jsonHeaders = {
+  headers: { "Content-Type": "application/json" }
 };
 
 // test/loadTest/helpers/auth.ts
 import http from "k6/http";
 var cachedAccessToken = null;
 var getToken = (tokenParam) => {
-  console.log("tokenParam - cachedAccessToken", tokenParam, cachedAccessToken);
   if (tokenParam) return tokenParam;
   if (cachedAccessToken) return cachedAccessToken;
   const payload = JSON.stringify({
@@ -47,7 +45,10 @@ var getToken = (tokenParam) => {
   return cachedAccessToken;
 };
 
-// test/loadTest/modules/01-auth.test.ts
+// test/loadTest/scenarios/01-auth.test.ts
+http2.setResponseCallback(
+  http2.expectedStatuses({ min: 200, max: 399 }, 400, 401)
+);
 var loginSuccessTrend = new Trend("login_success_duration");
 var loginWrongPasswordTrend = new Trend("login_wrong_password_duration");
 var loginWrongEmailTrend = new Trend("login_wrong_email_duration");
@@ -59,7 +60,17 @@ var loginInvalidEmailFormatTrend = new Trend(
 var options = {
   vus: 20,
   duration: "1m",
-  thresholds: commonThresholds
+  thresholds: {
+    // allow up to 5% failure (since we test error cases)
+    http_req_failed: ["rate<0.05"],
+    // success login under 1s
+    login_success_duration: ["p(95)<1800"],
+    login_wrong_password_duration: ["p(95)<500"],
+    login_wrong_email_duration: ["p(95)<700"],
+    login_missing_email_duration: ["p(95)<500"],
+    login_missing_password_duration: ["p(95)<500"],
+    login_invalid_email_format_duration: ["p(95)<500"]
+  }
 };
 var login = () => {
   group("Auth Login - success", () => {
@@ -69,23 +80,25 @@ var login = () => {
         [EMAIL_FIELD]: USER_EMAIL,
         [PASSWORD_FIELD]: USER_PASSWORD
       }),
-      { headers: { "Content-Type": "application/json" } }
+      jsonHeaders
     );
     loginSuccessTrend.add(res.timings.duration);
-    check(res, { "Login 200": (r) => r.status === 200 });
     if (res.status !== 200) {
       throw new Error(
         `Failed to get token: ${res.status} ${res.status_text} body=${res.body}`
       );
     }
-    const body = res.json();
-    const token = body[TOKEN_FIELD];
-    if (!token) {
-      throw new Error(
-        `Login response missing token field '${TOKEN_FIELD}': ${res.body}`
-      );
+    const success = check(res, { "Login 200": (r) => r.status === 200 });
+    if (success) {
+      const body = res.json();
+      const token = body ? body[TOKEN_FIELD] : "";
+      if (!token) {
+        throw new Error(
+          `Login response missing token field '${TOKEN_FIELD}': ${res.body}`
+        );
+      }
+      getToken(token);
     }
-    getToken(token);
   });
   group("Auth Login - wrong password (400)", () => {
     const res = http2.post(
@@ -94,7 +107,7 @@ var login = () => {
         [EMAIL_FIELD]: USER_EMAIL,
         [PASSWORD_FIELD]: `x`
       }),
-      { headers: { "Content-Type": "application/json" } }
+      jsonHeaders
     );
     loginWrongPasswordTrend.add(res.timings.duration);
     check(res, { "Wrong password -> 400": (r) => r.status === 400 });

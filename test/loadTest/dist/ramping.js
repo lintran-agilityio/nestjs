@@ -19,7 +19,6 @@ var commonThresholds = {
 import http from "k6/http";
 var cachedAccessToken = null;
 var getToken = (tokenParam) => {
-  console.log("tokenParam - cachedAccessToken", tokenParam, cachedAccessToken);
   if (tokenParam) return tokenParam;
   if (cachedAccessToken) return cachedAccessToken;
   const payload = JSON.stringify({

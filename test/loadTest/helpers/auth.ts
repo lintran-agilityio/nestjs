@@ -13,7 +13,6 @@ import {
 let cachedAccessToken: string | null = null;
 
 export const getToken = (tokenParam?: string): string => {
-  console.log('tokenParam - cachedAccessToken', tokenParam, cachedAccessToken);
   if (tokenParam) return tokenParam;
   if (cachedAccessToken) return cachedAccessToken;
 

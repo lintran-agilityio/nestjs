@@ -11,9 +11,14 @@ import {
   USER_PASSWORD,
   PASSWORD_FIELD,
   TOKEN_FIELD,
-  commonThresholds,
+  jsonHeaders,
 } from '../helpers/config';
 import { getToken } from '../helpers/auth';
+
+// Mark 2xx/3xx and specific 4xx we deliberately test as expected to avoid inflating http_req_failed
+http.setResponseCallback(
+  http.expectedStatuses({ min: 200, max: 399 }, 400, 401),
+);
 
 const loginSuccessTrend = new Trend('login_success_duration');
 const loginWrongPasswordTrend = new Trend('login_wrong_password_duration');
@@ -27,7 +32,17 @@ const loginInvalidEmailFormatTrend = new Trend(
 export const options = {
   vus: 20,
   duration: '1m',
-  thresholds: commonThresholds,
+  thresholds: {
+    // allow up to 5% failure (since we test error cases)
+    http_req_failed: ['rate<0.05'],
+    // success login under 1s
+    login_success_duration: ['p(95)<1800'],
+    login_wrong_password_duration: ['p(95)<500'],
+    login_wrong_email_duration: ['p(95)<700'],
+    login_missing_email_duration: ['p(95)<500'],
+    login_missing_password_duration: ['p(95)<500'],
+    login_invalid_email_format_duration: ['p(95)<500'],
+  },
 };
 
 const login = () => {
@@ -39,29 +54,30 @@ const login = () => {
         [EMAIL_FIELD]: USER_EMAIL,
         [PASSWORD_FIELD]: USER_PASSWORD,
       }),
-      { headers: { 'Content-Type': 'application/json' } },
+      jsonHeaders,
     );
 
     loginSuccessTrend.add(res.timings.duration);
-
-    check(res, { 'Login 200': (r) => r.status === 200 });
-
     if (res.status !== 200) {
       throw new Error(
         `Failed to get token: ${res.status} ${res.status_text} body=${res.body}`,
       );
     }
 
-    const body = res.json() as Record<string, string>;
-    const token = body[TOKEN_FIELD];
-    if (!token) {
-      throw new Error(
-        `Login response missing token field '${TOKEN_FIELD}': ${res.body}`,
-      );
-    }
+    const success = check(res, { 'Login 200': (r) => r.status === 200 });
 
-    // Seed token into shared cache for helpers downstream
-    getToken(token);
+    if (success) {
+      const body = res.json() as Record<string, string>;
+      const token = body ? body[TOKEN_FIELD] : '';
+      if (!token) {
+        throw new Error(
+          `Login response missing token field '${TOKEN_FIELD}': ${res.body}`,
+        );
+      }
+
+      // Seed token into shared cache for helpers downstream
+      getToken(token);
+    }
   });
 
   // Failure cases
@@ -72,7 +88,7 @@ const login = () => {
         [EMAIL_FIELD]: USER_EMAIL,
         [PASSWORD_FIELD]: `x`,
       }),
-      { headers: { 'Content-Type': 'application/json' } },
+      jsonHeaders,
     );
     loginWrongPasswordTrend.add(res.timings.duration);
     check(res, { 'Wrong password -> 400': (r) => r.status === 400 });

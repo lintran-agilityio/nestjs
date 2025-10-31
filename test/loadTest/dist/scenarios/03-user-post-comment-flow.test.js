@@ -1,4 +1,4 @@
-// test/loadTest/modules/03-user-post-comment-flow.test.ts
+// test/loadTest/scenarios/03-user-post-comment-flow.test.ts
 import http from "k6/http";
 import { check, group } from "k6";
 import { Trend } from "k6/metrics";
@@ -19,7 +19,7 @@ var jsonHeaders = {
   headers: { "Content-Type": "application/json" }
 };
 
-// test/loadTest/modules/03-user-post-comment-flow.test.ts
+// test/loadTest/scenarios/03-user-post-comment-flow.test.ts
 var cachedAccessToken = null;
 var getAuthHeaders = () => {
   if (!cachedAccessToken) {
