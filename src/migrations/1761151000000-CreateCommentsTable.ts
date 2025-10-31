@@ -134,4 +134,3 @@ export class CreateCommentsTable1761151000000 implements MigrationInterface {
     await queryRunner.dropTable('comments');
   }
 }
-
