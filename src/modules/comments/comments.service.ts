@@ -10,7 +10,7 @@ import {
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 
-import { MESSAGES } from '@app/shared/constants';
+import { MESSAGES, REDIS_CACHE_KEYS, TTL_CACHE } from '@app/shared/constants';
 import {
   getSelectFields,
   deleteItemsInArray,
@@ -23,6 +23,7 @@ import { COMMENT_SELECT_FIELDS } from './config';
 import { AppLoggerService } from '../logger/logger.service';
 import { UserService } from '../users/users.service';
 import { PostService } from '../posts/posts.service';
+import { RedisService } from '../redis/redis.service';
 import {
   CreateCommentRequestDto,
   UpdateCommentRequestDto,
@@ -52,6 +53,8 @@ export class CommentService {
 
     @Inject(forwardRef(() => PostService))
     private readonly postService: PostService,
+
+    private readonly redisService: RedisService,
   ) {
     // Create context name for logger
     this.logger = this.appLoggerServices.getLoggerName(CommentService.name);
@@ -68,6 +71,19 @@ export class CommentService {
 
     try {
       this.logger.warn(`Query get all comments: ${JSON.stringify(queryUrl)}`);
+
+      // Try cache first using query as part of the key
+      const listCacheKey = `${REDIS_CACHE_KEYS.COMMENTS.LIST}:${JSON.stringify(
+        queryUrl,
+      )}`;
+      const cached =
+        await this.redisService.getKey<CommentPaginationResponseDto>(
+          listCacheKey,
+        );
+      if (cached) {
+        this.logger.log('Comments list served from cache');
+        return cached;
+      }
 
       const { search, postId } = queryUrl;
 
@@ -95,13 +111,22 @@ export class CommentService {
         });
       }
 
-      return await getDataPagination<Comment>({
+      const result = await getDataPagination<Comment>({
         selectFields,
         queryUrl,
         queryBuilder,
         logger: this.logger,
         entity: 'comment',
       });
+
+      // Cache the result
+      await this.redisService.setKey(
+        listCacheKey,
+        result,
+        TTL_CACHE.COMMENTS_LIST,
+      );
+
+      return result;
     } catch (error) {
       this.logger.error(
         `[Error] - Get error when get all comments: ${JSON.stringify(error)}`,
@@ -120,6 +145,13 @@ export class CommentService {
    */
   async getCommentById(id: string): Promise<Comment> {
     this.logger.warn(`Get comment by Id - ${id}...`);
+    // Try cache first
+    const idCacheKey = `${REDIS_CACHE_KEYS.COMMENTS.BY_ID}:${id}`;
+    const cached = await this.redisService.getKey<Comment>(idCacheKey);
+    if (cached) {
+      this.logger.log('Comment by id served from cache');
+      return cached;
+    }
 
     const comment = await this.commentsRepo.findOne({
       where: { id },
@@ -146,6 +178,14 @@ export class CommentService {
         defaultMessage: MESSAGES.COMMENT_NOT_FOUND,
         ExceptionClass: NotFoundException,
       });
+    }
+
+    if (comment) {
+      await this.redisService.setKey(
+        idCacheKey,
+        comment,
+        TTL_CACHE.COMMENT_BY_ID,
+      );
     }
 
     return comment;
@@ -180,6 +220,16 @@ export class CommentService {
       const savedComment = await this.commentsRepo.save(comment);
 
       this.logger.log(`Comment created successfully: ${savedComment.id}`);
+
+      // Invalidate list caches and set item cache
+      await this.redisService.deleteByPattern(
+        `${REDIS_CACHE_KEYS.COMMENTS.LIST}:*`,
+      );
+      await this.redisService.setKey(
+        `${REDIS_CACHE_KEYS.COMMENTS.BY_ID}:${savedComment.id}`,
+        savedComment,
+        TTL_CACHE.COMMENT_BY_ID,
+      );
 
       return savedComment;
     } catch (error) {
@@ -225,6 +275,20 @@ export class CommentService {
 
       this.logger.log(`Comment ${id} updated successfully`);
 
+      // Invalidate caches
+      await this.redisService.deleteKey(
+        `${REDIS_CACHE_KEYS.COMMENTS.BY_ID}:${id}`,
+      );
+      await this.redisService.deleteByPattern(
+        `${REDIS_CACHE_KEYS.COMMENTS.LIST}:*`,
+      );
+      // Refresh item cache
+      await this.redisService.setKey(
+        `${REDIS_CACHE_KEYS.COMMENTS.BY_ID}:${updatedComment.id}`,
+        updatedComment,
+        TTL_CACHE.COMMENT_BY_ID,
+      );
+
       return updatedComment;
     } catch (error) {
       this.logger.error(
@@ -266,6 +330,14 @@ export class CommentService {
       await this.commentsRepo.remove(comment);
 
       this.logger.log(`Comment ${id} deleted successfully`);
+
+      // Invalidate caches
+      await this.redisService.deleteKey(
+        `${REDIS_CACHE_KEYS.COMMENTS.BY_ID}:${id}`,
+      );
+      await this.redisService.deleteByPattern(
+        `${REDIS_CACHE_KEYS.COMMENTS.LIST}:*`,
+      );
 
       return { message: MESSAGES.COMMENT_DELETE_SUCCESS };
     } catch (error) {
@@ -319,6 +391,16 @@ export class CommentService {
         });
         deletedCount = deleteResult.deletedCount;
         deletedIds.push(...deleteResult.deletedIds);
+
+        // Invalidate caches for deleted comments
+        for (const comment of existingComments) {
+          await this.redisService.deleteKey(
+            `${REDIS_CACHE_KEYS.COMMENTS.BY_ID}:${comment.id}`,
+          );
+        }
+        await this.redisService.deleteByPattern(
+          `${REDIS_CACHE_KEYS.COMMENTS.LIST}:*`,
+        );
       }
 
       this.logger.log('Comments deleted successfully');

@@ -5,6 +5,7 @@ import { CommentService } from './comments.service';
 import { CommentController } from './comments.controller';
 import { UserModule } from '../users/users.module';
 import { PostModule } from '../posts/posts.module';
+import { RedisModule } from '../redis/redis.module';
 
 /**
  * Comment Module
@@ -16,6 +17,7 @@ import { PostModule } from '../posts/posts.module';
     TypeOrmModule.forFeature([Comment]),
     forwardRef(() => UserModule),
     forwardRef(() => PostModule),
+    RedisModule,
   ],
   controllers: [CommentController],
   providers: [CommentService],
