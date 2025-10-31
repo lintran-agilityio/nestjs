@@ -3,10 +3,10 @@ import http from "k6/http";
 import { sleep, check } from "k6";
 
 // test/loadTest/helpers/config.ts
-var BASE_URL = __ENV.BASE_URL || "http://localhost:8080";
+var BASE_URL = __ENV.BASE_URL || "http://localhost:8080/api/v1";
 var USER_EMAIL = __ENV.USER_EMAIL || "lin+01@gmail.com";
 var USER_PASSWORD = __ENV.USER_PASSWORD || "Abc@1234";
-var AUTH_PATH = __ENV.AUTH_PATH || "/api/v1/auth/login";
+var AUTH_PATH = __ENV.AUTH_PATH || "auth/login";
 var EMAIL_FIELD = __ENV.EMAIL_FIELD || "email";
 var PASSWORD_FIELD = __ENV.PASSWORD_FIELD || "password";
 var TOKEN_FIELD = __ENV.TOKEN_FIELD || "accessToken";

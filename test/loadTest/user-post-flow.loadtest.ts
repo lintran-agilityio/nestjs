@@ -3,6 +3,7 @@ import { check, sleep } from 'k6';
 import { Trend } from 'k6/metrics';
 import { BASE_URL, commonThresholds } from './helpers/config';
 import { AUTH_PATH, EMAIL_FIELD, PASSWORD_FIELD } from './helpers/config';
+import { PATHS } from '@app/shared/constants';
 
 const loginTrend = new Trend('login_duration');
 const createPostTrend = new Trend('create_post_duration');
@@ -16,7 +17,7 @@ export const options = {
 
 export default function () {
   const loginRes = http.post(
-    `${BASE_URL}${AUTH_PATH}`,
+    `${BASE_URL}/${AUTH_PATH}`,
     JSON.stringify({
       [EMAIL_FIELD]: 'lin+01@gmail.com',
       [PASSWORD_FIELD]: 'Abc@1234',
@@ -42,7 +43,7 @@ export default function () {
 
   // create Post
   const createPostRes = http.post(
-    `${BASE_URL}/api/v1/posts`,
+    `${BASE_URL}/${PATHS.POSTS}`,
     JSON.stringify({
       title: `Load test post ${Math.random()}`,
       contents: 'This post create from k6',
@@ -58,7 +59,7 @@ export default function () {
   });
 
   // get Posts
-  const getPostRes = http.get(`${BASE_URL}/api/v1/posts`, authHeaders);
+  const getPostRes = http.get(`${BASE_URL}/${PATHS.POSTS}`, authHeaders);
 
   getPostsTrend.add(getPostRes.timings.duration);
 

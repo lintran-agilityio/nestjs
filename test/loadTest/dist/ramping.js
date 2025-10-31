@@ -3,10 +3,10 @@ import http2 from "k6/http";
 import { sleep, check } from "k6";
 
 // test/loadTest/helpers/config.ts
-var BASE_URL = __ENV.BASE_URL || "http://localhost:8080";
+var BASE_URL = __ENV.BASE_URL || "http://localhost:8080/api/v1";
 var USER_EMAIL = __ENV.USER_EMAIL || "lin+01@gmail.com";
 var USER_PASSWORD = __ENV.USER_PASSWORD || "Abc@1234";
-var AUTH_PATH = __ENV.AUTH_PATH || "/api/v1/auth/login";
+var AUTH_PATH = __ENV.AUTH_PATH || "auth/login";
 var EMAIL_FIELD = __ENV.EMAIL_FIELD || "email";
 var PASSWORD_FIELD = __ENV.PASSWORD_FIELD || "password";
 var TOKEN_FIELD = __ENV.TOKEN_FIELD || "accessToken";
@@ -18,22 +18,29 @@ var commonThresholds = {
 // test/loadTest/helpers/auth.ts
 import http from "k6/http";
 var cachedAccessToken = null;
-var getToken = () => {
-  if (cachedAccessToken) {
-    return cachedAccessToken;
-  }
-  const payload = JSON.stringify({ [EMAIL_FIELD]: USER_EMAIL, [PASSWORD_FIELD]: USER_PASSWORD });
+var getToken = (tokenParam) => {
+  console.log("tokenParam - cachedAccessToken", tokenParam, cachedAccessToken);
+  if (tokenParam) return tokenParam;
+  if (cachedAccessToken) return cachedAccessToken;
+  const payload = JSON.stringify({
+    [EMAIL_FIELD]: USER_EMAIL,
+    [PASSWORD_FIELD]: USER_PASSWORD
+  });
   const headers = { "Content-Type": "application/json" };
-  const response = http.post(`${BASE_URL}${AUTH_PATH}`, payload, {
+  const response = http.post(`${BASE_URL}/${AUTH_PATH}`, payload, {
     headers
   });
   if (response.status !== 200) {
-    throw new Error(`Failed to get token: ${response.status} ${response.status_text} body=${response.body}`);
+    throw new Error(
+      `Failed to get token: ${response.status} ${response.status_text} body=${response.body}`
+    );
   }
   const body = response.json();
   const token = body[TOKEN_FIELD];
   if (!token) {
-    throw new Error(`Login response missing token field '${TOKEN_FIELD}': ${response.body}`);
+    throw new Error(
+      `Login response missing token field '${TOKEN_FIELD}': ${response.body}`
+    );
   }
   cachedAccessToken = token;
   return cachedAccessToken;
@@ -41,6 +48,14 @@ var getToken = () => {
 var authHeaders = () => ({
   headers: { Authorization: `Bearer ${getToken()}` }
 });
+
+// src/shared/constants/path.constant.ts
+var PATHS = {
+  AUTH: "auth",
+  USERS: "users",
+  POSTS: "posts",
+  COMMENTS: "comments"
+};
 
 // test/loadTest/ramping.ts
 var options = {
@@ -52,7 +67,7 @@ var options = {
   ]
 };
 function ramping_default() {
-  const res = http2.get(`${BASE_URL}/posts`, authHeaders());
+  const res = http2.get(`${BASE_URL}/${PATHS.POSTS}`, authHeaders());
   check(res, { "status is 200": (r) => r.status === 200 });
   sleep(1);
 }
