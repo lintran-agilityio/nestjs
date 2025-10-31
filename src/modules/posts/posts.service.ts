@@ -1,5 +1,6 @@
 // Libs
 import {
+  BadRequestException,
   forwardRef,
   Inject,
   Injectable,
@@ -192,6 +193,20 @@ export class PostService {
     this.logger.log(
       `Post id ${id} need to update with body ${JSON.stringify(updateDto)}`,
     );
+
+    // Validate required fields explicitly to ensure 400 on invalid body
+    if (
+      !updateDto ||
+      !updateDto.slug ||
+      !updateDto.title ||
+      !updateDto.contents
+    ) {
+      handleErrorException({
+        defaultMessage: MESSAGES.INVALID_REQUEST_BODY,
+        ExceptionClass: BadRequestException,
+      });
+    }
+
     const existedPost = await this.getById(id);
 
     if (existedPost) {

@@ -53,4 +53,5 @@ export const MESSAGES = {
   INVALID_VALIDATION: 'Validation fail',
   INVALID_TOKEN: 'Token missing or invalid',
   VALIDATION_FAILED: 'Invalid validation',
+  INVALID_REQUEST_BODY: 'Invalid post body',
 };

@@ -12,10 +12,8 @@ import {
   createMockLoggerProvider,
   createRepositoryProvider,
   MOCKING_TOKEN,
-  mockingPostUuid,
   mockingUser,
   mockingUserInfo,
-  mockingUserRegister,
   mockingUserResponse,
   mockUuidUser,
 } from '@app/shared/mocks';
@@ -197,10 +195,7 @@ describe('UserService', () => {
     it('delegates to PostService', async () => {
       postService.deleteUserPostById.mockResolvedValue({ message: 'ok' });
       const result = await service.deletePostById('u1', 'p1');
-      expect(postService.deleteUserPostById).toHaveBeenCalledWith(
-        'u1',
-        'p1',
-      );
+      expect(postService.deleteUserPostById).toHaveBeenCalledWith('u1', 'p1');
       expect(result).toEqual({ message: 'ok' });
     });
   });

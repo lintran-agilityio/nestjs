@@ -69,15 +69,15 @@ describe('JwtAuthGuard', () => {
       const result = await guard.canActivate(mockContext);
 
       expect(result).toBe(true);
-      expect(reflector.getAllAndOverride).toHaveBeenCalledWith(
-        IS_PUBLIC_KEY,
-        [mockContext.getHandler(), mockContext.getClass()],
-      );
+      expect(reflector.getAllAndOverride).toHaveBeenCalledWith(IS_PUBLIC_KEY, [
+        mockContext.getHandler(),
+        mockContext.getClass(),
+      ]);
     });
 
     it('calls super.canActivate when route is not public', async () => {
       (reflector.getAllAndOverride as jest.Mock).mockReturnValue(false);
-      
+
       // Access the parent class prototype and spy on it
       const AuthGuardPrototype = Object.getPrototypeOf(JwtAuthGuard.prototype);
       const parentCanActivate = jest
@@ -132,4 +132,3 @@ describe('JwtAuthGuard', () => {
     });
   });
 });
-

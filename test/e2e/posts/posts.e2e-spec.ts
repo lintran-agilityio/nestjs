@@ -13,11 +13,7 @@ import {
   PostRequestDto,
 } from '@app/modules/posts/dtos';
 import { MetadataResponseDto, QueryPaginationParamDto } from '@app/shared/dtos';
-import {
-  JwtAuthGuard,
-  RolesGuard,
-  OwnUserGuard,
-} from '@app/shared/guards';
+import { JwtAuthGuard, RolesGuard, OwnUserGuard } from '@app/shared/guards';
 import { configureApp, url } from '@e2e/helpers/app';
 import {
   createMockJwtGuard,

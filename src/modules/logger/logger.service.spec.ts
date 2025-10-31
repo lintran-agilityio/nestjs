@@ -75,7 +75,9 @@ describe('AppLoggerService', () => {
     it('should log an error message with trace', () => {
       const message = 'Test error message';
       const trace = 'Error trace stack';
-      const errorSpy = jest.spyOn(Logger.prototype, 'error').mockImplementation();
+      const errorSpy = jest
+        .spyOn(Logger.prototype, 'error')
+        .mockImplementation();
 
       service.error(message, trace);
 
@@ -84,7 +86,9 @@ describe('AppLoggerService', () => {
 
     it('should log an error message without trace', () => {
       const message = 'Test error message';
-      const errorSpy = jest.spyOn(Logger.prototype, 'error').mockImplementation();
+      const errorSpy = jest
+        .spyOn(Logger.prototype, 'error')
+        .mockImplementation();
 
       service.error(message);
 
@@ -105,7 +109,9 @@ describe('AppLoggerService', () => {
   describe('debug', () => {
     it('should debug a message using the internal logger', () => {
       const message = 'Test debug message';
-      const debugSpy = jest.spyOn(Logger.prototype, 'debug').mockImplementation();
+      const debugSpy = jest
+        .spyOn(Logger.prototype, 'debug')
+        .mockImplementation();
 
       service.debug(message);
 
@@ -126,4 +132,3 @@ describe('AppLoggerService', () => {
     });
   });
 });
-

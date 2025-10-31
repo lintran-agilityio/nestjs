@@ -68,10 +68,10 @@ describe('PostController', () => {
 
   it('updateById should delegate to service', async () => {
     postService.updateById.mockResolvedValue({ id: 'p1', title: 'new' });
-    const result = await controller.updateById(
-      'p1',
-      { title: 'new', contents: 'c' },
-    );
+    const result = await controller.updateById('p1', {
+      title: 'new',
+      contents: 'c',
+    });
     expect(postService.updateById).toHaveBeenCalledWith('p1', {
       title: 'new',
       contents: 'c',

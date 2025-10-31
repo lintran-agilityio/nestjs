@@ -1,12 +1,13 @@
 // libs
 import { ApiProperty } from '@nestjs/swagger';
-import { IsNotEmpty, IsString, MaxLength } from 'class-validator';
+import { IsDefined, IsNotEmpty, IsString, MaxLength } from 'class-validator';
 
 export class PostRequestDto {
   @ApiProperty({
     example: 'my-first-blog-post',
     description: 'Slug of Post',
   })
+  @IsDefined()
   @IsNotEmpty()
   @MaxLength(255)
   @IsString()
@@ -16,6 +17,7 @@ export class PostRequestDto {
     example: 'My first blog post',
     description: 'Title of Post',
   })
+  @IsDefined()
   @IsNotEmpty()
   @MaxLength(255)
   @IsString()
@@ -25,6 +27,7 @@ export class PostRequestDto {
     example: 'This is the content of my first post.',
     description: 'Content of this post',
   })
+  @IsDefined()
   @IsNotEmpty()
   @IsString()
   contents: string;

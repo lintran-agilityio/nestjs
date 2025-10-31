@@ -18,10 +18,7 @@ import {
 import { MetadataResponseDto } from '@app/shared/dtos';
 import { JwtAuthGuard, RolesGuard } from '@app/shared/guards';
 import { configureApp, url } from '@e2e/helpers/app';
-import {
-  createMockJwtGuard,
-  createMockRolesGuard,
-} from '@e2e/helpers/guards';
+import { createMockJwtGuard, createMockRolesGuard } from '@e2e/helpers/guards';
 import { MockHandleErrorArgs } from '@app/shared/interfaces';
 import { OrderBy } from '@app/shared/types';
 import { PATHS } from '@app/shared/constants';

@@ -43,7 +43,9 @@ export const deleteItemsInArray = async <
     try {
       const batchIds = batch.map((item) => item.id);
       // TypeScript-safe deletion with explicit typing
-      await (itemRepository.delete as (criteria: string[]) => Promise<unknown>)(batchIds);
+      await (itemRepository.delete as (criteria: string[]) => Promise<unknown>)(
+        batchIds,
+      );
 
       totalDeletedCount += batch.length;
       allDeletedIds.push(...batchIds);

@@ -65,7 +65,6 @@ describe('Users - Modules (e2e)', () => {
     deletePostById: jest.fn(),
   };
 
-  
   const mockUsers: User[] = [mockingUser];
 
   const mockMeta: MetadataResponseDto = mockingMetadata;
