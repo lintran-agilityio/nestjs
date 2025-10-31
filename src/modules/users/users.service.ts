@@ -11,13 +11,14 @@ import { Repository } from 'typeorm';
 
 // App sources
 import { CUSTOM_PROVIDER_TOKENS } from '@app/shared/common';
-import { MESSAGES } from '@app/shared/constants';
+import { MESSAGES, REDIS_CACHE_KEYS, TTL_CACHE } from '@app/shared/constants';
 import { QueryPaginationParamDto } from '@app/shared/dtos';
 import { IMessageAndCountResponse } from '@app/shared/types';
 import { getSelectFields, getDataPagination } from '@app/shared/utils';
 import { HashingAbstractService } from '@app/modules/hashing/hashing.abstract.service';
 import { AppLoggerService } from '@app/modules/logger/logger.service';
 import { PostService } from '@app/modules/posts/posts.service';
+import { RedisService } from '../redis/redis.service';
 
 // Local sources
 import { USER_SELECT_FIELDS } from './config';
@@ -40,6 +41,8 @@ export class UserService {
 
     @Inject(forwardRef(() => PostService))
     private readonly postService: PostService,
+
+    private readonly redisService: RedisService,
   ) {
     // Create context name for logger
     this.logger = this.appLoggerServices.getLoggerName(UserService.name);
@@ -56,6 +59,14 @@ export class UserService {
 
     try {
       this.logger.log(`Query get all users: ${JSON.stringify(queryUrl)}`);
+
+      // Try cache first using query as part of the key
+      const cacheKey = `${REDIS_CACHE_KEYS.USERS.LIST}:${JSON.stringify(queryUrl)}`;
+      const cached = await this.redisService.getKey<UserResponseDto>(cacheKey);
+      if (cached) {
+        this.logger.log('Users list served from cache');
+        return cached;
+      }
 
       const { search } = queryUrl;
 
@@ -75,13 +86,18 @@ export class UserService {
         );
       }
 
-      return await getDataPagination<User>({
+      const result = await getDataPagination<User>({
         selectFields,
         queryUrl,
         queryBuilder,
         logger: this.logger,
         entity: 'user',
       });
+
+      // Cache the result
+      await this.redisService.setKey(cacheKey, result, TTL_CACHE.USERS_LIST);
+
+      return result;
     } catch (error) {
       this.logger.error(
         `[Error] - Get error when get all user: ${JSON.stringify(error)}`,
@@ -113,7 +129,16 @@ export class UserService {
    * @throws NotFoundException if user not found
    */
   async getByEmail(email: string): Promise<User> {
-    this.logger.log('Get user by email...');
+    this.logger.log(`Get user by email - ${email}`);
+
+    // Get data from Redis cache
+    const cacheKey = `${REDIS_CACHE_KEYS.USERS.BY_EMAIL}:${email}`;
+    const cached = await this.redisService.getKey<User>(cacheKey);
+    if (cached) {
+      this.logger.log('User by email served from cache');
+      return cached;
+    }
+
     const user = await this.getUserByEmail(email);
 
     if (!user) {
@@ -125,6 +150,9 @@ export class UserService {
       });
     }
 
+    // Cache data into Redis cache
+    await this.redisService.setKey(cacheKey, user, TTL_CACHE.USER_BY_EMAIL);
+
     return user;
   }
 
@@ -135,9 +163,25 @@ export class UserService {
    */
   async getUserById(id: string): Promise<User | null> {
     this.logger.log(`Query get user by id: ${id}`);
-    return await this.usersRepo.findOne({
+
+    // Get data from Redis cache
+    const cacheKey = `${REDIS_CACHE_KEYS.USERS.BY_ID}:${id}`;
+    const cached = await this.redisService.getKey<User>(cacheKey);
+    if (cached) {
+      this.logger.log('User by id served from cache');
+      return cached;
+    }
+
+    const user = await this.usersRepo.findOne({
       where: { id },
     });
+
+    if (user) {
+      // Cache data into Redis cache
+      await this.redisService.setKey(cacheKey, user, TTL_CACHE.USER_BY_ID);
+    }
+
+    return user;
   }
 
   /**
@@ -147,7 +191,16 @@ export class UserService {
    * @throws NotFoundException if user not found
    */
   async getById(id: string): Promise<User> {
-    this.logger.log('Get user by id...');
+    this.logger.log(`Get user by id - ${id}`);
+
+    // Get data from Redis cache
+    const cacheKey = `${REDIS_CACHE_KEYS.USERS.BY_ID}:${id}`;
+    const cached = await this.redisService.getKey<User>(cacheKey);
+    if (cached) {
+      this.logger.log('User by id served from cache');
+      return cached;
+    }
+
     const user = await this.getUserById(id);
 
     if (!user) {
@@ -159,6 +212,11 @@ export class UserService {
       });
     }
 
+    if (user) {
+      // Cache data into Redis cache
+      await this.redisService.setKey(cacheKey, user, TTL_CACHE.USER_BY_ID);
+    }
+
     return user;
   }
 
@@ -168,7 +226,9 @@ export class UserService {
    * @param refreshToken - New refresh token
    */
   async updateRefreshToken(id: string, refreshToken: string): Promise<void> {
-    this.logger.log('Update refresh token when token is expire...');
+    this.logger.log(
+      `Update refresh token when token is expire with user id - ${id}`,
+    );
     await this.usersRepo.update(id, { refreshToken });
   }
 

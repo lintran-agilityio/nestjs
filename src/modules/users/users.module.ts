@@ -6,6 +6,7 @@ import { TypeOrmModule } from '@nestjs/typeorm';
 import { CUSTOM_PROVIDER_TOKENS } from '@app/shared/common';
 import { BcryptService } from '@app/modules/hashing/bcrypt.service';
 import { PostModule } from '@app/modules/posts/posts.module';
+import { RedisModule } from '../redis/redis.module';
 
 // Local sources
 import { UserController } from './users.controller';
@@ -13,7 +14,11 @@ import { UserService } from './users.service';
 import { User } from './entities';
 
 @Module({
-  imports: [TypeOrmModule.forFeature([User]), forwardRef(() => PostModule)],
+  imports: [
+    TypeOrmModule.forFeature([User]),
+    forwardRef(() => PostModule),
+    RedisModule,
+  ],
   controllers: [UserController],
   providers: [
     UserService,
