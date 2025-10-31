@@ -18,9 +18,10 @@ import { HashingAbstractService } from '@app/modules/hashing/hashing.abstract.se
 import { AppLoggerService } from '@app/modules/logger/logger.service';
 import { User } from '@app/modules/users/entities';
 import { UserService } from '@app/modules/users/users.service';
-import { CUSTOM_PROVIDER_TOKENS } from '@app/shared/common';
-import { MESSAGES } from '@app/shared/constants';
+import { CUSTOM_PROVIDER_TOKENS, JWT_KEYS } from '@app/shared/common';
+import { MESSAGES, REDIS_CACHE_KEYS, TTL_CACHE } from '@app/shared/constants';
 import { IJwtAuthPayload } from '@app/shared/types';
+import { RedisService } from '../redis/redis.service';
 
 // Local sources
 import {
@@ -44,6 +45,7 @@ export class AuthService {
     private readonly jwtService: JwtService,
     private readonly userService: UserService,
     private readonly appLoggerService: AppLoggerService,
+    private readonly redisService: RedisService,
   ) {
     this.logger = this.appLoggerService.getLoggerName(AuthService.name);
   }
@@ -132,6 +134,8 @@ export class AuthService {
       });
     }
 
+    const { id, status, role } = existingUser;
+
     try {
       const isValidPassword = await this.hashingService.compare(
         password,
@@ -148,40 +152,41 @@ export class AuthService {
       }
 
       const payload: IJwtAuthPayload = {
-        id: existingUser.id,
-        email: existingUser.email,
-        role: existingUser.role,
-        status: existingUser.status,
+        id,
+        email,
+        role,
+        status,
       };
 
       const accessToken = await this.jwtService.signAsync(payload, {
-        secret: this.configService.get<string>('JWT_SECRET') ?? 'super-secret',
-        expiresIn: this.configService.get('JWT_EXPIRES_IN') ?? '1h',
+        secret:
+          this.configService.get<string>(JWT_KEYS.JWT_SECRET) ?? 'super-secret',
+        expiresIn: this.configService.get(JWT_KEYS.JWT_EXPIRES_IN) ?? '1h',
       });
 
       const refreshToken = await this.jwtService.signAsync(payload, {
         secret:
-          this.configService.get<string>('JWT_REFRESH_SECRET') ??
+          this.configService.get<string>(JWT_KEYS.JWT_REFRESH_SECRET) ??
           'super-refresh-secret',
-        expiresIn: (this.configService.get<string>('JWT_REFRESH_EXPIRES_IN') ??
-          '7d') as JwtSignOptions['expiresIn'],
+        expiresIn: (this.configService.get<string>(
+          JWT_KEYS.JWT_REFRESH_EXPIRES_IN,
+        ) ?? '7d') as JwtSignOptions['expiresIn'],
       });
 
       const hashedRefreshToken = await this.hashingService.hash(refreshToken);
-      await this.userService.updateRefreshToken(
-        existingUser.id,
+
+      // Add refresh token into Redis cache
+      await this.redisService.setKey(
+        `${REDIS_CACHE_KEYS.REFRESH_TOKEN}:${id}`,
         hashedRefreshToken,
+        TTL_CACHE.REFRESH_TOKEN,
       );
+      await this.userService.updateRefreshToken(id, hashedRefreshToken);
 
       return {
         accessToken,
         refreshToken,
-        user: {
-          id: existingUser.id,
-          email: existingUser.email,
-          role: existingUser.role,
-          status: existingUser.status,
-        },
+        user: payload,
       };
     } catch (error) {
       this.logger.error(`[Login Error] - ${JSON.stringify(error, null, 2)}`);
@@ -205,40 +210,64 @@ export class AuthService {
         refreshToken,
         {
           secret:
-            this.configService.get<string>('JWT_REFRESH_SECRET') ??
+            this.configService.get<string>(JWT_KEYS.JWT_REFRESH_SECRET) ??
             'default-refresh-secret',
         },
       );
 
-      const user = await this.userService.getUserById(payload.id);
-
-      if (!user || !user.refreshToken) {
-        this.logger.error(MESSAGES.INVALID_REFRESH_TOKEN);
-
-        handleErrorException({
-          defaultMessage: MESSAGES.USER_INVALID_REFRESH_TOKEN,
-          ExceptionClass: UnauthorizedException,
-        });
-      }
-
-      const isValid = await this.hashingService.compare(
-        refreshToken,
-        user.refreshToken,
+      // Get cached refresh token first from Redis cache
+      const cachedHashedRefreshToken = await this.redisService.getKey<string>(
+        `${REDIS_CACHE_KEYS.REFRESH_TOKEN}:${payload.id}`,
       );
 
-      if (!isValid) {
-        this.logger.error(MESSAGES.INVALID_REFRESH_TOKEN);
+      if (cachedHashedRefreshToken) {
+        // Validate cache token
+        const isCachedValid = await this.hashingService.compare(
+          refreshToken,
+          cachedHashedRefreshToken,
+        );
 
-        handleErrorException({
-          defaultMessage: MESSAGES.USER_INVALID_REFRESH_TOKEN,
-          ExceptionClass: UnauthorizedException,
-        });
+        if (!isCachedValid) {
+          this.logger.error(MESSAGES.INVALID_REFRESH_TOKEN);
+
+          handleErrorException({
+            defaultMessage: MESSAGES.USER_INVALID_REFRESH_TOKEN,
+            ExceptionClass: UnauthorizedException,
+          });
+        }
+      } else {
+        // Fallback to DB stored refresh token if cache is missing
+        const user = await this.userService.getUserById(payload.id);
+
+        if (!user || !user.refreshToken) {
+          this.logger.error(MESSAGES.INVALID_REFRESH_TOKEN);
+
+          handleErrorException({
+            defaultMessage: MESSAGES.USER_INVALID_REFRESH_TOKEN,
+            ExceptionClass: UnauthorizedException,
+          });
+        }
+
+        const isValid = await this.hashingService.compare(
+          refreshToken,
+          user.refreshToken,
+        );
+
+        if (!isValid) {
+          this.logger.error(MESSAGES.INVALID_REFRESH_TOKEN);
+
+          handleErrorException({
+            defaultMessage: MESSAGES.USER_INVALID_REFRESH_TOKEN,
+            ExceptionClass: UnauthorizedException,
+          });
+        }
       }
 
       const newAccessToken = await this.jwtService.signAsync(payload, {
         secret:
-          this.configService.get<string>('JWT_SECRET') ?? 'default-secret',
-        expiresIn: (this.configService.get<string>('JWT_EXPIRES_IN') ||
+          this.configService.get<string>(JWT_KEYS.JWT_SECRET) ??
+          'default-secret',
+        expiresIn: (this.configService.get<string>(JWT_KEYS.JWT_EXPIRES_IN) ||
           '1h') as JwtSignOptions['expiresIn'],
       });
 

@@ -9,12 +9,13 @@ import { TypeOrmModule } from '@nestjs/typeorm';
 import { BcryptService } from '@app/modules/hashing/bcrypt.service';
 import { User } from '@app/modules/users/entities';
 import { UserModule } from '@app/modules/users/users.module';
-import { CUSTOM_PROVIDER_TOKENS } from '@app/shared/common';
+import { CUSTOM_PROVIDER_TOKENS, JWT_KEYS } from '@app/shared/common';
 import { JwtStrategy } from '@app/shared/strategies';
 
 // Local sources
 import { AuthController } from './auth.controller';
 import { AuthService } from './auth.service';
+import { RedisModule } from '../redis/redis.module';
 
 /**
  * Authentication module
@@ -29,13 +30,14 @@ import { AuthService } from './auth.service';
       imports: [ConfigModule],
       inject: [ConfigService],
       useFactory: (config: ConfigService): JwtModuleOptions => ({
-        secret: config.get<string>('JWT_SECRET'),
+        secret: config.get<string>(JWT_KEYS.JWT_SECRET),
         signOptions: {
-          expiresIn: config.get<number>('JWT_EXPIRES_IN'),
+          expiresIn: config.get<number>(JWT_KEYS.JWT_EXPIRES_IN),
         },
       }),
     }),
     UserModule,
+    RedisModule,
   ],
   controllers: [AuthController],
   providers: [
