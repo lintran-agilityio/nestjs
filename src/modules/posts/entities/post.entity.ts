@@ -4,8 +4,9 @@ import { Column, Entity, JoinColumn, ManyToOne, OneToMany } from 'typeorm';
 import { User } from '@app/modules/users/entities';
 import { Comment } from '@app/modules/comments/entities';
 import { BaseEntity } from '@app/shared/entities';
+import { PATHS } from '@app/shared/constants';
 
-@Entity('posts')
+@Entity(PATHS.POSTS)
 export class Post extends BaseEntity {
   @Column({ name: 'slug', type: 'varchar', length: 255, unique: true })
   slug: string;

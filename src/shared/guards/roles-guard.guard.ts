@@ -20,14 +20,14 @@ export class RolesGuard implements CanActivate {
       ROLES_KEY,
       [context.getHandler(), context.getClass()],
     );
-
+console.log('====== requiredRoles =====', requiredRoles)
     // No roles specified, allow access
     if (!requiredRoles || !requiredRoles.length) return true;
 
     const { user } = context
       .switchToHttp()
       .getRequest<{ user?: { role?: UserRole } }>();
-
+console.log('====== user =====', user)
     if (!user) {
       handleErrorException({
         defaultMessage: MESSAGES.UNAUTHORIZED,

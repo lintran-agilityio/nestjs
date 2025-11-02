@@ -12,7 +12,7 @@ export const TTL_CACHE = {
 
 export const REDIS_CACHE_KEYS = {
   REFRESH_TOKEN: 'refresh',
-  USERS: {
+    USERS: {
     LIST: 'users:list',
     BY_ID: 'users:byId',
     BY_EMAIL: 'users:email',

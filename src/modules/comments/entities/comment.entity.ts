@@ -4,12 +4,13 @@ import { Column, Entity, ManyToOne, JoinColumn } from 'typeorm';
 import { User } from '@app/modules/users/entities';
 import { Post } from '@app/modules/posts/entities';
 import { BaseEntity } from '@app/shared/entities';
+import { PATHS } from '@app/shared/constants';
 
 /**
  * Comment entity representing user comments on posts
  * Extends BaseEntity to inherit common fields (id, createdAt, updatedAt)
  */
-@Entity('comments')
+@Entity(PATHS.COMMENTS)
 export class Comment extends BaseEntity {
   @Column({ name: 'content', type: 'text' })
   content: string;

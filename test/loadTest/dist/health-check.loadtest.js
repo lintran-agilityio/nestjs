@@ -15,6 +15,37 @@ var commonThresholds = {
   http_req_duration: ["p(95)<500"]
 };
 
+// src/shared/constants/path.constant.ts
+var PATHS = {
+  AUTH: "auth",
+  USERS: "users",
+  POSTS: "posts",
+  COMMENTS: "comments",
+  REDIS: "redis",
+  HEALTH_CHECK: "health-check"
+};
+
+// src/shared/constants/cache.constant.ts
+var TTL_CACHE = {
+  REFRESH_TOKEN: 7 * 24 * 60 * 60,
+  USERS_LIST: 60,
+  // seconds
+  USER_BY_ID: 60 * 5,
+  // seconds
+  USER_BY_EMAIL: 60 * 5,
+  // seconds
+  POSTS_LIST: 60,
+  // seconds
+  POST_BY_ID: 60 * 5,
+  // seconds
+  POST_BY_SLUG: 60 * 5,
+  // seconds
+  COMMENTS_LIST: 60,
+  // seconds
+  COMMENT_BY_ID: 60 * 5
+  // seconds
+};
+
 // test/loadTest/health-check.loadtest.ts
 var options = {
   vus: 5,
@@ -22,7 +53,7 @@ var options = {
   thresholds: commonThresholds
 };
 function health_check_loadtest_default() {
-  const response = http.get(`${BASE_URL}/health`);
+  const response = http.get(`${BASE_URL}/${PATHS.HEALTH_CHECK}`);
   check(response, { "status is 200": (res) => res.status === 200 });
   sleep(1);
 }

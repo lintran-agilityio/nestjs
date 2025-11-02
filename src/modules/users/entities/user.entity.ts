@@ -9,8 +9,9 @@ import { UserRole, UserStatus } from '@app/shared/types';
 // Local sources
 import { Post } from '@app/modules/posts/entities';
 import { Comment } from '@app/modules/comments/entities';
+import { PATHS } from '@app/shared/constants';
 
-@Entity('users')
+@Entity(PATHS.USERS)
 export class User extends BaseEntity {
   @Column({ name: 'email', type: 'varchar', length: 255, unique: true })
   email: string;

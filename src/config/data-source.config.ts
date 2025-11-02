@@ -8,7 +8,7 @@ export const AppDataSource = new DataSource({
   username: process.env.DB_USER || 'postgres',
   password: process.env.DB_PASS || 'postgres',
   database: process.env.DB_NAME || 'fake_social',
-  synchronize: true,
+  synchronize: false,
   logging: true,
   migrations: [__dirname + '/../migrations/*.ts'],
   entities: [__dirname + '/../**/entities/*.entity.ts'],

@@ -32,7 +32,7 @@ export class RegisterResponseDto {
   @ApiProperty({
     type: String,
     description: 'User role (USER or ADMIN)',
-    example: 'USER',
+    example: UserRole.USER,
   })
   @IsString()
   @IsNotEmpty()
@@ -41,7 +41,7 @@ export class RegisterResponseDto {
   @ApiProperty({
     type: String,
     description: 'User status (ACTIVE or INACTIVE)',
-    example: 'ACTIVE',
+    example: UserStatus.ACTIVE,
   })
   @IsString()
   @IsNotEmpty()
