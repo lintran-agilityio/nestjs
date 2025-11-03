@@ -1,6 +1,7 @@
 // Libs
 import {
   BadRequestException,
+  ForbiddenException,
   forwardRef,
   Inject,
   Injectable,
@@ -13,7 +14,11 @@ import { Repository } from 'typeorm';
 // App sources
 import { MESSAGES, REDIS_CACHE_KEYS, TTL_CACHE } from '@app/shared/constants';
 import { QueryPaginationParamDto } from '@app/shared/dtos';
-import { IMessageAndCountResponse } from '@app/shared/types';
+import {
+  IMessageAndCountResponse,
+  IUserInfo,
+  UserRole,
+} from '@app/shared/types';
 import {
   deleteItemsInArray,
   generateDeleteMessage,
@@ -254,7 +259,20 @@ export class PostService {
    * @throws NotFoundException if post not found
    * @throws InternalServerErrorException on server error
    */
-  async updateById(id: string, updateDto: PostRequestDto): Promise<Post> {
+  async updateById(
+    user: IUserInfo,
+    id: string,
+    updateDto: PostRequestDto,
+  ): Promise<Post> {
+    const existedPost = await this.getById(id);
+
+    if (user.role !== UserRole.ADMIN && user.id !== existedPost.authorId) {
+      handleErrorException({
+        defaultMessage: MESSAGES.NO_PERMISSION,
+        ExceptionClass: ForbiddenException,
+      });
+    }
+
     this.logger.log(
       `Post id ${id} need to update with body ${JSON.stringify(updateDto)}`,
     );
@@ -272,14 +290,14 @@ export class PostService {
       });
     }
 
-    const existedPost = await this.getById(id);
-
     if (existedPost) {
       try {
         existedPost.title = updateDto.title;
         existedPost.contents = updateDto.contents;
 
         const saved = await this.postsRepo.save(existedPost);
+
+        this.logger.log(`Post id - ${id} have update by ${user.role}`);
 
         // Invalidate caches
         await this.redisService.deleteKey(
@@ -324,10 +342,20 @@ export class PostService {
    * @throws NotFoundException if post not found
    * @throws InternalServerErrorException on server error
    */
-  async deleteById(id: string): Promise<IMessageAndCountResponse> {
-    this.logger.log(`User will delete Post by id - ${id}`);
-
+  async deleteById(
+    id: string,
+    user: IUserInfo,
+  ): Promise<IMessageAndCountResponse> {
     const existedPost = await this.getById(id);
+
+    if (user.role !== UserRole.ADMIN && user.id !== existedPost.authorId) {
+      handleErrorException({
+        defaultMessage: MESSAGES.NO_PERMISSION,
+        ExceptionClass: ForbiddenException,
+      });
+    }
+
+    this.logger.log(`User will delete Post by id - ${id}`);
 
     if (existedPost) {
       try {
@@ -345,6 +373,8 @@ export class PostService {
         await this.redisService.deleteByPattern(
           `${REDIS_CACHE_KEYS.POSTS.LIST}:*`,
         );
+
+        this.logger.log(`Post id - ${id} deleted by ${user.role}`);
 
         return { message: MESSAGES.POST_DELETE_SUCCESS };
       } catch (error) {

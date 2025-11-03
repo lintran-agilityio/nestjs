@@ -23,11 +23,7 @@ import {
   Roles,
 } from '@app/shared/decorators';
 import { QueryPaginationParamDto } from '@app/shared/dtos';
-import {
-  JwtAuthGuard,
-  RolesGuard,
-  UserOwnershipProtected,
-} from '@app/shared/guards';
+import { JwtAuthGuard, RolesGuard } from '@app/shared/guards';
 import {
   IMessageAndCountResponse,
   IUserInfo,
@@ -123,7 +119,6 @@ export class PostController {
    * @throws InternalServerErrorException on server error
    */
   @Patch(':id')
-  @UserOwnershipProtected('id', [ADMIN, USER])
   @HttpCode(HttpStatus.OK)
   @ApiOkResponseDto({
     summary: 'Update a post',
@@ -132,9 +127,10 @@ export class PostController {
   })
   async updateById(
     @Param('id', ParseUUIDPipe) id: string,
+    @GetCurrentUser() user: IUserInfo,
     @Body() updatePostDto: PostRequestDto,
   ): Promise<PostEntities> {
-    return await this.postService.updateById(id, updatePostDto);
+    return await this.postService.updateById(user, id, updatePostDto);
   }
 
   /**
@@ -152,8 +148,9 @@ export class PostController {
   })
   async deleteById(
     @Param('id', ParseUUIDPipe) id: string,
+    @GetCurrentUser() user: IUserInfo,
   ): Promise<IMessageAndCountResponse> {
-    return await this.postService.deleteById(id);
+    return await this.postService.deleteById(id, user);
   }
 
   /**
