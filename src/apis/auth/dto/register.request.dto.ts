@@ -61,13 +61,6 @@ export class RegisterRequestDto {
   lastName: string;
 
   @ApiProperty({
-    example: UserRole.USER,
-    description: 'User role (USER or ADMIN)',
-  })
-  @IsString()
-  role: UserRole;
-
-  @ApiProperty({
     example: UserStatus.ACTIVE,
     description: 'User status (ACTIVE or INACTIVE)',
   })

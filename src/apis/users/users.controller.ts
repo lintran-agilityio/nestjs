@@ -86,7 +86,7 @@ export class UserController {
    * @returns User details
    * @throws NotFoundException if user not found
    */
-  @Get(':email')
+  @Get('by-email/:email')
   @Roles(ADMIN, USER)
   @HttpCode(HttpStatus.OK)
   @ApiOkResponseDto({

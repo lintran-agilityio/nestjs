@@ -21,9 +21,9 @@ import { UserService } from '@app/apis/users/users.service';
 import { AppLoggerService } from '@app/shared/modules/logger/logger.service';
 import { CUSTOM_PROVIDER_TOKENS, JWT_KEYS } from '@app/shared/common';
 import { MESSAGES, REDIS_CACHE_KEYS, TTL_CACHE } from '@app/shared/constants';
-import { IJwtAuthPayload } from '@app/shared/types';
+import { IJwtAuthPayload, UserRole } from '@app/shared/types';
 import { HashingAbstractService } from '@app/shared/modules/hashing/hashing.abstract.service';
-import { RedisService } from '@app/shared/modules/redis/redis.service';
+import { RedisService } from '@app/shared/modules/cache/redis/redis.service';
 
 // Local sources
 import {
@@ -62,8 +62,7 @@ export class AuthService {
   async register(
     registerDto: RegisterRequestDto,
   ): Promise<RegisterResponseDto> {
-    const { email, password, role, firstName, lastName, status } =
-      registerDto || {};
+    const { email, password, firstName, lastName, status } = registerDto || {};
 
     this.logger.log(`
       Register user data: ${JSON.stringify(registerDto, null, 2)}
@@ -90,7 +89,6 @@ export class AuthService {
         password: hashedPassword,
         firstName,
         lastName,
-        role,
         status,
       } as DeepPartial<User>);
 
@@ -99,7 +97,7 @@ export class AuthService {
       return new RegisterResponseDto({
         id: savedUser.id,
         email: savedUser.email,
-        role: savedUser.role,
+        role: UserRole.USER,
         status: savedUser.status,
       });
     } catch (error) {
