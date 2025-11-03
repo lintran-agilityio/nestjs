@@ -24,27 +24,3 @@ export const UserFactory = setSeederFactory<User>(
     return user;
   },
 );
-
-// export default setSeederFactory<User, Record<string, never>>(
-//   User,
-//   async (): Promise<User> => {
-//     const user = new User();
-
-//     const firstName: string = faker.person.firstName();
-//     const lastName: string = faker.person.lastName();
-//     user.firstName = firstName;
-//     user.lastName = lastName;
-
-//     const email: string = faker.internet
-//       .email({ firstName, lastName })
-//       .toLowerCase();
-//     user.email = email;
-
-//     const passwordHash: string = await hash('Password123!', 8);
-//     user.password = passwordHash;
-
-//     user.role = UserRole.USER;
-//     user.status = UserStatus.ACTIVE;
-//     return user;
-//   },
-// );

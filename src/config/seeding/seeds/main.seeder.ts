@@ -1,9 +1,11 @@
 import { DataSource } from 'typeorm';
 import { Seeder, SeederFactoryManager } from 'typeorm-extension';
+import { hash } from 'bcryptjs';
 
 import { User } from '@app/apis/users/entities';
 import { Post } from '@app/apis/posts/entities';
 import { Comment } from '@app/apis/comments/entities';
+import { UserRole, UserStatus } from '@app/shared/types';
 
 const getRandomInt = (min: number, max: number): number => {
   const low = Math.ceil(min);
@@ -20,7 +22,20 @@ export default class MainSeeder implements Seeder {
     const postFactory = factoryManager.get<Post>(Post);
     const commentFactory = factoryManager.get<Comment>(Comment);
 
-    const users: User[] = await userFactory.saveMany(10);
+    // Create one admin with fixed credentials
+    const admin = new User();
+    admin.firstName = 'Admin';
+    admin.lastName = 'User';
+    admin.email = 'admin@gmail.com';
+    admin.password = await hash('Admin@123', 8);
+    admin.role = UserRole.ADMIN;
+    admin.status = UserStatus.ACTIVE;
+
+    const savedAdmin = await dataSource.getRepository(User).save(admin);
+
+    // Create additional regular users
+    const userUsers: User[] = await userFactory.saveMany(9);
+    const users: User[] = [savedAdmin, ...userUsers];
 
     const allPosts: Post[] = [];
     for (const user of users) {
