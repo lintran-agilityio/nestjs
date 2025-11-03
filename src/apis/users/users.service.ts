@@ -17,7 +17,7 @@ import { IMessageAndCountResponse } from '@app/shared/types';
 import { getSelectFields, getDataPagination } from '@app/shared/utils';
 import { HashingAbstractService } from '@app/shared/modules/hashing/hashing.abstract.service';
 import { AppLoggerService } from '@app/shared/modules/logger/logger.service';
-import { RedisService } from '@app/shared/modules/redis/redis.service';
+import { RedisService } from '@app/shared/modules/cache/redis/redis.service';
 
 // Apis
 import { PostService } from '@app/apis/posts/posts.service';

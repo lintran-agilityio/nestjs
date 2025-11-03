@@ -23,7 +23,7 @@ import { COMMENT_SELECT_FIELDS } from './config';
 import { UserService } from '../users/users.service';
 import { PostService } from '../posts/posts.service';
 import { AppLoggerService } from '@app/shared/modules/logger/logger.service';
-import { RedisService } from '@app/shared/modules/redis/redis.service';
+import { RedisService } from '@app/shared/modules/cache/redis/redis.service';
 import {
   CreateCommentRequestDto,
   UpdateCommentRequestDto,

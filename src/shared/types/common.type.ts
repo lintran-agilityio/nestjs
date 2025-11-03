@@ -7,3 +7,8 @@ export interface IMessageAndCountResponse {
   message: string;
   count?: number;
 }
+
+export enum CacheProvider {
+  REDIS = 'redis',
+  MEMORY = 'memory',
+}

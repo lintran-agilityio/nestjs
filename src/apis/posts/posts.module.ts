@@ -4,7 +4,8 @@ import { TypeOrmModule } from '@nestjs/typeorm';
 
 // App sources
 import { UserModule } from '@app/apis/users/users.module';
-import { RedisModule } from '@app/shared/modules/redis/redis.module';
+import { CacheProvider } from '@app/shared/types';
+import { CacheModule } from '@app/shared/modules/cache/cache.module';
 
 // Local sources
 import { PostController } from './posts.controller';
@@ -20,7 +21,7 @@ import { Post } from './entities';
   imports: [
     TypeOrmModule.forFeature([Post]),
     forwardRef(() => UserModule),
-    RedisModule,
+    CacheModule.register(CacheProvider.REDIS),
   ],
   controllers: [PostController],
   providers: [PostService],

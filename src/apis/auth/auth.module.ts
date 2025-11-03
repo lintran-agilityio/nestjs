@@ -11,11 +11,12 @@ import { User } from '@app/apis/users/entities';
 import { UserModule } from '@app/apis/users/users.module';
 import { CUSTOM_PROVIDER_TOKENS, JWT_KEYS } from '@app/shared/common';
 import { JwtStrategy } from '@app/shared/strategies';
+import { CacheProvider } from '@app/shared/types';
 
 // Local sources
 import { AuthController } from './auth.controller';
 import { AuthService } from './auth.service';
-import { RedisModule } from '@app/shared/modules/redis/redis.module';
+import { CacheModule } from '@app/shared/modules/cache/cache.module';
 
 /**
  * Authentication module
@@ -37,7 +38,7 @@ import { RedisModule } from '@app/shared/modules/redis/redis.module';
       }),
     }),
     UserModule,
-    RedisModule,
+    CacheModule.register(CacheProvider.REDIS),
   ],
   controllers: [AuthController],
   providers: [

@@ -1,20 +1,23 @@
 // libs
-import { Injectable, LoggerService } from '@nestjs/common';
+import { Injectable } from '@nestjs/common';
 import Redis from 'ioredis';
 
-import { AppLoggerService } from '../logger/logger.service';
+import { AppLoggerService } from '../../logger/logger.service';
+import { CacheAbstractService } from '../cache.abstract.service';
+import { getErrorMessage } from '@app/shared/utils/error.utils';
 
 @Injectable()
-export class RedisService {
-  private readonly logger: LoggerService;
+export class RedisService extends CacheAbstractService {
+  private readonly client: Redis;
 
   // Inject token into redisService
-  constructor(
-    private readonly client: Redis,
-    private readonly appLoggerServices: AppLoggerService,
-  ) {
+  constructor(client: Redis, appLoggerServices: AppLoggerService) {
     // Create context name for logger
-    this.logger = this.appLoggerServices.getLoggerName(RedisService.name);
+    const logger = appLoggerServices.getLoggerName(RedisService.name);
+
+    super(logger);
+
+    this.client = client;
   }
 
   async checkRedisConnection(): Promise<string> {
@@ -29,13 +32,13 @@ export class RedisService {
       }
 
       return 'Redis connection error: Unexpected value';
-    } catch (error) {
-      return `Redis connection failed: ${error.message}`;
+    } catch (error: unknown) {
+      return `Redis connection failed: ${getErrorMessage(error)}`;
     }
   }
 
   async setKey<T>(key: string, value: T, ttl?: number): Promise<void> {
-    this.logger.log(`Set cache for ${key}`);
+    this.log(`Set cache for ${key}`);
 
     const serializedValue = JSON.stringify(value);
 
@@ -47,19 +50,19 @@ export class RedisService {
   }
 
   async getKey<T>(key: string): Promise<T | null> {
-    this.logger.log(`Get cache for ${key}`);
+    this.log(`Get cache for ${key}`);
 
     const result = await this.client.get(key);
     return result ? (JSON.parse(result) as T) : null;
   }
 
   async deleteKey(key: string): Promise<void> {
-    this.logger.log(`Delete cache for ${key}`);
+    this.log(`Delete cache for ${key}`);
     await this.client.del(key);
   }
 
   async deleteByPattern(pattern: string): Promise<void> {
-    this.logger.log(`Delete cache Pattern ${pattern}`);
+    this.log(`Delete cache Pattern ${pattern}`);
 
     const keys = await this.client.keys(pattern);
 

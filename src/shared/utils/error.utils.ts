@@ -37,3 +37,31 @@ export const handleErrorException = ({
 
   throw new ExceptionClass(errorResponse);
 };
+
+export const getErrorMessage = (error: unknown): string => {
+  let message: string;
+
+  if (error instanceof Error) {
+    message = error.message;
+  } else if (typeof error === 'string') {
+    message = error;
+  } else if (typeof error === 'object' && error !== null) {
+    try {
+      message = JSON.stringify(error);
+    } catch {
+      message = '[Unserializable error object]';
+    }
+  } else if (
+    typeof error === 'number' ||
+    typeof error === 'boolean' ||
+    typeof error === 'bigint'
+  ) {
+    message = String(error);
+  } else if (typeof error === 'symbol') {
+    message = error.toString();
+  } else {
+    message = 'Unknown error';
+  }
+
+  return message;
+};
