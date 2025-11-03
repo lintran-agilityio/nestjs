@@ -1,9 +1,9 @@
 import { DataSource } from 'typeorm';
 import { Seeder, SeederFactoryManager } from 'typeorm-extension';
 
-import { User } from '@app/modules/users/entities';
-import { Post } from '@app/modules/posts/entities';
-import { Comment } from '@app/modules/comments/entities';
+import { User } from '@app/apis/users/entities';
+import { Post } from '@app/apis/posts/entities';
+import { Comment } from '@app/apis/comments/entities';
 
 const getRandomInt = (min: number, max: number): number => {
   const low = Math.ceil(min);

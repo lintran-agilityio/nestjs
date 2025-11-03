@@ -15,10 +15,12 @@ import { MESSAGES, REDIS_CACHE_KEYS, TTL_CACHE } from '@app/shared/constants';
 import { QueryPaginationParamDto } from '@app/shared/dtos';
 import { IMessageAndCountResponse } from '@app/shared/types';
 import { getSelectFields, getDataPagination } from '@app/shared/utils';
-import { HashingAbstractService } from '@app/modules/hashing/hashing.abstract.service';
-import { AppLoggerService } from '@app/modules/logger/logger.service';
-import { PostService } from '@app/modules/posts/posts.service';
-import { RedisService } from '../redis/redis.service';
+import { HashingAbstractService } from '@app/shared/modules/hashing/hashing.abstract.service';
+import { AppLoggerService } from '@app/shared/modules/logger/logger.service';
+import { RedisService } from '@app/shared/modules/redis/redis.service';
+
+// Apis
+import { PostService } from '@app/apis/posts/posts.service';
 
 // Local sources
 import { USER_SELECT_FIELDS } from './config';

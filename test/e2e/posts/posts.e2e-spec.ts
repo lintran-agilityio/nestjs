@@ -4,14 +4,16 @@ import { Test } from '@nestjs/testing';
 import * as request from 'supertest';
 import type { Server } from 'http';
 
-// app modules
-import { PostController } from '@app/modules/posts/posts.controller';
-import { PostService } from '@app/modules/posts/posts.service';
-import { Post, Post as PostEntity } from '@app/modules/posts/entities';
+// Apis
+import { PostController } from '@app/apis/posts/posts.controller';
+import { PostService } from '@app/apis/posts/posts.service';
+import { Post, Post as PostEntity } from '@app/apis/posts/entities';
 import {
   PostPaginationResponseDto,
   PostRequestDto,
-} from '@app/modules/posts/dtos';
+} from '@app/apis/posts/dtos';
+
+// App modules
 import { MetadataResponseDto, QueryPaginationParamDto } from '@app/shared/dtos';
 import { JwtAuthGuard, RolesGuard, OwnUserGuard } from '@app/shared/guards';
 import { configureApp, url } from '@e2e/helpers/app';

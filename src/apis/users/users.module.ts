@@ -4,9 +4,9 @@ import { TypeOrmModule } from '@nestjs/typeorm';
 
 // App sources
 import { CUSTOM_PROVIDER_TOKENS } from '@app/shared/common';
-import { BcryptService } from '@app/modules/hashing/bcrypt.service';
-import { PostModule } from '@app/modules/posts/posts.module';
-import { RedisModule } from '../redis/redis.module';
+import { BcryptService } from '@app/shared/modules/hashing/bcrypt.service';
+import { PostModule } from '@app/apis/posts/posts.module';
+import { RedisModule } from '@app/shared/modules/redis/redis.module';
 
 // Local sources
 import { UserController } from './users.controller';

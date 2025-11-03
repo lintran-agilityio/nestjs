@@ -3,9 +3,11 @@ import { Test, TestingModule } from '@nestjs/testing';
 import { getRepositoryToken } from '@nestjs/typeorm';
 import { NotFoundException } from '@nestjs/common';
 
+// Apis
+import { UserService } from '@app/apis/users/users.service';
+import { User } from '@app/apis/users/entities';
+
 // App sources
-import { UserService } from '@app/modules/users/users.service';
-import { User } from '@app/modules/users/entities';
 import { MESSAGES } from '@app/shared/constants';
 import {
   createMockLoggerProvider,

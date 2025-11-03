@@ -5,16 +5,16 @@ import * as request from 'supertest';
 import type { Server } from 'http';
 
 // app modules
-import { CommentController } from '@app/modules/comments/comments.controller';
-import { CommentService } from '@app/modules/comments/comments.service';
-import { Comment } from '@app/modules/comments/entities';
+import { CommentController } from '@app/apis/comments/comments.controller';
+import { CommentService } from '@app/apis/comments/comments.service';
+import { Comment } from '@app/apis/comments/entities';
 import {
   CommentPaginationResponseDto,
   CreateCommentRequestDto,
   UpdateCommentRequestDto,
   DeleteCommentsRequestDto,
   QueryCommentParamDto,
-} from '@app/modules/comments/dtos';
+} from '@app/apis/comments/dtos';
 import { MetadataResponseDto } from '@app/shared/dtos';
 import { JwtAuthGuard, RolesGuard } from '@app/shared/guards';
 import { configureApp, url } from '@e2e/helpers/app';

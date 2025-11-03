@@ -4,9 +4,12 @@ import { Test } from '@nestjs/testing';
 import * as request from 'supertest';
 import type { Server } from 'http';
 
-import { AuthController } from '@app/modules/auth/auth.controller';
-import { AuthService } from '@app/modules/auth/auth.service';
-import { RegisterRequestDto, RegisterResponseDto } from '@app/modules/auth/dto';
+// Apis
+import { AuthController } from '@app/apis/auth/auth.controller';
+import { AuthService } from '@app/apis/auth/auth.service';
+import { RegisterRequestDto, RegisterResponseDto } from '@app/apis/auth/dto';
+
+// App source
 import { configureApp, url } from '@e2e/helpers/app';
 import {
   mockingUserInfo,

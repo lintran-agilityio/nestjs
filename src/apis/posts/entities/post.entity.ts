@@ -1,8 +1,8 @@
 // Libs
 import { Column, Entity, JoinColumn, ManyToOne, OneToMany } from 'typeorm';
 
-import { User } from '@app/modules/users/entities';
-import { Comment } from '@app/modules/comments/entities';
+import { User } from '@app/apis/users/entities';
+import { Comment } from '@app/apis/comments/entities';
 import { BaseEntity } from '@app/shared/entities';
 import { PATHS } from '@app/shared/constants';
 

@@ -20,9 +20,11 @@ import {
   getSelectFields,
   getDataPagination,
 } from '@app/shared/utils';
-import { AppLoggerService } from '@app/modules/logger/logger.service';
-import { UserService } from '@app/modules/users/users.service';
-import { RedisService } from '../redis/redis.service';
+import { AppLoggerService } from '@app/shared/modules/logger/logger.service';
+import { RedisService } from '@app/shared/modules/redis/redis.service';
+
+// Apis
+import { UserService } from '@app/apis/users/users.service';
 
 // Local sources
 import { POST_SELECT_FIELDS } from './config';

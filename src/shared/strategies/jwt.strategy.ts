@@ -7,7 +7,7 @@ import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 
 import { IJwtPayload } from '../types';
-import { User } from '@app/modules/users/entities';
+import { User } from '@app/apis/users/entities';
 import { MESSAGES } from '../constants';
 import { handleErrorException } from '../utils/error.utils';
 import { JWT_KEYS } from '../common';

@@ -1,3 +1,4 @@
+// libs
 import { Module, forwardRef } from '@nestjs/common';
 import { TypeOrmModule } from '@nestjs/typeorm';
 import { Comment } from './entities';
@@ -5,7 +6,9 @@ import { CommentService } from './comments.service';
 import { CommentController } from './comments.controller';
 import { UserModule } from '../users/users.module';
 import { PostModule } from '../posts/posts.module';
-import { RedisModule } from '../redis/redis.module';
+
+// App source
+import { RedisModule } from '@app/shared/modules/redis/redis.module';
 
 /**
  * Comment Module

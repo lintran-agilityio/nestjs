@@ -1,4 +1,4 @@
-import { User } from '@app/modules/users/entities';
+import { User } from '@app/apis/users/entities';
 import { UserRole, UserStatus } from '@app/shared/types';
 
 export const mockingUserInfo = {

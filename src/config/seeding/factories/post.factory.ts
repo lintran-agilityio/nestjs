@@ -1,7 +1,7 @@
 import { setSeederFactory } from 'typeorm-extension';
 import { faker } from '@faker-js/faker';
 
-import { Post } from '@app/modules/posts/entities';
+import { Post } from '@app/apis/posts/entities';
 
 const generateContents = (): string => {
   const paragraphsCount = faker.number.int({ min: 1, max: 4 });

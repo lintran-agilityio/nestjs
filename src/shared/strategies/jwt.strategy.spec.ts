@@ -6,7 +6,7 @@ import { getRepositoryToken } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 
 // App sources
-import { User } from '@app/modules/users/entities';
+import { User } from '@app/apis/users/entities';
 
 // Local sources
 import { JwtStrategy } from './jwt.strategy';

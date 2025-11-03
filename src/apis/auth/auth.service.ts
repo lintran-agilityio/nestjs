@@ -13,15 +13,17 @@ import type { JwtSignOptions } from '@nestjs/jwt';
 import { InjectRepository } from '@nestjs/typeorm';
 import { DeepPartial, Repository } from 'typeorm';
 
+// Apis
+import { User } from '@app/apis/users/entities';
+import { UserService } from '@app/apis/users/users.service';
+
 // App sources
-import { HashingAbstractService } from '@app/modules/hashing/hashing.abstract.service';
-import { AppLoggerService } from '@app/modules/logger/logger.service';
-import { User } from '@app/modules/users/entities';
-import { UserService } from '@app/modules/users/users.service';
+import { AppLoggerService } from '@app/shared/modules/logger/logger.service';
 import { CUSTOM_PROVIDER_TOKENS, JWT_KEYS } from '@app/shared/common';
 import { MESSAGES, REDIS_CACHE_KEYS, TTL_CACHE } from '@app/shared/constants';
 import { IJwtAuthPayload } from '@app/shared/types';
-import { RedisService } from '../redis/redis.service';
+import { HashingAbstractService } from '@app/shared/modules/hashing/hashing.abstract.service';
+import { RedisService } from '@app/shared/modules/redis/redis.service';
 
 // Local sources
 import {

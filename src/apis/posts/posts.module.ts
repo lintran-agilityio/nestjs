@@ -3,8 +3,8 @@ import { forwardRef, Module } from '@nestjs/common';
 import { TypeOrmModule } from '@nestjs/typeorm';
 
 // App sources
-import { UserModule } from '@app/modules/users/users.module';
-import { RedisModule } from '../redis/redis.module';
+import { UserModule } from '@app/apis/users/users.module';
+import { RedisModule } from '@app/shared/modules/redis/redis.module';
 
 // Local sources
 import { PostController } from './posts.controller';

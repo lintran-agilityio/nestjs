@@ -9,16 +9,16 @@ import { redisStore } from 'cache-manager-redis-store';
 import { JwtAuthGuard, RolesGuard } from '@app/shared/guards';
 
 // database module
-import { UserModule } from './modules/users/users.module';
-import { AuthModule } from './modules/auth/auth.module';
-import { DatabaseModule } from './modules/database/database.module';
+import { DatabaseModule } from './shared/modules/database/database.module';
 
 // App resource
-import { LoggerModule } from './modules/logger/logger.module';
-import { PostModule } from './modules/posts/posts.module';
-import { AppLoggerService } from './modules/logger/logger.service';
-import { CommentModule } from './modules/comments/comments.module';
-import { RedisModule } from './modules/redis/redis.module';
+import { UserModule } from './apis/users/users.module';
+import { AuthModule } from './apis/auth/auth.module';
+import { PostModule } from './apis/posts/posts.module';
+import { CommentModule } from './apis/comments/comments.module';
+import { LoggerModule } from './shared/modules/logger/logger.module';
+import { AppLoggerService } from './shared/modules/logger/logger.service';
+import { RedisModule } from './shared/modules/redis/redis.module';
 import { REDIS_ENV_KEY } from './shared/common';
 
 @Module({

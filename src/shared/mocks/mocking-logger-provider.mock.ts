@@ -4,7 +4,7 @@ import { getRepositoryToken } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 
 // App sources
-import { AppLoggerService } from '@app/modules/logger/logger.service';
+import { AppLoggerService } from '@app/shared/modules/logger/logger.service';
 
 type PartialRepo<T> = Partial<Record<keyof Repository<T> | string, jest.Mock>>;
 

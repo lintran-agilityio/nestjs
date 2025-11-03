@@ -4,11 +4,13 @@ import { Test } from '@nestjs/testing';
 import * as request from 'supertest';
 import type { Server } from 'http';
 
-// app modules
-import { UserController } from '@app/modules/users/users.controller';
-import { UserService } from '@app/modules/users/users.service';
-import { User } from '@app/modules/users/entities';
-import { UserResponseDto } from '@app/modules/users/dtos';
+// App modules
+import { UserController } from '@app/apis/users/users.controller';
+import { UserService } from '@app/apis/users/users.service';
+import { User } from '@app/apis/users/entities';
+import { UserResponseDto } from '@app/apis/users/dtos';
+
+// Apis
 import { MetadataResponseDto, QueryPaginationParamDto } from '@app/shared/dtos';
 import { JwtAuthGuard, RolesGuard, OwnUserGuard } from '@app/shared/guards';
 import { configureApp, url } from '@e2e/helpers/app';
@@ -22,7 +24,6 @@ import {
   mockingMetadata,
   mockingUser,
   mockingUserInfo,
-  mockingUserResponse,
   mockUuidUser,
 } from '@app/shared/mocks';
 import { OrderBy } from '@app/shared/types';

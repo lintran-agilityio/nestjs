@@ -1,7 +1,7 @@
 import { setSeederFactory } from 'typeorm-extension';
 import { faker } from '@faker-js/faker';
 
-import { Comment } from '@app/modules/comments/entities';
+import { Comment } from '@app/apis/comments/entities';
 
 export default setSeederFactory(Comment, async (): Promise<Comment> => {
   const comment = new Comment();

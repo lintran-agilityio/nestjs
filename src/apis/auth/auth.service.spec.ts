@@ -10,8 +10,10 @@ import { Repository } from 'typeorm';
 import { CUSTOM_PROVIDER_TOKENS } from '@app/shared/common';
 import { MESSAGES } from '@app/shared/constants';
 import { UserRole, UserStatus } from '@app/shared/types';
-import { UserService } from '@app/modules/users/users.service';
-import { User } from '@app/modules/users/entities';
+
+// Apis
+import { UserService } from '@app/apis/users/users.service';
+import { User } from '@app/apis/users/entities';
 
 // Local sources
 import { AuthService } from './auth.service';

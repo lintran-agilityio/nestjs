@@ -6,16 +6,16 @@ import { PassportModule } from '@nestjs/passport';
 import { TypeOrmModule } from '@nestjs/typeorm';
 
 // App sources
-import { BcryptService } from '@app/modules/hashing/bcrypt.service';
-import { User } from '@app/modules/users/entities';
-import { UserModule } from '@app/modules/users/users.module';
+import { BcryptService } from '@app/shared/modules/hashing/bcrypt.service';
+import { User } from '@app/apis/users/entities';
+import { UserModule } from '@app/apis/users/users.module';
 import { CUSTOM_PROVIDER_TOKENS, JWT_KEYS } from '@app/shared/common';
 import { JwtStrategy } from '@app/shared/strategies';
 
 // Local sources
 import { AuthController } from './auth.controller';
 import { AuthService } from './auth.service';
-import { RedisModule } from '../redis/redis.module';
+import { RedisModule } from '@app/shared/modules/redis/redis.module';
 
 /**
  * Authentication module

@@ -6,7 +6,7 @@ import { NotFoundException } from '@nestjs/common';
 
 // App sources
 import { CUSTOM_PROVIDER_TOKENS } from '@app/shared/common';
-import { PostService } from '@app/modules/posts/posts.service';
+import { PostService } from '@app/apis/posts/posts.service';
 import { MESSAGES } from '@app/shared/constants';
 import {
   createMockLoggerProvider,

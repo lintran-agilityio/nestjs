@@ -8,8 +8,11 @@ import { Test } from '@nestjs/testing';
 import * as request from 'supertest';
 import type { Server } from 'http';
 
-import { AuthController } from '@app/modules/auth/auth.controller';
-import { AuthService } from '@app/modules/auth/auth.service';
+// Apis
+import { AuthController } from '@app/apis/auth/auth.controller';
+import { AuthService } from '@app/apis/auth/auth.service';
+
+// App sources
 import { MESSAGES } from '@app/shared/constants';
 import { configureApp, url } from '@e2e/helpers/app';
 import { MockHandleErrorArgs } from '@app/shared/interfaces';

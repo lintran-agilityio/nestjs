@@ -1,4 +1,4 @@
-import { Comment } from '@app/modules/comments/entities';
+import { Comment } from '@app/apis/comments/entities';
 import { mockingPostUuid } from './mocking-posts-data.mock';
 import { mockUuidUser } from './mocking-user-data.mock';
 

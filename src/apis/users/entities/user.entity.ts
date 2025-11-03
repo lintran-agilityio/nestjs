@@ -7,8 +7,8 @@ import { BaseEntity } from '@app/shared/entities';
 import { UserRole, UserStatus } from '@app/shared/types';
 
 // Local sources
-import { Post } from '@app/modules/posts/entities';
-import { Comment } from '@app/modules/comments/entities';
+import { Post } from '@app/apis/posts/entities';
+import { Comment } from '@app/apis/comments/entities';
 import { PATHS } from '@app/shared/constants';
 
 @Entity(PATHS.USERS)

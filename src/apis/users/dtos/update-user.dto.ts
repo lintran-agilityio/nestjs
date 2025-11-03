@@ -6,7 +6,7 @@ import { IsArray, ValidateNested } from 'class-validator';
 
 // App sources
 import { UuidDto } from '@app/shared/dtos';
-import { RegisterRequestDto } from '@app/modules/auth/dto';
+import { RegisterRequestDto } from '@app/apis/auth/dto';
 
 export class UpdateUserByIdDto extends PartialType(RegisterRequestDto) {}
 
