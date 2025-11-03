@@ -13,6 +13,7 @@
     "start:dev": "nest start --watch",
     "start:debug": "nest start --debug --watch",
     "start:prod": "node dist/main",
+    "start:load": "LOAD_TEST_MODE=true nest start --watch",
     "lint": "eslint \"{src,apps,libs,test}/**/*.ts\" --fix",
     "test": "jest",
     "test:watch": "jest --watch",
@@ -24,11 +25,13 @@
     "migration:create": "npm run typeorm -- migration:create",
     "migration:run": "npm run typeorm -- migration:run -d src/config/data-source.config.ts",
     "migration:revert": "npm run typeorm -- migration:revert -d src/config/data-source.config.ts",
+    "seed:dev": "ts-node -r tsconfig-paths/register src/config/seed.ts",
     "load:build": "node scripts/build-loadtests.mjs",
-    "load:health:ts": "npm run load:build && k6 run test/loadTest/dist/health-check.loadtest.js",
-    "load:posts:ts": "npm run load:build && k6 run test/loadTest/dist/posts.loadtest.js",
-    "load:user:ts": "npm run load:build && k6 run test/loadTest/dist/user-post-flow.loadtest.js",
-    "seed:dev": "ts-node -r tsconfig-paths/register src/config/seed.ts"
+    "load:auth": "npm run load:build && k6 run test/loadTest/dist/scenarios/01-auth.test.js",
+    "load:post": "npm run load:build && k6 run test/loadTest/dist/scenarios/02-user-post-flow.test.js",
+    "load:comment": "npm run load:build && k6 run test/loadTest/dist/scenarios/03-user-post-comment-flow.test.js",
+    "load:update": "npm run load:build && k6 run test/loadTest/dist/scenarios/04-user-update-post.test.js",
+    "load:delete": "npm run load:build && k6 run test/loadTest/dist/scenarios/05-user-post-comment-delete-comment.test.ts"
   },
   "dependencies": {
     "@faker-js/faker": "^9.2.0",

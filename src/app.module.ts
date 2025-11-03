@@ -18,7 +18,6 @@ import { LoggerModule } from './modules/logger/logger.module';
 import { PostModule } from './modules/posts/posts.module';
 import { AppLoggerService } from './modules/logger/logger.service';
 import { CommentModule } from './modules/comments/comments.module';
-import { HealthModule } from './modules/health/health.module';
 import { RedisModule } from './modules/redis/redis.module';
 import { REDIS_ENV_KEY } from './shared/common';
 
@@ -34,7 +33,6 @@ import { REDIS_ENV_KEY } from './shared/common';
     AuthModule,
     PostModule,
     CommentModule,
-    HealthModule,
     CacheModule.registerAsync({
       isGlobal: true,
       imports: [ConfigModule],

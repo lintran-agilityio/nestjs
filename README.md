@@ -24,7 +24,7 @@
 ## Description
 
 The User social network is a RESTful API build by NestJs.
-It's building APIs for our fakeTwitter project we will have three main resource: User, Post, Comment. The project uses PostgreSQL as the database and TypeORM for database access and schema management.
+It's building APIs for our fakeTwitter project we will have three main resource: Auth, User, Post, Comment. The project uses PostgreSQL as the database and using TypeORM to manager database.
 
 - Trainee: Lin Tran(lin.tran@asnet.com.vn)
 - Supporter: Duy Tran (duytran@asnet.com.vn)
@@ -95,6 +95,19 @@ $ pnpm install
 $ docker compose up
 ```
 
+## Run migrations
+
+```bash
+$ migration:run
+```
+
+## Seeding data (Optional)
+
+```bash
+$ seed:dev
+```
+
+
 ## Compile and run the project
 
 ```bash
@@ -125,14 +138,24 @@ $ pnpm run test:cov
 
 ```bash
 src/
-├─modules
-  ├─ auth/          # JWT auth, guards, DTOs
-  ├─ users/         # Users CRUD
-  ├─ posts/         # Posts CRUD
-  ├─ comments/      # Comments CRUD
-├─ shared/        # Common DTOs, constants, decorators
-├─ app.module.ts
-├─ main.ts
+  ├─config
+    ├─ seeding/       # Seeding database
+  ├─migrations
+  ├─modules
+    ├─ auth/          # JWT auth, guards, DTOs
+    ├─ users/         # Users CRUD
+    ├─ posts/         # Posts CRUD
+    ├─ comments/      # Comments CRUD
+    ├─ database/      # Initial connect database with typeORM
+    ├─ hashing/       # Password hashing service
+    ├─ redis/         # Cache data
+    ├─ comments/      # Comments CRUD
+  ├─ shared/        # Common DTOs, constants, decorators
+  ├─ app.module.ts
+  ├─ main.ts
+test
+  ├─e2e
+  ├─loadtest
 ```
 
 ## API Documentation

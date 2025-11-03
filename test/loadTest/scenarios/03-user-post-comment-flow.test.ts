@@ -108,15 +108,12 @@ const successFlow = () => {
     check(createCommentRes, { 'create comment 201': (r) => r.status === 201 });
 
     // View post by id
-    const viewRes = http.get(
-      `${BASE_URL}/${POSTS_PATH}/${postId}`,
-      {
-        headers: {
-          ...getAuthHeaders().headers,
-        },
-        tags: { type: 'success', endpoint: 'view_post' },
+    const viewRes = http.get(`${BASE_URL}/${POSTS_PATH}/${postId}`, {
+      headers: {
+        ...getAuthHeaders().headers,
       },
-    );
+      tags: { type: 'success', endpoint: 'view_post' },
+    });
     viewPostTrend.add(viewRes.timings.duration);
     check(viewRes, { 'view post 200': (r) => r.status === 200 });
   });
@@ -140,7 +137,10 @@ const failureFlow = () => {
     // Create comment without token -> 401
     const badCommentRes = http.post(
       `${BASE_URL}/${COMMENTS_PATH}`,
-      JSON.stringify({ content: 'x', postId: '00000000-0000-0000-0000-000000000000' }),
+      JSON.stringify({
+        content: 'x',
+        postId: '00000000-0000-0000-0000-000000000000',
+      }),
       {
         ...jsonHeaders,
         tags: { type: 'expected_error', endpoint: 'create_comment_no_token' },
@@ -175,7 +175,10 @@ const failureFlow = () => {
           ...jsonHeaders.headers,
           ...getAuthHeaders().headers,
         },
-        tags: { type: 'expected_error', endpoint: 'create_comment_invalid_body' },
+        tags: {
+          type: 'expected_error',
+          endpoint: 'create_comment_invalid_body',
+        },
       },
     );
     check(invalidCommentRes, {
@@ -188,5 +191,3 @@ export default function () {
   successFlow();
   failureFlow();
 }
-
-
