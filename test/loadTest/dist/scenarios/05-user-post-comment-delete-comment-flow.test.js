@@ -1,3 +1,12 @@
+// test/loadTest/helpers/summary.ts
+import { htmlReport } from "https://raw.githubusercontent.com/benc-uk/k6-reporter/main/dist/bundle.js";
+function handleSummaryFactory(reportBaseName) {
+  return (data) => {
+    const outPath = `test/loadTest/reports/${reportBaseName}-report.html`;
+    return { [outPath]: htmlReport(data) };
+  };
+}
+
 // test/loadTest/scenarios/05-user-post-comment-delete-comment-flow.test.ts
 import http from "k6/http";
 import { check, group } from "k6";
@@ -174,7 +183,9 @@ function user_post_comment_delete_comment_flow_test_default() {
   successFlow();
   failureFlow();
 }
+var handleSummary = handleSummaryFactory("delete");
 export {
   user_post_comment_delete_comment_flow_test_default as default,
+  handleSummary,
   options
 };

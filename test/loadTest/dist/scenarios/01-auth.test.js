@@ -45,6 +45,15 @@ var getToken = (tokenParam) => {
   return cachedAccessToken;
 };
 
+// test/loadTest/helpers/summary.ts
+import { htmlReport } from "https://raw.githubusercontent.com/benc-uk/k6-reporter/main/dist/bundle.js";
+function handleSummaryFactory(reportBaseName) {
+  return (data) => {
+    const outPath = `test/loadTest/reports/${reportBaseName}-report.html`;
+    return { [outPath]: htmlReport(data) };
+  };
+}
+
 // test/loadTest/scenarios/01-auth.test.ts
 http2.setResponseCallback(
   http2.expectedStatuses({ min: 200, max: 399 }, 400, 401)
@@ -160,7 +169,9 @@ var login = () => {
   });
 };
 var auth_test_default = login;
+var handleSummary = handleSummaryFactory("auth");
 export {
   auth_test_default as default,
+  handleSummary,
   options
 };

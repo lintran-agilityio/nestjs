@@ -31,7 +31,13 @@
     "load:post": "npm run load:build && k6 run test/loadTest/dist/scenarios/02-user-post-flow.test.js",
     "load:comment": "npm run load:build && k6 run test/loadTest/dist/scenarios/03-user-post-comment-flow.test.js",
     "load:update": "npm run load:build && k6 run test/loadTest/dist/scenarios/04-user-update-post.test.js",
-    "load:delete": "npm run load:build && k6 run test/loadTest/dist/scenarios/05-user-post-comment-delete-comment.test.ts"
+    "load:delete": "npm run load:build && k6 run test/loadTest/dist/scenarios/05-user-post-comment-delete-comment.test.ts",
+    "load:reports:mkdir": "powershell -NoProfile -Command \"New-Item -ItemType Directory -Force test/loadTest/reports > $null\"",
+    "load:auth:report": "npm run load:build && npm run load:reports:mkdir && k6 run test/loadTest/dist/scenarios/01-auth.test.js",
+    "load:post:report": "npm run load:build && npm run load:reports:mkdir && k6 run test/loadTest/dist/scenarios/02-user-post-flow.test.js",
+    "load:comment:report": "npm run load:build && npm run load:reports:mkdir && k6 run test/loadTest/dist/scenarios/03-user-post-comment-flow.test.js",
+    "load:update:report": "npm run load:build && npm run load:reports:mkdir && k6 run test/loadTest/dist/scenarios/04-user-update-post.test.js",
+    "load:delete:report": "npm run load:build && npm run load:reports:mkdir && k6 run test/loadTest/dist/scenarios/05-user-post-comment-delete-comment-flow.test.js"
   },
   "dependencies": {
     "@faker-js/faker": "^9.2.0",
@@ -87,6 +93,7 @@
     "eslint-plugin-prettier": "^5.2.2",
     "globals": "^16.0.0",
     "jest": "^30.0.0",
+    "k6-html-reporter": "^3.0.0",
     "loadtest": "^8.2.0",
     "prettier": "^3.4.2",
     "source-map-support": "^0.5.21",

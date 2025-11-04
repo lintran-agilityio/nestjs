@@ -1,3 +1,4 @@
+import { handleSummaryFactory } from '../helpers/summary';
 // libs
 import http from 'k6/http';
 import { check, group } from 'k6';
@@ -191,3 +192,5 @@ export default function () {
   successFlow();
   failureFlow();
 }
+
+export const handleSummary = handleSummaryFactory('comment');

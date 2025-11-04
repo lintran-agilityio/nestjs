@@ -14,6 +14,7 @@ import {
   jsonHeaders,
 } from '../helpers/config';
 import { getToken } from '../helpers/auth';
+import { handleSummaryFactory } from '../helpers/summary';
 
 // Mark 2xx/3xx and specific 4xx we deliberately test as expected to avoid inflating http_req_failed
 http.setResponseCallback(
@@ -146,3 +147,6 @@ const login = () => {
 };
 
 export default login;
+
+// Generate HTML report when k6 finishes
+export const handleSummary = handleSummaryFactory('auth');

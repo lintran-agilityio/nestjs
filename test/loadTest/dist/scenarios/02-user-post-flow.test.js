@@ -1,3 +1,12 @@
+// test/loadTest/helpers/summary.ts
+import { htmlReport } from "https://raw.githubusercontent.com/benc-uk/k6-reporter/main/dist/bundle.js";
+function handleSummaryFactory(reportBaseName) {
+  return (data) => {
+    const outPath = `test/loadTest/reports/${reportBaseName}-report.html`;
+    return { [outPath]: htmlReport(data) };
+  };
+}
+
 // test/loadTest/scenarios/02-user-post-flow.test.ts
 import http2 from "k6/http";
 import { check, group } from "k6";
@@ -131,7 +140,9 @@ function user_post_flow_test_default() {
   successFlow();
   failureFlow();
 }
+var handleSummary = handleSummaryFactory("post");
 export {
   user_post_flow_test_default as default,
+  handleSummary,
   options
 };

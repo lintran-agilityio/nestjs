@@ -1,3 +1,12 @@
+// test/loadTest/helpers/summary.ts
+import { htmlReport } from "https://raw.githubusercontent.com/benc-uk/k6-reporter/main/dist/bundle.js";
+function handleSummaryFactory(reportBaseName) {
+  return (data) => {
+    const outPath = `test/loadTest/reports/${reportBaseName}-report.html`;
+    return { [outPath]: htmlReport(data) };
+  };
+}
+
 // test/loadTest/scenarios/03-user-post-comment-flow.test.ts
 import http from "k6/http";
 import { check, group } from "k6";
@@ -96,15 +105,12 @@ var successFlow = () => {
     );
     createCommentTrend.add(createCommentRes.timings.duration);
     check(createCommentRes, { "create comment 201": (r) => r.status === 201 });
-    const viewRes = http.get(
-      `${BASE_URL}/${POSTS_PATH}/${postId}`,
-      {
-        headers: {
-          ...getAuthHeaders().headers
-        },
-        tags: { type: "success", endpoint: "view_post" }
-      }
-    );
+    const viewRes = http.get(`${BASE_URL}/${POSTS_PATH}/${postId}`, {
+      headers: {
+        ...getAuthHeaders().headers
+      },
+      tags: { type: "success", endpoint: "view_post" }
+    });
     viewPostTrend.add(viewRes.timings.duration);
     check(viewRes, { "view post 200": (r) => r.status === 200 });
   });
@@ -124,7 +130,10 @@ var failureFlow = () => {
     });
     const badCommentRes = http.post(
       `${BASE_URL}/${COMMENTS_PATH}`,
-      JSON.stringify({ content: "x", postId: "00000000-0000-0000-0000-000000000000" }),
+      JSON.stringify({
+        content: "x",
+        postId: "00000000-0000-0000-0000-000000000000"
+      }),
       {
         ...jsonHeaders,
         tags: { type: "expected_error", endpoint: "create_comment_no_token" }
@@ -155,7 +164,10 @@ var failureFlow = () => {
           ...jsonHeaders.headers,
           ...getAuthHeaders().headers
         },
-        tags: { type: "expected_error", endpoint: "create_comment_invalid_body" }
+        tags: {
+          type: "expected_error",
+          endpoint: "create_comment_invalid_body"
+        }
       }
     );
     check(invalidCommentRes, {
@@ -167,7 +179,9 @@ function user_post_comment_flow_test_default() {
   successFlow();
   failureFlow();
 }
+var handleSummary = handleSummaryFactory("comment");
 export {
   user_post_comment_flow_test_default as default,
+  handleSummary,
   options
 };
