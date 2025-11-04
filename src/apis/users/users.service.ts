@@ -30,6 +30,8 @@ import { PostService } from '@app/apis/posts/posts.service';
 import { USER_SELECT_FIELDS } from './config';
 import { UpdateAllUsersDto, UpdateUserByIdDto, UserResponseDto } from './dtos';
 import { User } from './entities';
+import { PostPaginationResponseDto } from '../posts/dtos';
+
 @Injectable()
 export class UserService {
   private readonly logger: LoggerService;
@@ -393,10 +395,11 @@ export class UserService {
    * @returns Success message
    * @throws InternalServerErrorException on server error
    */
-  async deletePostById(
-    userId: string,
-    postId: string,
-  ): Promise<IMessageAndCountResponse> {
-    return await this.postService.deleteUserPostById(userId, postId);
+  async deletePostById(userId: string, postId: string): Promise<void> {
+    return await this.postService.deletePostById(userId, postId);
+  }
+
+  async getAllPostOfUser(userId: string): Promise<PostPaginationResponseDto> {
+    return await this.postService.getAllPostOfUser(userId);
   }
 }

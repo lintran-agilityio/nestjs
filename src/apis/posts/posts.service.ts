@@ -479,10 +479,7 @@ export class PostService {
    * @throws NotFoundException if user or post not found
    * @throws InternalServerErrorException on server error
    */
-  async deleteUserPostById(
-    userId: string,
-    postId: string,
-  ): Promise<IMessageAndCountResponse> {
+  async deletePostById(userId: string, postId: string): Promise<void> {
     this.logger.log(`Deleting post ${postId} for user ${userId}`);
 
     try {
@@ -515,11 +512,6 @@ export class PostService {
       await this.redisService.deleteByPattern(
         `${REDIS_CACHE_KEYS.POSTS.LIST}:*`,
       );
-
-      return {
-        message: MESSAGES.POST_DELETE_SUCCESS,
-        count: 1,
-      };
     } catch (error) {
       // Preserve NotFoundException if it was thrown
       if (error instanceof NotFoundException) {
@@ -533,6 +525,65 @@ export class PostService {
       handleErrorException({
         error,
         defaultMessage: MESSAGES.DELETED_POST_FAILED,
+      });
+    }
+  }
+
+  /**
+   * Get all posts of a specific user with default pagination
+   * - Validates the user exists
+   * - Filters posts by authorId
+   * - Applies default pagination/sorting via getDataPagination
+   * - Caches the list result per user
+   * @param userId - Owner user id
+   * @returns Paginated posts belonging to the user
+   */
+  async getAllPostOfUser(userId: string): Promise<PostPaginationResponseDto> {
+    this.logger.log(`Get all posts of user ${userId}`);
+
+    try {
+      // Ensure the user exists
+      await this.usersService.getById(userId);
+
+      // Try cache first (defaults: page=1, limit=10, sort=createdAt ASC)
+      const cacheKey = `${REDIS_CACHE_KEYS.POSTS.LIST}:byUser:${userId}`;
+      const cached =
+        await this.redisService.getKey<PostPaginationResponseDto>(cacheKey);
+      if (cached) {
+        this.logger.log('User posts list served from cache');
+        return cached;
+      }
+
+      // Build a query filtered by authorId and select whitelisted fields
+      const selectFields = getSelectFields(POST_SELECT_FIELDS);
+      const queryBuilder = this.postsRepo
+        .createQueryBuilder('post')
+        .select(selectFields.map((field) => `post.${field}`))
+        .where('post.authorId = :userId', { userId });
+
+      // Use default pagination params (page=1, limit=10, sort=createdAt)
+      const result = await getDataPagination<Post>({
+        selectFields,
+        queryUrl: {},
+        queryBuilder,
+        logger: this.logger,
+        entity: 'post',
+      });
+
+      // Cache the result
+      await this.redisService.setKey(cacheKey, result, TTL_CACHE.POSTS_LIST);
+
+      return result;
+    } catch (error) {
+      this.logger.error(
+        `[Error] - Get error when get all posts of user ${userId}: ${JSON.stringify(
+          error,
+        )}`,
+      );
+
+      handleErrorException({
+        error,
+        defaultMessage: MESSAGES.GET_POST_FAILED,
       });
     }
   }

@@ -201,5 +201,4 @@ export default function () {
   failureFlow();
 }
 
-
 export const handleSummary = handleSummaryFactory('delete');

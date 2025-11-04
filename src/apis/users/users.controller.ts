@@ -32,6 +32,7 @@ import { UpdateAllUsersDto, UpdateUserByIdDto, UserResponseDto } from './dtos';
 import { User } from './entities';
 import { UserService } from './users.service';
 import { PATHS } from '@app/shared/constants';
+import { PostPaginationResponseDto } from '../posts/dtos';
 
 const { USER, ADMIN } = UserRole;
 
@@ -148,7 +149,7 @@ export class UserController {
    */
   @Delete()
   @Roles(ADMIN)
-  @HttpCode(HttpStatus.OK)
+  @HttpCode(HttpStatus.NO_CONTENT)
   @ApiOkResponseDto({
     summary: 'Delete all users',
     description: 'Deleted users successfully',
@@ -167,7 +168,7 @@ export class UserController {
    */
   @Delete(':id')
   @UserOwnershipProtected('id', [UserRole.ADMIN, UserRole.USER])
-  @HttpCode(HttpStatus.OK)
+  @HttpCode(HttpStatus.NO_CONTENT)
   @ApiOkResponseDto({
     summary: 'Delete user by ID',
     description: 'Deleted user successfully',
@@ -187,9 +188,9 @@ export class UserController {
    * @throws NotFoundException if post not found
    * @throws InternalServerErrorException on server error
    */
-  @Delete(':id/post/:postId')
+  @Delete(':id/posts/:postId')
   @UserOwnershipProtected('id', [ADMIN, USER])
-  @HttpCode(HttpStatus.OK)
+  @HttpCode(HttpStatus.NO_CONTENT)
   @ApiOkResponseDto({
     summary: 'Delete specific user post',
     description: 'Delete a specific post belonging to a user',
@@ -198,7 +199,21 @@ export class UserController {
   async deletePostById(
     @Param('id', ParseUUIDPipe) userId: string,
     @Param('postId', ParseUUIDPipe) postId: string,
-  ): Promise<IMessageAndCountResponse> {
-    return await this.userService.deletePostById(userId, postId);
+  ): Promise<void> {
+    return this.userService.deletePostById(userId, postId);
+  }
+
+  @Get(':id/posts')
+  @UserOwnershipProtected('id', [ADMIN, USER])
+  @HttpCode(HttpStatus.OK)
+  @ApiOkResponseDto({
+    summary: 'Get all Post of User',
+    description: 'User or Admin can get all Post of owner User',
+    type: PostPaginationResponseDto,
+  })
+  async getAllPostOfUser(
+    @Param('id', ParseUUIDPipe) userId: string,
+  ): Promise<PostPaginationResponseDto> {
+    return await this.userService.getAllPostOfUser(userId);
   }
 }

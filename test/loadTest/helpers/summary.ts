@@ -12,5 +12,3 @@ export function handleSummaryFactory(reportBaseName: string) {
     return { [outPath]: htmlReport(data) };
   };
 }
-
-
