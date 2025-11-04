@@ -18,7 +18,11 @@ import {
   getDataPagination,
   handleErrorException,
 } from '@app/shared/utils';
-import { IMessageAndCountResponse } from '@app/shared/types';
+import {
+  IMessageAndCountResponse,
+  IUserInfo,
+  UserRole,
+} from '@app/shared/types';
 import { Comment } from './entities';
 import { COMMENT_SELECT_FIELDS } from './config';
 import { UserService } from '../users/users.service';
@@ -308,14 +312,15 @@ export class CommentService {
    */
   async deleteCommentById(
     id: string,
-    userId: string,
+    user: IUserInfo,
   ): Promise<IMessageAndCountResponse> {
+    const userId = user.id;
     this.logger.warn(`User ${userId} will delete comment id - ${id}`);
 
     const comment = await this.getCommentById(id);
 
     // Check if user owns the comment
-    if (comment.userId !== userId) {
+    if (user.role !== UserRole.ADMIN && comment.userId !== userId) {
       this.logger.warn(
         `User ${userId} attempted to delete comment ${id} owned by ${comment.userId}`,
       );
