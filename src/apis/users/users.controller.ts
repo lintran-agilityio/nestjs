@@ -19,13 +19,18 @@ import { ApiBearerAuth } from '@nestjs/swagger';
 
 // App sources
 import { ApiOkResponseDto, Public, Roles } from '@app/shared/decorators';
+import { GetCurrentUser } from '@app/shared/decorators/get-current-user.decorator';
 import { QueryPaginationParamDto } from '@app/shared/dtos';
 import {
   JwtAuthGuard,
   RolesGuard,
   UserOwnershipProtected,
 } from '@app/shared/guards';
-import { IMessageAndCountResponse, UserRole } from '@app/shared/types';
+import {
+  IMessageAndCountResponse,
+  IUserInfo,
+  UserRole,
+} from '@app/shared/types';
 
 // Local sources
 import { UpdateAllUsersDto, UpdateUserByIdDto, UserResponseDto } from './dtos';
@@ -64,39 +69,31 @@ export class UserController {
   }
 
   /**
-   * Get user by ID
-   * @param id - The user ID
+   * Get user by ID or email
+   * Automatically detects whether the parameter is a UUID or email address
+   * - If UUID: users can only access their own profile unless admin
+   * - If email: users can only access their own email, admins can access any email
+   * @param identifier - The user ID (UUID) or email address
+   * @param currentUser - The currently authenticated user
    * @returns User details
    * @throws NotFoundException if user not found
+   * @throws BadRequestException if identifier is neither a valid UUID nor email
+   * @throws ForbiddenException if user tries to access another user's data
    */
-  @Get(':id')
-  @UserOwnershipProtected('id', [UserRole.ADMIN, UserRole.USER])
-  @HttpCode(HttpStatus.OK)
-  @ApiOkResponseDto({
-    summary: 'Get user info by id',
-    description: 'Get users by id successful',
-    type: User,
-  })
-  async getById(@Param('id', ParseUUIDPipe) id: string): Promise<User> {
-    return this.userService.getById(id);
-  }
-
-  /**
-   * Get user by email
-   * @param email - The user email
-   * @returns User details
-   * @throws NotFoundException if user not found
-   */
-  @Get('by-email/:email')
+  @Get(':identifier')
   @Roles(UserRole.ADMIN, UserRole.USER)
   @HttpCode(HttpStatus.OK)
   @ApiOkResponseDto({
-    summary: 'Get user info by email',
-    description: 'Get users by email successful',
+    summary: 'Get user info by ID or email',
+    description: 'Get user by ID (UUID) or email address successful',
     type: User,
   })
-  async getByEmail(@Param('email') email: string): Promise<User> {
-    return this.userService.getByEmail(email);
+  async getByIdOrEmail(
+    @Param('identifier') identifier: string,
+    @GetCurrentUser()
+    currentUser: IUserInfo,
+  ): Promise<User> {
+    return this.userService.getByIdOrEmail(identifier, currentUser);
   }
 
   /**

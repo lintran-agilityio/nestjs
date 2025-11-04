@@ -24,6 +24,8 @@ export const MESSAGES = {
   GET_USER_FAILED: 'Failed to get user',
   UPDATE_USER_FAILED: 'Failed to update user',
   DELETE_USER_FAILED: 'Failed to delete user',
+  USER_INVALID_IDENTIFIER:
+    'Invalid identifier format. Must be a valid UUID or email address.',
 
   // post error
   POST_NOT_FOUND: 'Post not found',

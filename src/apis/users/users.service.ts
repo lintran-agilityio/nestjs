@@ -5,15 +5,21 @@ import {
   Injectable,
   LoggerService,
   NotFoundException,
+  ForbiddenException,
 } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 
 // App sources
 import { CUSTOM_PROVIDER_TOKENS } from '@app/shared/common';
-import { MESSAGES, REDIS_CACHE_KEYS, TTL_CACHE } from '@app/shared/constants';
+import {
+  MESSAGES,
+  REDIS_CACHE_KEYS,
+  REGEX,
+  TTL_CACHE,
+} from '@app/shared/constants';
 import { QueryPaginationParamDto } from '@app/shared/dtos';
-import { IMessageAndCountResponse } from '@app/shared/types';
+import { IMessageAndCountResponse, UserRole } from '@app/shared/types';
 import {
   getSelectFields,
   getDataPagination,
@@ -224,6 +230,64 @@ export class UserService {
     }
 
     return user;
+  }
+
+  /**
+   * Get user by ID or email, automatically detects the type of identifier
+   * @param identifier - User ID (UUID) or email address
+   * @param currentUser - Currently authenticated user for ownership validation
+   * @returns User details
+   * @throws NotFoundException if user not found
+   * @throws ForbiddenException if non-admin user tries to access another user's data
+   */
+  async getByIdOrEmail(
+    identifier: string,
+    currentUser?: { id: string; email: string; role: UserRole },
+  ): Promise<User> {
+    this.logger.log(`Get user by identifier - ${identifier}`);
+
+    // Check if identifier is a UUID
+    if (REGEX.UUID_ANY.test(identifier)) {
+      // For UUID, check ownership if current user is provided
+      if (currentUser && currentUser.role !== UserRole.ADMIN) {
+        // Non-admin users can only access their own profile
+        if (currentUser.id !== identifier) {
+          this.logger.error(
+            `User ${currentUser.id} attempted to access UUID ${identifier}`,
+          );
+          handleErrorException({
+            defaultMessage: MESSAGES.NO_PERMISSION,
+            ExceptionClass: ForbiddenException,
+          });
+        }
+      }
+      return this.getById(identifier);
+    }
+
+    // Check if identifier is an email
+    if (REGEX.EMAIL.test(identifier)) {
+      // For email, check ownership manually
+      if (currentUser && currentUser.role !== UserRole.ADMIN) {
+        // Non-admin users can only access their own email
+        if (currentUser.email !== identifier) {
+          this.logger.error(
+            `User ${currentUser.id} attempted to access email ${identifier}`,
+          );
+          handleErrorException({
+            defaultMessage: MESSAGES.NO_PERMISSION,
+            ExceptionClass: ForbiddenException,
+          });
+        }
+      }
+      return this.getByEmail(identifier);
+    }
+
+    // If neither UUID nor email, treat as invalid and throw error
+    this.logger.error(`Invalid identifier format: ${identifier}`);
+    handleErrorException({
+      defaultMessage: MESSAGES.USER_INVALID_IDENTIFIER,
+      ExceptionClass: NotFoundException,
+    });
   }
 
   /**
