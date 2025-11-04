@@ -21,7 +21,7 @@ import { UserService } from '@app/apis/users/users.service';
 import { AppLoggerService } from '@app/shared/modules/logger/logger.service';
 import { CUSTOM_PROVIDER_TOKENS, JWT_KEYS } from '@app/shared/common';
 import { MESSAGES, REDIS_CACHE_KEYS, TTL_CACHE } from '@app/shared/constants';
-import { IJwtAuthPayload, UserRole } from '@app/shared/types';
+import { IJwtAuthPayload, UserRole, UserStatus } from '@app/shared/types';
 import { HashingAbstractService } from '@app/shared/modules/hashing/hashing.abstract.service';
 import { RedisService } from '@app/shared/modules/cache/redis/redis.service';
 
@@ -62,7 +62,7 @@ export class AuthService {
   async register(
     registerDto: RegisterRequestDto,
   ): Promise<RegisterResponseDto> {
-    const { email, password, firstName, lastName, status } = registerDto || {};
+    const { email, password, firstName, lastName } = registerDto || {};
 
     this.logger.log(`
       Register user data: ${JSON.stringify(registerDto, null, 2)}
@@ -89,7 +89,7 @@ export class AuthService {
         password: hashedPassword,
         firstName,
         lastName,
-        status,
+        status: UserStatus.ACTIVE,
       } as DeepPartial<User>);
 
       const savedUser = await this.usersRepo.save(newUser);

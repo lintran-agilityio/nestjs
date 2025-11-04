@@ -11,7 +11,6 @@ import {
 
 // App sources
 import { REGEX, VALIDATION_RULES } from '@app/shared/constants';
-import { UserRole, UserStatus } from '@app/shared/types';
 
 const { FIRST_NAME, LAST_NAME, PASSWORD } = VALIDATION_RULES;
 
@@ -59,13 +58,6 @@ export class RegisterRequestDto {
   @MaxLength(LAST_NAME.MAX)
   @MinLength(LAST_NAME.MIN)
   lastName: string;
-
-  @ApiProperty({
-    example: UserStatus.ACTIVE,
-    description: 'User status (ACTIVE or INACTIVE)',
-  })
-  @IsString()
-  status: UserStatus;
 
   @ApiProperty({
     example: '2023-10-01T12:00:00Z',

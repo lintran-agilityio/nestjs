@@ -37,10 +37,6 @@ export class LoginRequestDto {
     example: 'abc@123',
   })
   @IsNotEmpty()
-  @IsStrongPassword()
-  @Matches(REGEX.PASSWORD)
-  @MaxLength(PASSWORD.MAX)
-  @MinLength(PASSWORD.MIN)
   password: string;
 
   constructor(partial: Partial<LoginRequestDto>) {
