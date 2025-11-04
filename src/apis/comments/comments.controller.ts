@@ -155,7 +155,7 @@ export class CommentController {
    */
   @Delete(':id')
   @Roles(ADMIN, USER)
-  @HttpCode(HttpStatus.OK)
+  @HttpCode(HttpStatus.NO_CONTENT)
   @ApiOkResponseDto({
     summary: 'Delete comment by ID',
     description: 'Delete a comment by ID (only owner)',
@@ -165,7 +165,7 @@ export class CommentController {
     @Param('id', ParseUUIDPipe) id: string,
     @GetCurrentUser() user: IUserInfo,
   ): Promise<IMessageAndCountResponse> {
-    return await this.commentService.deleteCommentById(id, user.id);
+    return await this.commentService.deleteCommentById(id, user);
   }
 
   /**
@@ -174,7 +174,7 @@ export class CommentController {
    */
   @Delete()
   @Roles(ADMIN)
-  @HttpCode(HttpStatus.OK)
+  @HttpCode(HttpStatus.NO_CONTENT)
   @ApiOkResponseDto({
     summary: 'Delete comments',
     description: 'Delete multiple comments at once (Admin only)',
