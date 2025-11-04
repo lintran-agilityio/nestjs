@@ -20,6 +20,7 @@ import {
   ApiCreatedResponseDto,
   ApiOkResponseDto,
   GetCurrentUser,
+  Public,
   Roles,
 } from '@app/shared/decorators';
 import { QueryPaginationParamDto } from '@app/shared/dtos';
@@ -55,7 +56,7 @@ export class PostController {
    * @throws InternalServerErrorException on server error
    */
   @Get()
-  @Roles(ADMIN, USER)
+  @Public()
   @HttpCode(HttpStatus.OK)
   @ApiOkResponseDto({
     summary: 'Get all posts',
@@ -119,6 +120,7 @@ export class PostController {
    * @throws InternalServerErrorException on server error
    */
   @Patch(':id')
+  @Roles(ADMIN, USER)
   @HttpCode(HttpStatus.OK)
   @ApiOkResponseDto({
     summary: 'Update a post',

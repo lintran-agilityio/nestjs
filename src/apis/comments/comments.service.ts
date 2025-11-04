@@ -16,6 +16,7 @@ import {
   deleteItemsInArray,
   generateDeleteMessage,
   getDataPagination,
+  handleErrorException,
 } from '@app/shared/utils';
 import { IMessageAndCountResponse } from '@app/shared/types';
 import { Comment } from './entities';
@@ -31,7 +32,6 @@ import {
   QueryCommentParamDto,
   DeleteCommentsRequestDto,
 } from './dtos';
-import { handleErrorException } from '@app/shared/utils/error.utils';
 
 /**
  * Comment Service

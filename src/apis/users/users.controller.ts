@@ -18,7 +18,7 @@ import {
 import { ApiBearerAuth } from '@nestjs/swagger';
 
 // App sources
-import { ApiOkResponseDto, Roles } from '@app/shared/decorators';
+import { ApiOkResponseDto, Public, Roles } from '@app/shared/decorators';
 import { QueryPaginationParamDto } from '@app/shared/dtos';
 import {
   JwtAuthGuard,
@@ -49,7 +49,7 @@ export class UserController {
    * @throws InternalServerErrorException on server error
    */
   @Get()
-  @Roles(ADMIN, USER)
+  @Public()
   @HttpCode(HttpStatus.OK)
   @ApiOkResponseDto({
     summary: 'Get all users',
@@ -69,7 +69,7 @@ export class UserController {
    * @throws NotFoundException if user not found
    */
   @Get(':id')
-  @Roles(ADMIN, USER)
+  @UserOwnershipProtected('id', [UserRole.ADMIN, UserRole.USER])
   @HttpCode(HttpStatus.OK)
   @ApiOkResponseDto({
     summary: 'Get user info by id',
@@ -87,7 +87,7 @@ export class UserController {
    * @throws NotFoundException if user not found
    */
   @Get('by-email/:email')
-  @Roles(ADMIN, USER)
+  @Roles(UserRole.ADMIN, UserRole.USER)
   @HttpCode(HttpStatus.OK)
   @ApiOkResponseDto({
     summary: 'Get user info by email',

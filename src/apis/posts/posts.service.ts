@@ -24,6 +24,8 @@ import {
   generateDeleteMessage,
   getSelectFields,
   getDataPagination,
+  handleErrorException,
+  validateOwnerRole,
 } from '@app/shared/utils';
 import { AppLoggerService } from '@app/shared/modules/logger/logger.service';
 import { RedisService } from '@app/shared/modules/cache/redis/redis.service';
@@ -39,8 +41,6 @@ import {
   PostRequestDto,
 } from './dtos';
 import { Post } from './entities';
-import { handleErrorException } from '@app/shared/utils/error.utils';
-
 @Injectable()
 export class PostService {
   private readonly logger: LoggerService;
@@ -266,12 +266,8 @@ export class PostService {
   ): Promise<Post> {
     const existedPost = await this.getById(id);
 
-    if (user.role !== UserRole.ADMIN && user.id !== existedPost.authorId) {
-      handleErrorException({
-        defaultMessage: MESSAGES.NO_PERMISSION,
-        ExceptionClass: ForbiddenException,
-      });
-    }
+    // Validate ownership role
+    validateOwnerRole(user, existedPost, 'authorId');
 
     this.logger.log(
       `Post id ${id} need to update with body ${JSON.stringify(updateDto)}`,
@@ -348,12 +344,8 @@ export class PostService {
   ): Promise<IMessageAndCountResponse> {
     const existedPost = await this.getById(id);
 
-    if (user.role !== UserRole.ADMIN && user.id !== existedPost.authorId) {
-      handleErrorException({
-        defaultMessage: MESSAGES.NO_PERMISSION,
-        ExceptionClass: ForbiddenException,
-      });
-    }
+    // Validate ownership role
+    validateOwnerRole(user, existedPost, 'authorId');
 
     this.logger.log(`User will delete Post by id - ${id}`);
 

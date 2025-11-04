@@ -32,7 +32,7 @@ import {
   RegisterRequestDto,
   RegisterResponseDto,
 } from './dto';
-import { handleErrorException } from '@app/shared/utils/error.utils';
+import { handleErrorException } from '@app/shared/utils';
 
 @Injectable()
 export class AuthService {

@@ -21,6 +21,7 @@ import { RolesGuard, JwtAuthGuard } from '@app/shared/guards';
 import {
   ApiCreatedResponseDto,
   ApiOkResponseDto,
+  Public,
   Roles,
 } from '@app/shared/decorators';
 import {
@@ -59,7 +60,7 @@ export class CommentController {
    * Supports filtering by postId
    */
   @Get()
-  @Roles(ADMIN, USER)
+  @Public()
   @HttpCode(HttpStatus.OK)
   @ApiOkResponseDto({
     summary: 'Get all comments',
@@ -76,7 +77,7 @@ export class CommentController {
    * Get comments for a specific post
    */
   @Get('post/:postId')
-  @Roles(ADMIN, USER)
+  @Roles(ADMIN)
   @HttpCode(HttpStatus.OK)
   @ApiOkResponseDto({
     summary: 'Get comments by post ID',
@@ -94,7 +95,7 @@ export class CommentController {
    * Get comment by ID
    */
   @Get(':id')
-  @Roles(ADMIN, USER)
+  @Roles(ADMIN)
   @HttpCode(HttpStatus.OK)
   @ApiOkResponseDto({
     summary: 'Get comment by ID',
