@@ -115,7 +115,7 @@ export class UserController {
   async update(
     @Param('id', ParseUUIDPipe) id: string,
     @Body() updateUserDto: UpdateUserByIdDto,
-  ): Promise<IMessageAndCountResponse> {
+  ): Promise<User> {
     return await this.userService.updateById(id, updateUserDto);
   }
 
@@ -171,9 +171,7 @@ export class UserController {
     description: 'Deleted user successfully',
     type: String,
   })
-  async deleteById(
-    @Param('id', ParseUUIDPipe) id: string,
-  ): Promise<IMessageAndCountResponse> {
+  async deleteById(@Param('id', ParseUUIDPipe) id: string): Promise<void> {
     return await this.userService.deleteById(id);
   }
 

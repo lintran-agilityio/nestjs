@@ -1,7 +1,6 @@
 // Libs
 import {
   BadRequestException,
-  ForbiddenException,
   forwardRef,
   Inject,
   Injectable,
@@ -14,11 +13,7 @@ import { Repository } from 'typeorm';
 // App sources
 import { MESSAGES, REDIS_CACHE_KEYS, TTL_CACHE } from '@app/shared/constants';
 import { QueryPaginationParamDto } from '@app/shared/dtos';
-import {
-  IMessageAndCountResponse,
-  IUserInfo,
-  UserRole,
-} from '@app/shared/types';
+import { IMessageAndCountResponse, IUserInfo } from '@app/shared/types';
 import {
   deleteItemsInArray,
   generateDeleteMessage,

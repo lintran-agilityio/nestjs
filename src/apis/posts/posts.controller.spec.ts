@@ -3,15 +3,16 @@ import { Test, TestingModule } from '@nestjs/testing';
 
 // App sources
 import { IUserInfo, IMessageAndCountResponse } from '@app/shared/types';
-import {
-  mockingUserResponse,
-  mockUuidUser,
-} from '@app/shared/mocks';
+import { mockingUserResponse, mockUuidUser } from '@app/shared/mocks';
 
 // Local sources
 import { PostController } from './posts.controller';
 import { PostService } from './posts.service';
-import { PostPaginationResponseDto, PostRequestDto, DeletePostsRequestDto } from './dtos';
+import {
+  PostPaginationResponseDto,
+  PostRequestDto,
+  DeletePostsRequestDto,
+} from './dtos';
 import { Post as PostEntities } from './entities';
 
 describe('PostController', () => {

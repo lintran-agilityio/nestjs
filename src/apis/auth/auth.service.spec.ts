@@ -18,7 +18,11 @@ import { User } from '@app/apis/users/entities';
 
 // Local sources
 import { AuthService } from './auth.service';
-import { LoginRequestDto, RegisterRequestDto, RegisterResponseDto } from './dto';
+import {
+  LoginRequestDto,
+  RegisterRequestDto,
+  RegisterResponseDto,
+} from './dto';
 import {
   mockingUserInfo,
   mockingUserLogin,
@@ -317,9 +321,9 @@ describe('AuthService', () => {
       redisService.getKey.mockResolvedValue('cached.hashed.refresh');
       hashingService.compare.mockResolvedValue(false);
 
-      await expect(service.refreshTokens('invalid.refresh.token')).rejects.toThrow(
-        MESSAGES.USER_INVALID_REFRESH_TOKEN,
-      );
+      await expect(
+        service.refreshTokens('invalid.refresh.token'),
+      ).rejects.toThrow(MESSAGES.USER_INVALID_REFRESH_TOKEN);
     });
 
     it('should throw error when user missing or stored token absent', async () => {

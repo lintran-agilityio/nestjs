@@ -42,6 +42,13 @@ import { PostPaginationResponseDto } from '../posts/dtos';
 export class UserService {
   private readonly logger: LoggerService;
 
+  // Validate cached shapes before use
+  private isValidUser(candidate: unknown): candidate is User {
+    if (!candidate || typeof candidate !== 'object') return false;
+    const obj = candidate as Record<string, unknown>;
+    return typeof obj.id === 'string' && typeof obj.email === 'string';
+  }
+
   constructor(
     @InjectRepository(User)
     private readonly usersRepo: Repository<User>,
@@ -72,14 +79,6 @@ export class UserService {
     try {
       this.logger.log(`Query get all users: ${JSON.stringify(queryUrl)}`);
 
-      // Try cache first using query as part of the key
-      const cacheKey = `${REDIS_CACHE_KEYS.USERS.LIST}:${JSON.stringify(queryUrl)}`;
-      const cached = await this.redisService.getKey<UserResponseDto>(cacheKey);
-      if (cached) {
-        this.logger.log('Users list served from cache');
-        return cached;
-      }
-
       const { search } = queryUrl;
 
       // Get select fields for allowed sorting
@@ -105,9 +104,6 @@ export class UserService {
         logger: this.logger,
         entity: 'user',
       });
-
-      // Cache the result
-      await this.redisService.setKey(cacheKey, result, TTL_CACHE.USERS_LIST);
 
       return result;
     } catch (error) {
@@ -147,8 +143,11 @@ export class UserService {
     const cacheKey = `${REDIS_CACHE_KEYS.USERS.BY_EMAIL}:${email}`;
     const cached = await this.redisService.getKey<User>(cacheKey);
     if (cached) {
-      this.logger.log('User by email served from cache');
-      return cached;
+      if (this.isValidUser(cached)) {
+        this.logger.log('User by email served from cache');
+        return cached;
+      }
+      await this.redisService.deleteKey(cacheKey);
     }
 
     const user = await this.getUserByEmail(email);
@@ -180,8 +179,11 @@ export class UserService {
     const cacheKey = `${REDIS_CACHE_KEYS.USERS.BY_ID}:${id}`;
     const cached = await this.redisService.getKey<User>(cacheKey);
     if (cached) {
-      this.logger.log('User by id served from cache');
-      return cached;
+      if (this.isValidUser(cached)) {
+        this.logger.log('User by id served from cache');
+        return cached;
+      }
+      await this.redisService.deleteKey(cacheKey);
     }
 
     const user = await this.usersRepo.findOne({
@@ -209,8 +211,11 @@ export class UserService {
     const cacheKey = `${REDIS_CACHE_KEYS.USERS.BY_ID}:${id}`;
     const cached = await this.redisService.getKey<User>(cacheKey);
     if (cached) {
-      this.logger.log('User by id served from cache');
-      return cached;
+      if (this.isValidUser(cached)) {
+        this.logger.log('User by id served from cache');
+        return cached;
+      }
+      await this.redisService.deleteKey(cacheKey);
     }
 
     const user = await this.getUserById(id);
@@ -325,6 +330,34 @@ export class UserService {
         updatedUsers.push(userUpdated);
       }
 
+      // Invalidate related caches
+      try {
+        // Invalidate list caches
+        await this.redisService.deleteByPattern(
+          `${REDIS_CACHE_KEYS.USERS.LIST}:*`,
+        );
+        // Invalidate and refresh item caches per updated user
+        for (const user of updatedUsers) {
+          await this.redisService.deleteKey(
+            `${REDIS_CACHE_KEYS.USERS.BY_ID}:${user.id}`,
+          );
+          if (user.email) {
+            await this.redisService.deleteKey(
+              `${REDIS_CACHE_KEYS.USERS.BY_EMAIL}:${user.email}`,
+            );
+          }
+          await this.redisService.setKey(
+            `${REDIS_CACHE_KEYS.USERS.BY_ID}:${user.id}`,
+            user,
+            TTL_CACHE.USER_BY_ID,
+          );
+        }
+      } catch (cacheError) {
+        this.logger.error(
+          `[Cache] - Failed to invalidate/refresh cache after updateAll: ${JSON.stringify(cacheError)}`,
+        );
+      }
+
       this.logger.log(
         `[Success] - Update all users successful ${JSON.stringify(updatedUsers)}`,
       );
@@ -352,7 +385,7 @@ export class UserService {
   async updateById(
     id: string,
     updateUserDto: UpdateUserByIdDto,
-  ): Promise<IMessageAndCountResponse> {
+  ): Promise<User> {
     const { password } = updateUserDto;
     this.logger.log('Updated user by ID...');
 
@@ -363,16 +396,46 @@ export class UserService {
         ? await this.hashingService.hash(updateUserDto.password)
         : existedUser.password;
 
+      const email = updateUserDto.email || existedUser.email;
+
       this.logger.log(
         `Update user by id: ${id} and use update ${JSON.stringify(updateUserDto)}`,
       );
-      await this.usersRepo.update(id, {
+      const updatedUser = await this.usersRepo.update(id, {
         ...updateUserDto,
         password: hashedPassword,
       });
 
+      // Invalidate caches
+      await this.redisService.deleteKey(
+        `${REDIS_CACHE_KEYS.USERS.BY_ID}:${id}`,
+      );
+      await this.redisService.deleteByPattern(
+        `${REDIS_CACHE_KEYS.USERS.LIST}:*`,
+      );
+      // Invalidate email cache (old and possibly new email)
+      try {
+        await this.redisService.deleteKey(
+          `${REDIS_CACHE_KEYS.USERS.BY_EMAIL}:${email}`,
+        );
+      } catch (cacheErr) {
+        this.logger.error(
+          `[Cache] - Failed to invalidate email cache in updateById: ${JSON.stringify(cacheErr)}`,
+        );
+      }
+      // Refresh item cache
+      await this.redisService.setKey(
+        `${REDIS_CACHE_KEYS.USERS.BY_ID}:${id}`,
+        updatedUser,
+        TTL_CACHE.USER_BY_ID,
+      );
+
+      delete existedUser.password;
+
       return {
-        message: `User id - ${id} updated successfully`,
+        ...existedUser,
+        ...updateUserDto,
+        id,
       };
     } catch (error) {
       this.logger.error(`[Error] - update user error ${JSON.stringify(error)}`);
@@ -407,6 +470,24 @@ export class UserService {
         .execute();
 
       this.logger.log(`All user deleted with ${JSON.stringify(affected)} item`);
+
+      // Invalidate caches for users domain
+      try {
+        await this.redisService.deleteByPattern(
+          `${REDIS_CACHE_KEYS.USERS.BY_ID}:*`,
+        );
+        await this.redisService.deleteByPattern(
+          `${REDIS_CACHE_KEYS.USERS.BY_EMAIL}:*`,
+        );
+        await this.redisService.deleteByPattern(
+          `${REDIS_CACHE_KEYS.USERS.LIST}:*`,
+        );
+      } catch (cacheError) {
+        this.logger.error(
+          `[Cache] - Failed to invalidate cache after deleteAll: ${JSON.stringify(cacheError)}`,
+        );
+      }
+
       return {
         message: `Deleted ${affected} users successfully.`,
         count: affected || 0,
@@ -430,7 +511,7 @@ export class UserService {
    * @throws NotFoundException if user not found
    * @throws InternalServerErrorException on server error
    */
-  async deleteById(id: string): Promise<IMessageAndCountResponse> {
+  async deleteById(id: string): Promise<void> {
     this.logger.log(`Delete user by ${id}`);
 
     const existedUser = await this.getById(id);
@@ -438,11 +519,26 @@ export class UserService {
     try {
       await this.usersRepo.remove(existedUser);
 
-      this.logger.log(`User with id is ${id} deleted`);
+      // Invalidate caches
+      await this.redisService.deleteKey(
+        `${REDIS_CACHE_KEYS.USERS.BY_ID}:${id}`,
+      );
+      await this.redisService.deleteByPattern(
+        `${REDIS_CACHE_KEYS.USERS.LIST}:*`,
+      );
+      try {
+        if (existedUser.email) {
+          await this.redisService.deleteKey(
+            `${REDIS_CACHE_KEYS.USERS.BY_EMAIL}:${existedUser.email}`,
+          );
+        }
+      } catch (cacheErr) {
+        this.logger.error(
+          `[Cache] - Failed to invalidate email cache in deleteById: ${JSON.stringify(cacheErr)}`,
+        );
+      }
 
-      return {
-        message: MESSAGES.USER_DELETE_SUCCESS,
-      };
+      this.logger.log(`User with id is ${id} deleted`);
     } catch (error) {
       this.logger.error(`[Error] - delete user error ${JSON.stringify(error)}`);
       handleErrorException({

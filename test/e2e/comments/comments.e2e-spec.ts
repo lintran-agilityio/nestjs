@@ -158,7 +158,7 @@ describe('Comments - Modules (e2e)', () => {
       const query = { page: 1, limit: 10 };
 
       const res = await request(server)
-        .get(url(`${COMMENTS_PATH}/post/${mockingPostUuid}`))
+        .get(url(`${COMMENTS_PATH}/posts/${mockingPostUuid}`))
         .query(query)
         .expect(HttpStatus.OK);
       type PostListResponse = { data: Comment[]; meta: MetadataResponseDto };
@@ -174,7 +174,7 @@ describe('Comments - Modules (e2e)', () => {
 
     it('should return 400 when postId is not UUID', async () => {
       await request(server)
-        .get(url(`${COMMENTS_PATH}/post/not-a-uuid`))
+        .get(url(`${COMMENTS_PATH}/posts/not-a-uuid`))
         .expect(HttpStatus.BAD_REQUEST);
 
       expect(mockCommentService.getCommentsByPostId).not.toHaveBeenCalled();
@@ -305,11 +305,7 @@ describe('Comments - Modules (e2e)', () => {
 
       const res = await request(server)
         .delete(url(`${COMMENTS_PATH}/${mockingCommentUuid}`))
-        .expect(HttpStatus.OK);
-
-      expect(res.body).toEqual(
-        expect.objectContaining({ message: mockingDeleteMessage }),
-      );
+        .expect(HttpStatus.NO_CONTENT);
       // args: id, userId
       expect(mockCommentService.deleteCommentById.mock.calls[0][0]).toBe(
         mockingCommentUuid,
@@ -340,11 +336,7 @@ describe('Comments - Modules (e2e)', () => {
         .delete(url(COMMENTS_PATH))
         .set('Content-Type', 'application/json')
         .send(payload)
-        .expect(HttpStatus.OK);
-
-      expect(res.body).toEqual(
-        expect.objectContaining({ message: mockingDeleteMessage }),
-      );
+        .expect(HttpStatus.NO_CONTENT);
       expect(mockCommentService.deleteComments).toHaveBeenCalledWith(
         expect.objectContaining(payload),
       );
