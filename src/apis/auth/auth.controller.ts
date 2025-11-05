@@ -81,7 +81,7 @@ export class AuthController {
   })
   async refresh(
     @Body('refreshToken') refreshToken: string,
-  ): Promise<{ accessToken: string }> {
+  ): Promise<{ accessToken: string; refreshToken: string }> {
     return await this.authService.refreshTokens(refreshToken);
   }
 }

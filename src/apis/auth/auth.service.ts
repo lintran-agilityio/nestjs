@@ -204,14 +204,18 @@ export class AuthService {
    * @returns New access token
    * @throws UnauthorizedException if refresh token is invalid or expired
    */
-  async refreshTokens(refreshToken: string): Promise<{ accessToken: string }> {
+  async refreshTokens(
+    refreshToken: string,
+  ): Promise<{ accessToken: string; refreshToken: string }> {
+    // Normalize potential line breaks/spaces from transport
+    const token = (refreshToken ?? '').toString().replace(/\s+/g, '');
     try {
       const payload = await this.jwtService.verifyAsync<IJwtAuthPayload>(
-        refreshToken,
+        token,
         {
           secret:
             this.configService.get<string>(JWT_KEYS.JWT_REFRESH_SECRET) ??
-            'default-refresh-secret',
+            'super-refresh-secret',
         },
       );
 
@@ -223,7 +227,7 @@ export class AuthService {
       if (cachedHashedRefreshToken) {
         // Validate cache token
         const isCachedValid = await this.hashingService.compare(
-          refreshToken,
+          token,
           cachedHashedRefreshToken,
         );
 
@@ -249,7 +253,7 @@ export class AuthService {
         }
 
         const isValid = await this.hashingService.compare(
-          refreshToken,
+          token,
           user.refreshToken,
         );
 
@@ -263,15 +267,56 @@ export class AuthService {
         }
       }
 
-      const newAccessToken = await this.jwtService.signAsync(payload, {
-        secret:
-          this.configService.get<string>(JWT_KEYS.JWT_SECRET) ??
-          'default-secret',
-        expiresIn: (this.configService.get<string>(JWT_KEYS.JWT_EXPIRES_IN) ||
-          '1h') as JwtSignOptions['expiresIn'],
-      });
+      // Strip time-based fields from incoming payload before re-signing
+      const {
+        iat: _iat,
+        exp: _exp,
+        ...sanitizedPayload
+      } = payload as Record<string, any>;
 
-      return { accessToken: newAccessToken };
+      const newAccessToken = await this.jwtService.signAsync(
+        sanitizedPayload as IJwtAuthPayload,
+        {
+          secret:
+            this.configService.get<string>(JWT_KEYS.JWT_SECRET) ??
+            'super-secret',
+          expiresIn: (this.configService.get<string>(JWT_KEYS.JWT_EXPIRES_IN) ||
+            '1h') as JwtSignOptions['expiresIn'],
+        },
+      );
+
+      // Rotate refresh token: generate, hash, and cache
+      const newRefreshToken = await this.jwtService.signAsync(
+        sanitizedPayload as IJwtAuthPayload,
+        {
+          secret:
+            this.configService.get<string>(JWT_KEYS.JWT_REFRESH_SECRET) ??
+            'super-refresh-secret',
+          expiresIn: (this.configService.get<string>(
+            JWT_KEYS.JWT_REFRESH_EXPIRES_IN,
+          ) || '7d') as JwtSignOptions['expiresIn'],
+        },
+      );
+
+      const newHashedRefreshToken =
+        await this.hashingService.hash(newRefreshToken);
+
+      // Invalidate caches
+      await this.redisService.deleteKey(
+        `${REDIS_CACHE_KEYS.REFRESH_TOKEN}:${payload.id}`,
+      );
+
+      await this.redisService.setKey(
+        `${REDIS_CACHE_KEYS.REFRESH_TOKEN}:${payload.id}`,
+        newHashedRefreshToken,
+        TTL_CACHE.REFRESH_TOKEN,
+      );
+      await this.userService.updateRefreshToken(
+        payload.id,
+        newHashedRefreshToken,
+      );
+
+      return { accessToken: newAccessToken, refreshToken: newRefreshToken };
     } catch (error) {
       this.logger.error(
         `[Refresh Token Error] - ${MESSAGES.USER_TOKEN_EXPIRED} - ${JSON.stringify(error, null, 2)}`,
