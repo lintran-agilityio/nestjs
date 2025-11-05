@@ -184,13 +184,12 @@ export class CommentService {
       });
     }
 
-    if (comment) {
-      await this.redisService.setKey(
-        idCacheKey,
-        comment,
-        TTL_CACHE.COMMENT_BY_ID,
-      );
-    }
+    // Cache the comment before returning
+    await this.redisService.setKey(
+      idCacheKey,
+      comment,
+      TTL_CACHE.COMMENT_BY_ID,
+    );
 
     return comment;
   }

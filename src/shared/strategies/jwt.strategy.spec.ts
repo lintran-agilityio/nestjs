@@ -11,6 +11,7 @@ import { User } from '@app/apis/users/entities';
 // Local sources
 import { JwtStrategy } from './jwt.strategy';
 import { IJwtPayload, UserRole } from '../types';
+import { JWT_KEYS } from '../common';
 
 describe('JwtStrategy', () => {
   let strategy: JwtStrategy;
@@ -62,6 +63,54 @@ describe('JwtStrategy', () => {
     expect(strategy).toBeDefined();
   });
 
+  describe('constructor', () => {
+    it('should use default secret when JWT_SECRET is undefined', async () => {
+      const module: TestingModule = await Test.createTestingModule({
+        providers: [
+          JwtStrategy,
+          {
+            provide: ConfigService,
+            useValue: {
+              get: jest.fn().mockReturnValue(undefined),
+            },
+          },
+          {
+            provide: getRepositoryToken(User),
+            useValue: {
+              findOne: jest.fn(),
+            },
+          },
+        ],
+      }).compile();
+
+      const strategyInstance = module.get<JwtStrategy>(JwtStrategy);
+      expect(strategyInstance).toBeDefined();
+    });
+
+    it('should use default secret when JWT_SECRET is null', async () => {
+      const module: TestingModule = await Test.createTestingModule({
+        providers: [
+          JwtStrategy,
+          {
+            provide: ConfigService,
+            useValue: {
+              get: jest.fn().mockReturnValue(null),
+            },
+          },
+          {
+            provide: getRepositoryToken(User),
+            useValue: {
+              findOne: jest.fn(),
+            },
+          },
+        ],
+      }).compile();
+
+      const strategyInstance = module.get<JwtStrategy>(JwtStrategy);
+      expect(strategyInstance).toBeDefined();
+    });
+  });
+
   describe('validate', () => {
     it('returns user when payload contains id and user exists', async () => {
       (userRepo.findOne as jest.Mock).mockResolvedValue(defaultUser);
@@ -97,8 +146,7 @@ describe('JwtStrategy', () => {
       const payload = {
         email: defaultUser.email,
         role: UserRole.USER,
-        sub: 'user-123',
-      };
+      } as IJwtPayload;
 
       await expect(strategy.validate(payload)).rejects.toThrow(
         UnauthorizedException,
@@ -131,6 +179,84 @@ describe('JwtStrategy', () => {
       await expect(strategy.validate(defaultPayload)).rejects.toThrow(
         unauthorizedError,
       );
+    });
+
+    it('prefers id over sub when both are present', async () => {
+      const payload = {
+        id: 'user-456',
+        sub: 'user-123',
+        email: defaultUser.email,
+        role: UserRole.USER,
+      };
+
+      const expectedUser = {
+        ...defaultUser,
+        id: 'user-456',
+      };
+
+      (userRepo.findOne as jest.Mock).mockResolvedValue(expectedUser);
+
+      const result = await strategy.validate(payload);
+
+      expect(userRepo.findOne).toHaveBeenCalledWith({
+        where: { id: 'user-456' },
+        select: ['id', 'email', 'role', 'status', 'firstName', 'lastName'],
+      });
+      expect(result).toEqual(expectedUser);
+    });
+
+    it('throws UnauthorizedException when id is empty string', async () => {
+      const payload = {
+        id: '',
+        email: defaultUser.email,
+        role: UserRole.USER,
+      } as IJwtPayload;
+
+      await expect(strategy.validate(payload)).rejects.toThrow(
+        UnauthorizedException,
+      );
+      expect(userRepo.findOne).not.toHaveBeenCalled();
+    });
+
+    it('throws UnauthorizedException when sub is empty string and id is missing', async () => {
+      const payload = {
+        sub: '',
+        email: defaultUser.email,
+        role: UserRole.USER,
+      } as IJwtPayload;
+
+      await expect(strategy.validate(payload)).rejects.toThrow(
+        UnauthorizedException,
+      );
+      expect(userRepo.findOne).not.toHaveBeenCalled();
+    });
+
+    it('throws UnauthorizedException when both id and sub are empty strings', async () => {
+      const payload = {
+        id: '',
+        sub: '',
+        email: defaultUser.email,
+        role: UserRole.USER,
+      } as IJwtPayload;
+
+      await expect(strategy.validate(payload)).rejects.toThrow(
+        UnauthorizedException,
+      );
+      expect(userRepo.findOne).not.toHaveBeenCalled();
+    });
+
+    it('handles generic errors and wraps them in UnauthorizedException', async () => {
+      const genericError = new Error('Database connection failed');
+      (userRepo.findOne as jest.Mock).mockRejectedValue(genericError);
+
+      await expect(strategy.validate(defaultPayload)).rejects.toThrow(
+        UnauthorizedException,
+      );
+    });
+
+    it('validates constructor initialization', () => {
+      expect(strategy).toBeDefined();
+      expect(configService.get).toHaveBeenCalledWith(JWT_KEYS.JWT_SECRET);
     });
   });
 });

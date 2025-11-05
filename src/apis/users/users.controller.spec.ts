@@ -18,13 +18,13 @@ describe('UserController', () => {
   beforeEach(async () => {
     userService = {
       getAll: jest.fn(),
-      getById: jest.fn(),
-      getByEmail: jest.fn(),
+      getByIdOrEmail: jest.fn(),
       updateById: jest.fn(),
       updateAll: jest.fn(),
       deleteAll: jest.fn(),
       deleteById: jest.fn(),
       deletePostById: jest.fn(),
+      getAllPostOfUser: jest.fn(),
     };
 
     const module: TestingModule = await Test.createTestingModule({
@@ -51,19 +51,45 @@ describe('UserController', () => {
     expect(result).toEqual({ data: [], total: 0 });
   });
 
-  it('getById should delegate', async () => {
-    userService.getById.mockResolvedValue({ id: mockUuidUser });
-    const result = await controller.getById(mockUuidUser);
-    expect(userService.getById).toHaveBeenCalledWith(mockUuidUser);
-    expect(result).toEqual({ id: mockUuidUser });
+  it('getByIdOrEmail should delegate with UUID', async () => {
+    const mockResponse = { id: mockUuidUser };
+    userService.getByIdOrEmail.mockResolvedValue(mockResponse);
+    const currentUser = {
+      id: mockUuidUser,
+      email: mockingUserInfo.email,
+      role: mockingUserInfo.role,
+      status: mockingUserInfo.status,
+      firstName: 'Lin',
+      lastName: 'Tran',
+    };
+    const result = await controller.getByIdOrEmail(mockUuidUser, currentUser);
+    expect(userService.getByIdOrEmail).toHaveBeenCalledWith(
+      mockUuidUser,
+      currentUser,
+    );
+    expect(result).toEqual(mockResponse);
   });
 
-  it('getByEmail should delegate', async () => {
-    const mockingResponse = { id: mockUuidUser, email: mockingUserInfo.email };
-    userService.getByEmail.mockResolvedValue(mockingResponse);
-    const result = await controller.getByEmail(mockingUserInfo.email);
-    expect(userService.getByEmail).toHaveBeenCalledWith(mockingUserInfo.email);
-    expect(result).toEqual(mockingResponse);
+  it('getByIdOrEmail should delegate with email', async () => {
+    const mockResponse = { id: mockUuidUser, email: mockingUserInfo.email };
+    userService.getByIdOrEmail.mockResolvedValue(mockResponse);
+    const currentUser = {
+      id: mockUuidUser,
+      email: mockingUserInfo.email,
+      role: mockingUserInfo.role,
+      status: mockingUserInfo.status,
+      firstName: 'Lin',
+      lastName: 'Tran',
+    };
+    const result = await controller.getByIdOrEmail(
+      mockingUserInfo.email,
+      currentUser,
+    );
+    expect(userService.getByIdOrEmail).toHaveBeenCalledWith(
+      mockingUserInfo.email,
+      currentUser,
+    );
+    expect(result).toEqual(mockResponse);
   });
 
   it('update should delegate', async () => {
@@ -100,15 +126,23 @@ describe('UserController', () => {
   });
 
   it('deletePostById should delegate', async () => {
-    userService.deletePostById.mockResolvedValue({ message: messageSuccess });
-    const result = await controller.deletePostById(
-      mockUuidUser,
-      mockingPostUuid,
-    );
+    userService.deletePostById.mockResolvedValue(undefined);
+    const result = await controller.deletePostById(mockUuidUser, mockingPostUuid);
     expect(userService.deletePostById).toHaveBeenCalledWith(
       mockUuidUser,
       mockingPostUuid,
     );
-    expect(result).toEqual({ message: messageSuccess });
+    expect(result).toBeUndefined();
+  });
+
+  it('getAllPostOfUser should delegate', async () => {
+    const mockPostResponse = {
+      data: [],
+      meta: { total: 0, page: 1, limit: 10, totalPages: 0 },
+    };
+    userService.getAllPostOfUser.mockResolvedValue(mockPostResponse);
+    const result = await controller.getAllPostOfUser(mockUuidUser);
+    expect(userService.getAllPostOfUser).toHaveBeenCalledWith(mockUuidUser);
+    expect(result).toEqual(mockPostResponse);
   });
 });

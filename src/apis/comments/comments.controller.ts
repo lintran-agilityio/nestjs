@@ -76,7 +76,7 @@ export class CommentController {
   /**
    * Get comments for a specific post
    */
-  @Get('post/:postId')
+  @Get('posts/:postId')
   @Roles(ADMIN)
   @HttpCode(HttpStatus.OK)
   @ApiOkResponseDto({

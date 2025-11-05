@@ -186,7 +186,7 @@ describe('Auth - Login (e2e)', () => {
       // Act & Assert
       await request(server)
         .post(url(LOGIN_PATH))
-        .send(userPayloadLogin.password)
+        .send({ password: userPayloadLogin.password })
         .expect(HttpStatus.BAD_REQUEST);
     });
 
@@ -194,15 +194,21 @@ describe('Auth - Login (e2e)', () => {
       // Act & Assert
       await request(server)
         .post(url(LOGIN_PATH))
-        .send(userPayloadLogin.email)
+        .send({ email: userPayloadLogin.email })
         .expect(HttpStatus.BAD_REQUEST);
     });
 
     it('should return 400 when email format is invalid', async () => {
+      // Arrange
+      const payload: LoginRequestDto = {
+        email: 'invalid-email-format',
+        password: userPayloadLogin.password,
+      };
+
       // Act & Assert
       await request(server)
         .post(url(LOGIN_PATH))
-        .send(userPayloadLogin)
+        .send(payload)
         .expect(HttpStatus.BAD_REQUEST);
     });
 

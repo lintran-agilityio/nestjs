@@ -57,13 +57,27 @@ describe('BcryptService', () => {
       expect(bcrypt.hash).toHaveBeenCalledWith(testData.toString(), mockSalt);
     });
 
-    it('should handle hash errors', async () => {
+    it('should handle genSalt errors', async () => {
       const testData = 'test-password';
-      const error = new Error('Hash failed');
+      const error = new Error('GenSalt failed');
 
       (bcrypt.genSalt as jest.Mock).mockRejectedValue(error);
 
+      await expect(service.hash(testData)).rejects.toThrow('GenSalt failed');
+      expect(bcrypt.hash).not.toHaveBeenCalled();
+    });
+
+    it('should handle hash errors', async () => {
+      const testData = 'test-password';
+      const mockSalt = 'mock-salt';
+      const error = new Error('Hash failed');
+
+      (bcrypt.genSalt as jest.Mock).mockResolvedValue(mockSalt);
+      (bcrypt.hash as jest.Mock).mockRejectedValue(error);
+
       await expect(service.hash(testData)).rejects.toThrow('Hash failed');
+      expect(bcrypt.genSalt).toHaveBeenCalledWith(8);
+      expect(bcrypt.hash).toHaveBeenCalledWith(testData, mockSalt);
     });
   });
 

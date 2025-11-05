@@ -8,8 +8,9 @@ import { Repository } from 'typeorm';
 
 // App sources
 import { CUSTOM_PROVIDER_TOKENS } from '@app/shared/common';
-import { MESSAGES } from '@app/shared/constants';
+import { MESSAGES, REDIS_CACHE_KEYS, TTL_CACHE } from '@app/shared/constants';
 import { UserRole, UserStatus } from '@app/shared/types';
+import { RedisService } from '@app/shared/modules/cache/redis/redis.service';
 
 // Apis
 import { UserService } from '@app/apis/users/users.service';
@@ -17,7 +18,7 @@ import { User } from '@app/apis/users/entities';
 
 // Local sources
 import { AuthService } from './auth.service';
-import { LoginRequestDto, RegisterRequestDto } from './dto';
+import { LoginRequestDto, RegisterRequestDto, RegisterResponseDto } from './dto';
 import {
   mockingUserInfo,
   mockingUserLogin,
@@ -38,8 +39,17 @@ describe('AuthService', () => {
     getUserById: jest.Mock;
     updateRefreshToken: jest.Mock;
   };
+  let redisService: {
+    getKey: jest.Mock;
+    setKey: jest.Mock;
+  };
 
   beforeEach(async () => {
+    redisService = {
+      getKey: jest.fn().mockResolvedValue(null),
+      setKey: jest.fn().mockResolvedValue(undefined),
+    };
+
     const module: TestingModule = await Test.createTestingModule({
       providers: [
         AuthService,
@@ -61,6 +71,10 @@ describe('AuthService', () => {
             updateRefreshToken: jest.fn(),
           },
         },
+        {
+          provide: RedisService,
+          useValue: redisService,
+        },
         createMockLoggerProvider(),
       ],
     }).compile();
@@ -73,6 +87,11 @@ describe('AuthService', () => {
     configService = module.get(ConfigService);
     jwtService = module.get(JwtService);
     userService = module.get(UserService);
+    redisService = module.get(RedisService);
+  });
+
+  afterEach(() => {
+    jest.clearAllMocks();
   });
 
   it('should be defined', () => {
@@ -94,27 +113,37 @@ describe('AuthService', () => {
     it('should create and return RegisterResponseDto on success', async () => {
       userService.getUserByEmail.mockResolvedValue(null);
       hashingService.hash.mockResolvedValue('hashed');
-      const created = { email: dto.email } as Partial<User>;
       const saved = {
         id: 'uuid-1234',
         email: dto.email,
-        role: dto.role,
-        status: dto.status,
+        status: UserStatus.ACTIVE,
       } as User;
-      (usersRepo.create as jest.Mock).mockReturnValue(created);
+      (usersRepo.create as jest.Mock).mockReturnValue({} as User);
       (usersRepo.save as jest.Mock).mockResolvedValue(saved);
 
       const result = await service.register(dto);
 
+      expect(result).toBeInstanceOf(RegisterResponseDto);
       expect(result).toEqual({
         id: saved.id,
         email: saved.email,
-        role: saved.role,
+        role: UserRole.USER,
         status: saved.status,
       });
       expect(hashingService.hash).toHaveBeenCalledWith(dto.password);
       expect(usersRepo.create).toHaveBeenCalled();
       expect(usersRepo.save).toHaveBeenCalled();
+    });
+
+    it('should handle errors during registration', async () => {
+      userService.getUserByEmail.mockResolvedValue(null);
+      hashingService.hash.mockResolvedValue('hashed');
+      (usersRepo.create as jest.Mock).mockReturnValue({} as User);
+      (usersRepo.save as jest.Mock).mockRejectedValue(
+        new Error('Database error'),
+      );
+
+      await expect(service.register(dto)).rejects.toThrow();
     });
   });
 
@@ -153,6 +182,7 @@ describe('AuthService', () => {
       } as unknown as User;
       userService.getUserByEmail.mockResolvedValue(existing);
       hashingService.compare.mockResolvedValue(true);
+      hashingService.hash.mockResolvedValue('hashed.refresh');
       configService.get
         .mockReturnValueOnce('jwt-secret') // JWT_SECRET
         .mockReturnValueOnce('1h') // JWT_EXPIRES_IN
@@ -161,7 +191,6 @@ describe('AuthService', () => {
       jwtService.signAsync
         .mockResolvedValueOnce('access.token')
         .mockResolvedValueOnce('refresh.token');
-      hashingService.hash.mockResolvedValue('hashed.refresh');
 
       const result = await service.login(dto);
 
@@ -175,16 +204,128 @@ describe('AuthService', () => {
           status: existing.status,
         },
       });
+      expect(redisService.setKey).toHaveBeenCalledWith(
+        `${REDIS_CACHE_KEYS.REFRESH_TOKEN}:${existing.id}`,
+        'hashed.refresh',
+        TTL_CACHE.REFRESH_TOKEN,
+      );
       expect(userService.updateRefreshToken).toHaveBeenCalledWith(
         'u1',
         'hashed.refresh',
       );
     });
+
+    it('should use default config values when configService returns null/undefined', async () => {
+      const existing = {
+        id: 'u1',
+        email: dto.email,
+        password: 'hashed',
+        role: UserRole.USER,
+        status: UserStatus.ACTIVE,
+      } as unknown as User;
+      userService.getUserByEmail.mockResolvedValue(existing);
+      hashingService.compare.mockResolvedValue(true);
+      hashingService.hash.mockResolvedValue('hashed.refresh');
+      // Return null/undefined to trigger fallback defaults
+      configService.get.mockReturnValue(null);
+      jwtService.signAsync
+        .mockResolvedValueOnce('access.token')
+        .mockResolvedValueOnce('refresh.token');
+
+      const result = await service.login(dto);
+
+      expect(result).toBeDefined();
+      expect(jwtService.signAsync).toHaveBeenCalledTimes(2);
+      // Verify default values are used in signAsync calls
+      expect(jwtService.signAsync).toHaveBeenNthCalledWith(
+        1,
+        expect.objectContaining({
+          id: 'u1',
+          email: dto.email,
+        }),
+        expect.objectContaining({
+          secret: 'super-secret',
+          expiresIn: '1h',
+        }),
+      );
+      expect(jwtService.signAsync).toHaveBeenNthCalledWith(
+        2,
+        expect.objectContaining({
+          id: 'u1',
+          email: dto.email,
+        }),
+        expect.objectContaining({
+          secret: 'super-refresh-secret',
+          expiresIn: '7d',
+        }),
+      );
+    });
+
+    it('should handle errors during login', async () => {
+      const existing = {
+        id: 'u1',
+        email: dto.email,
+        password: 'hashed',
+        role: UserRole.USER,
+        status: UserStatus.ACTIVE,
+      } as unknown as User;
+      userService.getUserByEmail.mockResolvedValue(existing);
+      hashingService.compare.mockResolvedValue(true);
+      configService.get.mockReturnValue('secret');
+      jwtService.signAsync.mockRejectedValue(new Error('JWT error'));
+
+      await expect(service.login(dto)).rejects.toThrow();
+    });
   });
 
   describe('refreshTokens', () => {
+    it('should throw error when JWT verification fails', async () => {
+      jwtService.verifyAsync.mockRejectedValue(new Error('Invalid token'));
+
+      await expect(service.refreshTokens('invalid.token')).rejects.toThrow();
+    });
+
+    it('should use cached refresh token when available', async () => {
+      const payload = {
+        id: mockUuidUser,
+        ...mockingUserInfo,
+      };
+      jwtService.verifyAsync.mockResolvedValue(payload);
+      redisService.getKey.mockResolvedValue('cached.hashed.refresh');
+      hashingService.compare.mockResolvedValue(true);
+      configService.get
+        .mockReturnValueOnce('refresh-secret') // JWT_REFRESH_SECRET
+        .mockReturnValueOnce('jwt-secret') // JWT_SECRET
+        .mockReturnValueOnce('1h'); // JWT_EXPIRES_IN
+      jwtService.signAsync.mockResolvedValue('new.access.token');
+
+      const result = await service.refreshTokens('valid.refresh.token');
+
+      expect(result).toEqual({ accessToken: 'new.access.token' });
+      expect(redisService.getKey).toHaveBeenCalledWith(
+        `${REDIS_CACHE_KEYS.REFRESH_TOKEN}:${mockUuidUser}`,
+      );
+      expect(userService.getUserById).not.toHaveBeenCalled();
+    });
+
+    it('should throw error when cached refresh token is invalid', async () => {
+      const payload = {
+        id: mockUuidUser,
+        ...mockingUserInfo,
+      };
+      jwtService.verifyAsync.mockResolvedValue(payload);
+      redisService.getKey.mockResolvedValue('cached.hashed.refresh');
+      hashingService.compare.mockResolvedValue(false);
+
+      await expect(service.refreshTokens('invalid.refresh.token')).rejects.toThrow(
+        MESSAGES.USER_INVALID_REFRESH_TOKEN,
+      );
+    });
+
     it('should throw error when user missing or stored token absent', async () => {
-      jwtService.verifyAsync.mockResolvedValue({ id: 'u1' });
+      const payload = { id: 'u1' };
+      jwtService.verifyAsync.mockResolvedValue(payload);
+      redisService.getKey.mockResolvedValue(null);
       userService.getUserById.mockResolvedValue({
         id: 'u1',
         refreshToken: undefined,
@@ -195,8 +336,21 @@ describe('AuthService', () => {
       );
     });
 
+    it('should throw error when user not found', async () => {
+      const payload = { id: 'u1' };
+      jwtService.verifyAsync.mockResolvedValue(payload);
+      redisService.getKey.mockResolvedValue(null);
+      userService.getUserById.mockResolvedValue(null);
+
+      await expect(service.refreshTokens('any.refresh')).rejects.toThrow(
+        MESSAGES.USER_INVALID_REFRESH_TOKEN,
+      );
+    });
+
     it('should throw error when stored refresh token mismatches', async () => {
-      jwtService.verifyAsync.mockResolvedValue({ id: 'u1' });
+      const payload = { id: 'u1' };
+      jwtService.verifyAsync.mockResolvedValue(payload);
+      redisService.getKey.mockResolvedValue(null);
       userService.getUserById.mockResolvedValue({
         id: 'u1',
         refreshToken: 'stored.hash',
@@ -208,24 +362,81 @@ describe('AuthService', () => {
       );
     });
 
-    it('should return new accessToken on success', async () => {
-      jwtService.verifyAsync.mockResolvedValue({
+    it('should return new accessToken using DB stored token when cache is missing', async () => {
+      const payload = {
         id: mockUuidUser,
         ...mockingUserInfo,
-      });
+      };
+      jwtService.verifyAsync.mockResolvedValue(payload);
+      redisService.getKey.mockResolvedValue(null);
       userService.getUserById.mockResolvedValue({
         id: mockUuidUser,
         refreshToken: 'stored.hash',
       } as User);
       hashingService.compare.mockResolvedValue(true);
       configService.get
+        .mockReturnValueOnce('refresh-secret') // JWT_REFRESH_SECRET
         .mockReturnValueOnce('jwt-secret') // JWT_SECRET
         .mockReturnValueOnce('1h'); // JWT_EXPIRES_IN
       jwtService.signAsync.mockResolvedValue('new.access.token');
 
       const result = await service.refreshTokens('incoming.refresh');
+
       expect(result).toEqual({ accessToken: 'new.access.token' });
+      expect(redisService.getKey).toHaveBeenCalledWith(
+        `${REDIS_CACHE_KEYS.REFRESH_TOKEN}:${mockUuidUser}`,
+      );
+      expect(userService.getUserById).toHaveBeenCalledWith(mockUuidUser);
+      expect(hashingService.compare).toHaveBeenCalledWith(
+        'incoming.refresh',
+        'stored.hash',
+      );
       expect(jwtService.signAsync).toHaveBeenCalled();
+    });
+
+    it('should use default config values when refreshing tokens with null config', async () => {
+      const payload = {
+        id: mockUuidUser,
+        ...mockingUserInfo,
+      };
+      jwtService.verifyAsync.mockResolvedValue(payload);
+      redisService.getKey.mockResolvedValue(null);
+      userService.getUserById.mockResolvedValue({
+        id: mockUuidUser,
+        refreshToken: 'stored.hash',
+      } as User);
+      hashingService.compare.mockResolvedValue(true);
+      configService.get.mockReturnValue(null);
+      jwtService.signAsync.mockResolvedValue('new.access.token');
+
+      const result = await service.refreshTokens('incoming.refresh');
+
+      expect(result).toEqual({ accessToken: 'new.access.token' });
+      expect(jwtService.signAsync).toHaveBeenCalledWith(
+        payload,
+        expect.objectContaining({
+          secret: 'default-secret',
+          expiresIn: '1h',
+        }),
+      );
+    });
+
+    it('should handle errors during token refresh', async () => {
+      const payload = {
+        id: mockUuidUser,
+        ...mockingUserInfo,
+      };
+      jwtService.verifyAsync.mockResolvedValue(payload);
+      redisService.getKey.mockResolvedValue(null);
+      userService.getUserById.mockResolvedValue({
+        id: mockUuidUser,
+        refreshToken: 'stored.hash',
+      } as User);
+      hashingService.compare.mockResolvedValue(true);
+      configService.get.mockReturnValue('secret');
+      jwtService.signAsync.mockRejectedValue(new Error('Sign error'));
+
+      await expect(service.refreshTokens('incoming.refresh')).rejects.toThrow();
     });
   });
 });

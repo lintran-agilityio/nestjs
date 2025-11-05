@@ -1,5 +1,6 @@
 // Libs
 import { Test, TestingModule } from '@nestjs/testing';
+import { NotFoundException, BadRequestException } from '@nestjs/common';
 
 // Local sources
 import { CommentController } from './comments.controller';
@@ -43,7 +44,7 @@ describe('CommentController', () => {
     >;
     deleteCommentById: jest.Mock<
       Promise<IMessageAndCountResponse>,
-      [string, string]
+      [string, IUserInfo]
     >;
     deleteComments: jest.Mock<
       Promise<IMessageAndCountResponse>,
@@ -81,7 +82,7 @@ describe('CommentController', () => {
       >(),
       deleteCommentById: jest.fn<
         Promise<IMessageAndCountResponse>,
-        [string, string]
+        [string, IUserInfo]
       >(),
       deleteComments: jest.fn<
         Promise<IMessageAndCountResponse>,
@@ -198,7 +199,7 @@ describe('CommentController', () => {
     );
     expect(commentService.deleteCommentById).toHaveBeenCalledWith(
       mockingCommentUuid,
-      mockUuidUser,
+      mockUser,
     );
     expect(result).toEqual({ message: successMessage });
   });
@@ -215,5 +216,114 @@ describe('CommentController', () => {
       commentIds: [mockingCommentUuid],
     });
     expect(result).toEqual({ message: successMessage, count: 1 });
+  });
+
+  describe('Error handling', () => {
+    it('getComments should propagate service errors', async () => {
+      const error = new BadRequestException('Service error');
+      commentService.getComments.mockRejectedValue(error);
+      await expect(controller.getComments({})).rejects.toThrow(error);
+    });
+
+    it('getCommentsByPostId should propagate service errors', async () => {
+      const error = new NotFoundException('Post not found');
+      commentService.getCommentsByPostId.mockRejectedValue(error);
+      await expect(
+        controller.getCommentsByPostId(mockingPostUuid, {}),
+      ).rejects.toThrow(error);
+    });
+
+    it('getCommentById should propagate service errors', async () => {
+      const error = new NotFoundException('Comment not found');
+      commentService.getCommentById.mockRejectedValue(error);
+      await expect(
+        controller.getCommentById(mockingCommentUuid),
+      ).rejects.toThrow(error);
+    });
+
+    it('createComment should propagate service errors', async () => {
+      const error = new BadRequestException('Invalid post');
+      commentService.createComment.mockRejectedValue(error);
+      await expect(
+        controller.createComment(mockUser, {
+          postId: mockingPostUuid,
+          content: mockingCommentInfo.content,
+        }),
+      ).rejects.toThrow(error);
+    });
+
+    it('updateCommentById should propagate service errors', async () => {
+      const error = new NotFoundException('Comment not found');
+      commentService.updateCommentById.mockRejectedValue(error);
+      await expect(
+        controller.updateCommentById(mockingCommentUuid, mockUser, {
+          content: 'new',
+        }),
+      ).rejects.toThrow(error);
+    });
+
+    it('deleteCommentById should propagate service errors', async () => {
+      const error = new NotFoundException('Comment not found');
+      commentService.deleteCommentById.mockRejectedValue(error);
+      await expect(
+        controller.deleteCommentById(mockingCommentUuid, mockUser),
+      ).rejects.toThrow(error);
+    });
+
+    it('deleteComments should propagate service errors', async () => {
+      const error = new BadRequestException('Invalid comment IDs');
+      commentService.deleteComments.mockRejectedValue(error);
+      await expect(
+        controller.deleteComments({ commentIds: [mockingCommentUuid] }),
+      ).rejects.toThrow(error);
+    });
+  });
+
+  describe('Edge cases', () => {
+    it('getComments should handle empty query params', async () => {
+      const mockResponse: CommentPaginationResponseDto = {
+        data: [],
+        meta: {
+          total: 0,
+          totalPages: 0,
+          page: 1,
+          limit: 10,
+        },
+      };
+      commentService.getComments.mockResolvedValue(mockResponse);
+      const result = await controller.getComments({});
+      expect(result).toEqual(mockResponse);
+    });
+
+    it('getComments should handle query params with pagination', async () => {
+      const mockResponse: CommentPaginationResponseDto = {
+        data: [],
+        meta: {
+          total: 0,
+          totalPages: 0,
+          page: 2,
+          limit: 20,
+        },
+      };
+      commentService.getComments.mockResolvedValue(mockResponse);
+      const result = await controller.getComments({ page: 2, limit: 20 });
+      expect(commentService.getComments).toHaveBeenCalledWith({
+        page: 2,
+        limit: 20,
+      });
+      expect(result).toEqual(mockResponse);
+    });
+
+    it('deleteComments should handle empty commentIds array', async () => {
+      commentService.deleteComments.mockResolvedValue({
+        message: successMessage,
+        count: 0,
+      });
+      const result = await controller.deleteComments({ commentIds: [] });
+      expect(commentService.deleteComments).toHaveBeenCalledWith({
+        commentIds: [],
+      });
+      expect(result.count).toBe(0);
+    });
   });
 });

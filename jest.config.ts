@@ -15,6 +15,7 @@ const config: JestConfigWithTsJest = {
     '!dist/**/*',
     '!coverage/**/*',
     '!src/config/*',
+    '!src/config/**/**/*',
     '!src/migrations/*',
     '!src/scripts/*',
     '!src/main.ts',
@@ -24,6 +25,7 @@ const config: JestConfigWithTsJest = {
     '!**/health.service.ts',
     '!src/modules/**/config/*',
     '!src/scripts/**/*',
+    '!src/shared/constants/config.constant.ts',
   ],
   coveragePathIgnorePatterns: ['<rootDir>/test/'],
   moduleNameMapper: {

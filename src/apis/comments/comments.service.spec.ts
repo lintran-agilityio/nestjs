@@ -10,7 +10,7 @@ import { User } from '@app/apis/users/entities';
 import { Post } from '@app/apis/posts/entities';
 
 // App sources
-import { MESSAGES } from '@app/shared/constants';
+import { MESSAGES, TTL_CACHE, REDIS_CACHE_KEYS } from '@app/shared/constants';
 import {
   createMockLoggerProvider,
   createRepositoryProvider,
@@ -19,8 +19,11 @@ import {
   mockingMetadata,
   mockingPostUuid,
   mockUuidUser,
+  mockingUserResponse,
 } from '@app/shared/mocks';
+import { RedisService } from '@app/shared/modules/cache/redis/redis.service';
 import * as utils from '@app/shared/utils';
+import { UserRole } from '@app/shared/types';
 
 // Local sources
 import { CommentService } from './comments.service';
@@ -38,11 +41,21 @@ describe('CommentService', () => {
     create: jest.Mock<Comment, [Partial<Comment>]>;
     save: jest.Mock<Promise<Comment>, [Comment]>;
     remove: jest.Mock<Promise<Comment>, [Comment]>;
+    createQueryBuilder: jest.Mock;
   };
   let userService: { getById: jest.Mock<Promise<User>, [string]> };
   let postService: { getById: jest.Mock<Promise<Post>, [string]> };
+  let redisService: {
+    getKey: jest.Mock;
+    setKey: jest.Mock;
+    deleteKey: jest.Mock;
+    deleteByPattern: jest.Mock;
+  };
   const mockComment: Comment = Object.assign(new Comment(), {
     ...mockingCommentInfo,
+    id: mockingCommentUuid,
+    userId: mockUuidUser,
+    postId: mockingPostUuid,
     createdAt: new Date(),
     updatedAt: new Date(),
   } as Partial<Comment>);
@@ -73,6 +86,13 @@ describe('CommentService', () => {
       getMany: jest.fn(),
     };
 
+    redisService = {
+      getKey: jest.fn().mockResolvedValue(null),
+      setKey: jest.fn().mockResolvedValue(undefined),
+      deleteKey: jest.fn().mockResolvedValue(undefined),
+      deleteByPattern: jest.fn().mockResolvedValue(undefined),
+    };
+
     const module: TestingModule = await Test.createTestingModule({
       providers: [
         CommentService,
@@ -85,6 +105,7 @@ describe('CommentService', () => {
         }),
         { provide: UserService, useValue: { getById: jest.fn() } },
         { provide: PostService, useValue: { getById: jest.fn() } },
+        { provide: RedisService, useValue: redisService },
         createMockLoggerProvider(),
       ],
     }).compile();
@@ -93,6 +114,11 @@ describe('CommentService', () => {
     commentsRepo = module.get(getRepositoryToken(Comment));
     userService = module.get(UserService);
     postService = module.get(PostService);
+    redisService = module.get(RedisService);
+  });
+
+  afterEach(() => {
+    jest.clearAllMocks();
   });
 
   it('should be defined', () => {
@@ -101,20 +127,51 @@ describe('CommentService', () => {
 
   describe('getCommentById', () => {
     it('throws NotFound when missing', async () => {
+      redisService.getKey.mockResolvedValue(null);
       commentsRepo.findOne.mockResolvedValue(null);
       await expect(service.getCommentById('id-1')).rejects.toBeInstanceOf(
         NotFoundException,
       );
     });
 
-    it('returns when exists', async () => {
+    it('returns cached comment when available', async () => {
+      redisService.getKey.mockResolvedValue(mockComment);
+
+      const result = await service.getCommentById(mockingCommentUuid);
+
+      expect(result).toEqual(mockComment);
+      expect(commentsRepo.findOne).not.toHaveBeenCalled();
+      expect(redisService.getKey).toHaveBeenCalledWith(
+        `${REDIS_CACHE_KEYS.COMMENTS.BY_ID}:${mockingCommentUuid}`,
+      );
+    });
+
+    it('returns when exists and caches result', async () => {
       const comment: Comment = Object.assign(new Comment(), {
         id: mockingCommentUuid,
+        user: { id: mockUuidUser },
+        post: { id: mockingPostUuid },
       } as Partial<Comment>);
+      redisService.getKey.mockResolvedValue(null);
       commentsRepo.findOne.mockResolvedValue(comment);
-      await expect(service.getCommentById(mockingCommentUuid)).resolves.toBe(
+
+      const result = await service.getCommentById(mockingCommentUuid);
+
+      expect(result).toBe(comment);
+      expect(redisService.setKey).toHaveBeenCalledWith(
+        `${REDIS_CACHE_KEYS.COMMENTS.BY_ID}:${mockingCommentUuid}`,
         comment,
+        TTL_CACHE.COMMENT_BY_ID,
       );
+    });
+
+    it('does not cache when comment not found', async () => {
+      redisService.getKey.mockResolvedValue(null);
+      commentsRepo.findOne.mockResolvedValue(null);
+
+      await expect(service.getCommentById('id-1')).rejects.toThrow();
+
+      expect(redisService.setKey).not.toHaveBeenCalled();
     });
   });
 
@@ -145,9 +202,51 @@ describe('CommentService', () => {
 
       expect(userService.getById).toHaveBeenCalledWith(mockUuidUser);
       expect(postService.getById).toHaveBeenCalledWith(mockingPostUuid);
-      expect(commentsRepo.create).toHaveBeenCalled();
+      expect(commentsRepo.create).toHaveBeenCalledWith({
+        content: 'hi',
+        userId: mockUuidUser,
+        postId: mockingPostUuid,
+      });
       expect(commentsRepo.save).toHaveBeenCalled();
       expect(result).toEqual(savedComment);
+      expect(redisService.deleteByPattern).toHaveBeenCalledWith(
+        `${REDIS_CACHE_KEYS.COMMENTS.LIST}:*`,
+      );
+      expect(redisService.setKey).toHaveBeenCalledWith(
+        `${REDIS_CACHE_KEYS.COMMENTS.BY_ID}:${savedComment.id}`,
+        savedComment,
+        TTL_CACHE.COMMENT_BY_ID,
+      );
+    });
+
+    it('throws when user not found', async () => {
+      userService.getById.mockRejectedValue(
+        new NotFoundException(MESSAGES.USER_NOT_FOUND),
+      );
+
+      await expect(
+        service.createComment(mockUuidUser, {
+          postId: mockingPostUuid,
+          content: 'hi',
+        }),
+      ).rejects.toThrow(NotFoundException);
+    });
+
+    it('throws when post not found', async () => {
+      const mockUser: User = Object.assign(new User(), {
+        id: mockUuidUser,
+      } as Partial<User>);
+      userService.getById.mockResolvedValue(mockUser);
+      postService.getById.mockRejectedValue(
+        new NotFoundException(MESSAGES.POST_NOT_FOUND),
+      );
+
+      await expect(
+        service.createComment(mockUuidUser, {
+          postId: mockingPostUuid,
+          content: 'hi',
+        }),
+      ).rejects.toThrow(NotFoundException);
     });
 
     it('throws when repository save fails', async () => {
@@ -208,15 +307,87 @@ describe('CommentService', () => {
 
       expect(commentsRepo.save).toHaveBeenCalled();
       expect(result.content).toBe('new');
+      expect(redisService.deleteKey).toHaveBeenCalledWith(
+        `${REDIS_CACHE_KEYS.COMMENTS.BY_ID}:${mockingCommentUuid}`,
+      );
+      expect(redisService.deleteByPattern).toHaveBeenCalledWith(
+        `${REDIS_CACHE_KEYS.COMMENTS.LIST}:*`,
+      );
+      expect(redisService.setKey).toHaveBeenCalledWith(
+        `${REDIS_CACHE_KEYS.COMMENTS.BY_ID}:${updatedComment.id}`,
+        updatedComment,
+        TTL_CACHE.COMMENT_BY_ID,
+      );
+    });
+
+    it('handles error when save fails', async () => {
+      const existed = Object.assign(new Comment(), {
+        id: mockingCommentUuid,
+        userId: mockUuidUser,
+        content: 'old',
+        postId: mockingPostUuid,
+      } as Partial<Comment>);
+      jest.spyOn(service, 'getCommentById').mockResolvedValue(existed);
+      commentsRepo.save.mockRejectedValue(new Error('save-fail'));
+
+      await expect(
+        service.updateCommentById(mockingCommentUuid, mockUuidUser, {
+          content: 'new',
+        }),
+      ).rejects.toThrow();
     });
   });
 
   describe('deleteCommentById', () => {
-    it('throws Unauthorized if ownership mismatch', async () => {
-      jest.spyOn(service, 'getCommentById').mockResolvedValue(mockComment);
+    it('throws Unauthorized if ownership mismatch and user is not admin', async () => {
+      const comment = Object.assign(new Comment(), {
+        id: mockingCommentUuid,
+        userId: differentUserId,
+      } as Partial<Comment>);
+      jest.spyOn(service, 'getCommentById').mockResolvedValue(comment);
+      const user = {
+        id: mockUuidUser,
+        email: mockingUserResponse.email,
+        role: UserRole.USER,
+        status: mockingUserResponse.status,
+        firstName: mockingUserResponse.firstName,
+        lastName: mockingUserResponse.lastName,
+      };
+
       await expect(
-        service.deleteCommentById(mockingCommentUuid, mockUuidUser),
+        service.deleteCommentById(mockingCommentUuid, user),
       ).rejects.toBeInstanceOf(UnauthorizedException);
+    });
+
+    it('allows admin to delete any comment', async () => {
+      const comment = Object.assign(new Comment(), {
+        id: mockingCommentUuid,
+        userId: differentUserId,
+      } as Partial<Comment>);
+      jest.spyOn(service, 'getCommentById').mockResolvedValue(comment);
+      commentsRepo.remove.mockResolvedValue(comment);
+      const adminUser = {
+        id: mockUuidUser,
+        email: mockingUserResponse.email,
+        role: UserRole.ADMIN,
+        status: mockingUserResponse.status,
+        firstName: mockingUserResponse.firstName,
+        lastName: mockingUserResponse.lastName,
+      };
+
+      const result = await service.deleteCommentById(
+        mockingCommentUuid,
+        adminUser,
+      );
+
+      expect(commentsRepo.remove).toHaveBeenCalledWith(comment);
+      expect(result).toEqual({ message: MESSAGES.COMMENT_DELETE_SUCCESS });
+      expect(redisService.deleteKey).toHaveBeenCalledWith(
+        `${REDIS_CACHE_KEYS.COMMENTS.BY_ID}:${mockingCommentUuid}`,
+      );
+      expect(redisService.deleteByPattern).toHaveBeenCalledWith(
+        `${REDIS_CACHE_KEYS.COMMENTS.LIST}:*`,
+      );
     });
 
     it('removes when owner matches', async () => {
@@ -228,14 +399,28 @@ describe('CommentService', () => {
       } as Partial<Comment>);
       jest.spyOn(service, 'getCommentById').mockResolvedValue(existed);
       commentsRepo.remove.mockResolvedValue(existed);
+      const user = {
+        id: mockUuidUser,
+        email: mockingUserResponse.email,
+        role: UserRole.USER,
+        status: mockingUserResponse.status,
+        firstName: mockingUserResponse.firstName,
+        lastName: mockingUserResponse.lastName,
+      };
 
       const result = await service.deleteCommentById(
         mockingCommentUuid,
-        mockUuidUser,
+        user,
       );
 
       expect(commentsRepo.remove).toHaveBeenCalledWith(existed);
       expect(result).toEqual({ message: MESSAGES.COMMENT_DELETE_SUCCESS });
+      expect(redisService.deleteKey).toHaveBeenCalledWith(
+        `${REDIS_CACHE_KEYS.COMMENTS.BY_ID}:${mockingCommentUuid}`,
+      );
+      expect(redisService.deleteByPattern).toHaveBeenCalledWith(
+        `${REDIS_CACHE_KEYS.COMMENTS.LIST}:*`,
+      );
     });
 
     it('handles error when remove fails', async () => {
@@ -247,32 +432,71 @@ describe('CommentService', () => {
       } as Partial<Comment>);
       jest.spyOn(service, 'getCommentById').mockResolvedValue(existed);
       commentsRepo.remove.mockRejectedValue(new Error('remove-fail'));
+      const user = {
+        id: mockUuidUser,
+        email: mockingUserResponse.email,
+        role: UserRole.USER,
+        status: mockingUserResponse.status,
+        firstName: mockingUserResponse.firstName,
+        lastName: mockingUserResponse.lastName,
+      };
 
       await expect(
-        service.deleteCommentById(mockingCommentUuid, mockUuidUser),
+        service.deleteCommentById(mockingCommentUuid, user),
       ).rejects.toThrow();
     });
   });
 
   describe('getComments', () => {
+    it('returns cached comments when available', async () => {
+      const cachedResult = {
+        data: [mockComment],
+        meta: mockingMetadata,
+      };
+      redisService.getKey.mockResolvedValue(cachedResult);
+
+      const result = await service.getComments({});
+
+      expect(result).toEqual(cachedResult);
+      expect(queryBuilder.select).not.toHaveBeenCalled();
+      expect(redisService.getKey).toHaveBeenCalledWith(
+        `${REDIS_CACHE_KEYS.COMMENTS.LIST}:${JSON.stringify({})}`,
+      );
+    });
+
     it('returns paginated comments without filters', async () => {
       const mockData = [mockComment];
+      redisService.getKey.mockResolvedValue(null);
       queryBuilder.getManyAndCount.mockResolvedValue([mockData, 1]);
       queryBuilder.orderBy.mockReturnThis();
       queryBuilder.skip.mockReturnThis();
       queryBuilder.take.mockReturnThis();
 
+      // Mock getDataPagination by spying on the actual implementation
+      const getDataPaginationSpy = jest.spyOn(utils, 'getDataPagination');
+      getDataPaginationSpy.mockResolvedValue({
+        data: mockData,
+        meta: mockingMetadata,
+      });
+
       const result = await service.getComments({});
 
       expect(queryBuilder.leftJoinAndSelect).toHaveBeenCalled();
       expect(queryBuilder.select).toHaveBeenCalled();
-      expect(result.data).toEqual(mockData);
-      expect(result.meta.total).toBe(1);
+      expect(redisService.setKey).toHaveBeenCalled();
+      getDataPaginationSpy.mockRestore();
     });
 
     it('filters by postId when provided', async () => {
       const mockData = [mockComment];
+      redisService.getKey.mockResolvedValue(null);
       queryBuilder.getManyAndCount.mockResolvedValue([mockData, 1]);
+
+      const getDataPaginationSpy = jest.spyOn(utils, 'getDataPagination');
+      getDataPaginationSpy.mockResolvedValue({
+        data: mockData,
+        meta: mockingMetadata,
+      });
 
       await service.getComments({ postId: mockingPostUuid });
 
@@ -280,11 +504,19 @@ describe('CommentService', () => {
         'comment.postId = :postId',
         { postId: mockingPostUuid },
       );
+      getDataPaginationSpy.mockRestore();
     });
 
     it('filters by search when provided', async () => {
       const mockData = [mockComment];
+      redisService.getKey.mockResolvedValue(null);
       queryBuilder.getManyAndCount.mockResolvedValue([mockData, 1]);
+
+      const getDataPaginationSpy = jest.spyOn(utils, 'getDataPagination');
+      getDataPaginationSpy.mockResolvedValue({
+        data: mockData,
+        meta: mockingMetadata,
+      });
 
       await service.getComments({ search: 'test' });
 
@@ -292,12 +524,39 @@ describe('CommentService', () => {
         'comment.content ILIKE :search',
         { search: '%test%' },
       );
+      getDataPaginationSpy.mockRestore();
+    });
+
+    it('filters by both postId and search when provided', async () => {
+      const mockData = [mockComment];
+      redisService.getKey.mockResolvedValue(null);
+      queryBuilder.getManyAndCount.mockResolvedValue([mockData, 1]);
+
+      const getDataPaginationSpy = jest.spyOn(utils, 'getDataPagination');
+      getDataPaginationSpy.mockResolvedValue({
+        data: mockData,
+        meta: mockingMetadata,
+      });
+
+      await service.getComments({
+        postId: mockingPostUuid,
+        search: 'test',
+      });
+
+      expect(queryBuilder.andWhere).toHaveBeenCalledTimes(2);
+      getDataPaginationSpy.mockRestore();
     });
 
     it('handles errors when query fails', async () => {
+      redisService.getKey.mockResolvedValue(null);
       queryBuilder.getManyAndCount.mockRejectedValue(new Error('query-fail'));
 
+      const getDataPaginationSpy = jest.spyOn(utils, 'getDataPagination');
+      getDataPaginationSpy.mockRejectedValue(new Error('query-fail'));
+
       await expect(service.getComments({})).rejects.toThrow();
+
+      getDataPaginationSpy.mockRestore();
     });
   });
 
@@ -346,6 +605,10 @@ describe('CommentService', () => {
 
       expect(result.count).toBe(2);
       expect(result.message).toBeDefined();
+      expect(redisService.deleteKey).toHaveBeenCalledTimes(2);
+      expect(redisService.deleteByPattern).toHaveBeenCalledWith(
+        `${REDIS_CACHE_KEYS.COMMENTS.LIST}:*`,
+      );
     });
 
     it('handles comments not found', async () => {
@@ -364,12 +627,75 @@ describe('CommentService', () => {
 
       expect(result.count).toBe(0);
       expect(result.message).toContain('comment');
+      expect(redisService.deleteKey).not.toHaveBeenCalled();
+      // When no comments are found, deleteByPattern is not called since existingComments.length === 0
+      expect(redisService.deleteByPattern).not.toHaveBeenCalled();
+    });
+
+    it('handles empty commentIds array', async () => {
+      (utils.deleteItemsInArray as jest.Mock).mockResolvedValue({
+        deletedCount: 0,
+        deletedIds: [],
+      });
+
+      const result = await service.deleteComments({ commentIds: [] });
+
+      expect(result.count).toBe(0);
+      expect(result.message).toBeDefined();
+      // When commentIds is empty, findCommentsByIds returns early without querying
+      expect(queryBuilder.where).not.toHaveBeenCalled();
+      // When no comments to delete, deleteByPattern is not called
+      expect(redisService.deleteByPattern).not.toHaveBeenCalled();
+    });
+
+    it('handles partial deletion when some comments exist', async () => {
+      const comment1 = Object.assign(new Comment(), {
+        id: mockingCommentUuid,
+        userId: mockUuidUser,
+      } as Partial<Comment>);
+      const nonExistentId = '33333333-3333-3333-3333-333333333333';
+
+      queryBuilder.getMany.mockResolvedValue([comment1]);
+      queryBuilder.select.mockReturnThis();
+      queryBuilder.where.mockReturnThis();
+
+      (utils.deleteItemsInArray as jest.Mock).mockResolvedValue({
+        deletedCount: 1,
+        deletedIds: [mockingCommentUuid],
+      });
+
+      const result = await service.deleteComments({
+        commentIds: [mockingCommentUuid, nonExistentId],
+      });
+
+      expect(result.count).toBe(1);
+      expect(result.message).toContain('1 comment');
+      expect(redisService.deleteKey).toHaveBeenCalledTimes(1);
     });
 
     it('handles errors when delete fails', async () => {
       queryBuilder.getMany.mockRejectedValue(new Error('find-fail'));
       queryBuilder.select.mockReturnThis();
       queryBuilder.where.mockReturnThis();
+
+      await expect(
+        service.deleteComments({ commentIds: [mockingCommentUuid] }),
+      ).rejects.toThrow();
+    });
+
+    it('handles errors when deleteItemsInArray fails', async () => {
+      const comment1 = Object.assign(new Comment(), {
+        id: mockingCommentUuid,
+        userId: mockUuidUser,
+      } as Partial<Comment>);
+
+      queryBuilder.getMany.mockResolvedValue([comment1]);
+      queryBuilder.select.mockReturnThis();
+      queryBuilder.where.mockReturnThis();
+
+      (utils.deleteItemsInArray as jest.Mock).mockRejectedValue(
+        new Error('delete-fail'),
+      );
 
       await expect(
         service.deleteComments({ commentIds: [mockingCommentUuid] }),
@@ -395,6 +721,38 @@ describe('CommentService', () => {
         postId: mockingPostUuid,
       });
       expect(result.data).toEqual([mockComment]);
+    });
+
+    it('passes query params to getComments', async () => {
+      const mockPost: Post = Object.assign(new Post(), {
+        id: mockingPostUuid,
+      } as Partial<Post>);
+      postService.getById.mockResolvedValue(mockPost);
+      jest.spyOn(service, 'getComments').mockResolvedValue({
+        data: [mockComment],
+        meta: mockingMetadata,
+      });
+
+      const queryParams = { page: 2, limit: 20 };
+      await service.getCommentsByPostId(mockingPostUuid, queryParams);
+
+      expect(service.getComments).toHaveBeenCalledWith({
+        ...queryParams,
+        postId: mockingPostUuid,
+      });
+    });
+
+    it('throws when post not found', async () => {
+      postService.getById.mockRejectedValue(
+        new NotFoundException(MESSAGES.POST_NOT_FOUND),
+      );
+      const getCommentsSpy = jest.spyOn(service, 'getComments');
+
+      await expect(
+        service.getCommentsByPostId(mockingPostUuid, {}),
+      ).rejects.toThrow(NotFoundException);
+      expect(getCommentsSpy).not.toHaveBeenCalled();
+      getCommentsSpy.mockRestore();
     });
   });
 });

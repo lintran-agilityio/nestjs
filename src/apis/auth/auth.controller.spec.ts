@@ -47,8 +47,6 @@ describe('AuthController', () => {
       const expected = {
         id: 'uuid-1',
         email: dto.email,
-        role: dto.role,
-        status: dto.status,
       };
       authService.register.mockResolvedValue(expected);
 

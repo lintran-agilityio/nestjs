@@ -62,7 +62,12 @@ describe('Auth - Register (e2e)', () => {
   });
 
   it('POST /api/v1/auth/register -> 201 and returns created user info', async () => {
-    const payload: RegisterRequestDto = mockingUserRegister;
+    const payload: RegisterRequestDto = {
+      email: mockingUserRegister.email,
+      password: mockingUserRegister.password,
+      firstName: mockingUserRegister.firstName,
+      lastName: mockingUserRegister.lastName,
+    };
 
     const mockResponse: RegisterResponseDto = {
       id: mockUuidUser,
