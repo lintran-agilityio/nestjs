@@ -6,7 +6,9 @@ import type { App } from 'supertest/types';
 import type { Server } from 'http';
 
 import { JwtAuthGuard } from '@app/shared/guards';
+import { PATHS } from '@app/shared/constants';
 import { configureApp, url } from '@e2e/helpers/app';
+import { HealthController } from '@app/apis/health/health.controller';
 
 describe('AppController (e2e)', () => {
   let app: INestApplication<App>;
@@ -15,6 +17,7 @@ describe('AppController (e2e)', () => {
   beforeAll(async () => {
     const moduleFixture: TestingModule = await Test.createTestingModule({
       imports: [],
+      controllers: [HealthController],
       providers: [
         // Bypass auth guard for this simple health E2E test
         {
@@ -42,7 +45,7 @@ describe('AppController (e2e)', () => {
     }
   });
 
-  it('/health (GET)', () => {
-    return request(server).get(url('health')).expect(200);
+  it('/health-check (GET)', () => {
+    return request(server).get(url(PATHS.HEALTH_CHECK)).expect(200);
   });
 });

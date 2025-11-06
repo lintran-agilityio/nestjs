@@ -6,6 +6,7 @@ import Redis from 'ioredis';
 
 import { CUSTOM_PROVIDER_TOKENS, REDIS_ENV_KEY } from '@app/shared/common';
 import { RedisService } from './redis/redis.service';
+import { NoOpCacheService } from './noop-cache.service';
 import { CacheProvider } from '@app/shared/types';
 import { CacheAbstractService } from './cache.abstract.service';
 
@@ -15,6 +16,7 @@ export class CacheModule {
     provider: CacheProvider.REDIS | CacheProvider.MEMORY = CacheProvider.REDIS,
   ): DynamicModule {
     const providers: Provider[] = [];
+    const exports: any[] = [CacheAbstractService];
 
     // Cache with Redis
     if (provider === CacheProvider.REDIS) {
@@ -44,6 +46,13 @@ export class CacheModule {
           useExisting: RedisService,
         },
       );
+      exports.push(RedisService);
+    } else {
+      // No-op cache service when Redis is disabled
+      providers.push({
+        provide: CacheAbstractService,
+        useClass: NoOpCacheService,
+      });
     }
 
     // TODO:Cache with Memory
@@ -51,7 +60,7 @@ export class CacheModule {
     return {
       providers,
       module: CacheModule,
-      exports: [RedisService, CacheAbstractService],
+      exports,
     };
   }
 }

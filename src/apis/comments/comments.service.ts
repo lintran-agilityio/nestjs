@@ -28,7 +28,7 @@ import { COMMENT_SELECT_FIELDS } from './config';
 import { UserService } from '../users/users.service';
 import { PostService } from '../posts/posts.service';
 import { AppLoggerService } from '@app/shared/modules/logger/logger.service';
-import { RedisService } from '@app/shared/modules/cache/redis/redis.service';
+import { CacheAbstractService } from '@app/shared/modules/cache/cache.abstract.service';
 import {
   CreateCommentRequestDto,
   UpdateCommentRequestDto,
@@ -58,7 +58,7 @@ export class CommentService {
     @Inject(forwardRef(() => PostService))
     private readonly postService: PostService,
 
-    private readonly redisService: RedisService,
+    private readonly cacheService: CacheAbstractService,
   ) {
     // Create context name for logger
     this.logger = this.appLoggerServices.getLoggerName(CommentService.name);
@@ -81,7 +81,7 @@ export class CommentService {
         queryUrl,
       )}`;
       const cached =
-        await this.redisService.getKey<CommentPaginationResponseDto>(
+        await this.cacheService.getKey<CommentPaginationResponseDto>(
           listCacheKey,
         );
       if (cached) {
@@ -124,7 +124,7 @@ export class CommentService {
       });
 
       // Cache the result
-      await this.redisService.setKey(
+      await this.cacheService.setKey(
         listCacheKey,
         result,
         TTL_CACHE.COMMENTS_LIST,
@@ -151,7 +151,7 @@ export class CommentService {
     this.logger.warn(`Get comment by Id - ${id}...`);
     // Try cache first
     const idCacheKey = `${REDIS_CACHE_KEYS.COMMENTS.BY_ID}:${id}`;
-    const cached = await this.redisService.getKey<Comment>(idCacheKey);
+    const cached = await this.cacheService.getKey<Comment>(idCacheKey);
     if (cached) {
       this.logger.log('Comment by id served from cache');
       return cached;
@@ -185,7 +185,7 @@ export class CommentService {
     }
 
     // Cache the comment before returning
-    await this.redisService.setKey(
+    await this.cacheService.setKey(
       idCacheKey,
       comment,
       TTL_CACHE.COMMENT_BY_ID,
@@ -225,10 +225,10 @@ export class CommentService {
       this.logger.log(`Comment created successfully: ${savedComment.id}`);
 
       // Invalidate list caches and set item cache
-      await this.redisService.deleteByPattern(
+      await this.cacheService.deleteByPattern(
         `${REDIS_CACHE_KEYS.COMMENTS.LIST}:*`,
       );
-      await this.redisService.setKey(
+      await this.cacheService.setKey(
         `${REDIS_CACHE_KEYS.COMMENTS.BY_ID}:${savedComment.id}`,
         savedComment,
         TTL_CACHE.COMMENT_BY_ID,
@@ -279,14 +279,14 @@ export class CommentService {
       this.logger.log(`Comment ${id} updated successfully`);
 
       // Invalidate caches
-      await this.redisService.deleteKey(
+      await this.cacheService.deleteKey(
         `${REDIS_CACHE_KEYS.COMMENTS.BY_ID}:${id}`,
       );
-      await this.redisService.deleteByPattern(
+      await this.cacheService.deleteByPattern(
         `${REDIS_CACHE_KEYS.COMMENTS.LIST}:*`,
       );
       // Refresh item cache
-      await this.redisService.setKey(
+      await this.cacheService.setKey(
         `${REDIS_CACHE_KEYS.COMMENTS.BY_ID}:${updatedComment.id}`,
         updatedComment,
         TTL_CACHE.COMMENT_BY_ID,
@@ -336,10 +336,10 @@ export class CommentService {
       this.logger.log(`Comment ${id} deleted successfully`);
 
       // Invalidate caches
-      await this.redisService.deleteKey(
+      await this.cacheService.deleteKey(
         `${REDIS_CACHE_KEYS.COMMENTS.BY_ID}:${id}`,
       );
-      await this.redisService.deleteByPattern(
+      await this.cacheService.deleteByPattern(
         `${REDIS_CACHE_KEYS.COMMENTS.LIST}:*`,
       );
 
@@ -398,11 +398,11 @@ export class CommentService {
 
         // Invalidate caches for deleted comments
         for (const comment of existingComments) {
-          await this.redisService.deleteKey(
+          await this.cacheService.deleteKey(
             `${REDIS_CACHE_KEYS.COMMENTS.BY_ID}:${comment.id}`,
           );
         }
-        await this.redisService.deleteByPattern(
+        await this.cacheService.deleteByPattern(
           `${REDIS_CACHE_KEYS.COMMENTS.LIST}:*`,
         );
       }

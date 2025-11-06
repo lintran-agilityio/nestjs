@@ -21,7 +21,7 @@ import { Post } from './entities';
   imports: [
     TypeOrmModule.forFeature([Post]),
     forwardRef(() => UserModule),
-    CacheModule.register(CacheProvider.REDIS),
+    CacheModule.register(CacheProvider.MEMORY),
   ],
   controllers: [PostController],
   providers: [PostService],

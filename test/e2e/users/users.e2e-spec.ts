@@ -198,15 +198,15 @@ describe('Users - Modules (e2e)', () => {
     it('should return 200 and call updateById with payload', async () => {
       const id = mockUuidUser;
       const payload = { firstName: 'Johnny' } as Partial<User>;
-      const responseBody = { message: `User id - ${id} updated successfully` };
-      mockUserService.updateById.mockResolvedValueOnce(responseBody);
+      const updatedUser = { ...mockingUser, ...payload, id } as User;
+      mockUserService.updateById.mockResolvedValueOnce(updatedUser);
 
       const res = await request(server)
         .patch(url(`${USERS_PATH}/${id}`))
         .send(payload)
         .expect(HttpStatus.OK);
 
-      expect(res.body).toEqual(responseBody);
+      expect(res.body).toEqual(expect.objectContaining(payload));
       expect(mockUserService.updateById).toHaveBeenCalledTimes(1);
       expect(mockUserService.updateById).toHaveBeenCalledWith(
         id,
@@ -301,8 +301,7 @@ describe('Users - Modules (e2e)', () => {
   describe('DELETE - Delete user by id with USERS_PATH: /api/v1/users/:id', () => {
     it('should return 204 when id is valid UUID', async () => {
       const id = mockUuidUser;
-      const responseBody = { message: 'User deleted' };
-      mockUserService.deleteById.mockResolvedValueOnce(responseBody);
+      mockUserService.deleteById.mockResolvedValueOnce();
 
       await request(server)
         .delete(url(`${USERS_PATH}/${id}`))

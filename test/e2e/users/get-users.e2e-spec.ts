@@ -1,5 +1,9 @@
 // libs
-import { INestApplication, HttpStatus } from '@nestjs/common';
+import {
+  INestApplication,
+  HttpStatus,
+  BadRequestException,
+} from '@nestjs/common';
 import { Test } from '@nestjs/testing';
 import * as request from 'supertest';
 import type { Server } from 'http';
@@ -49,6 +53,7 @@ describe('Users - Modules (e2e)', () => {
     getAll: jest.MockedFunction<UserService['getAll']>;
     getById: jest.MockedFunction<UserService['getById']>;
     getByEmail: jest.MockedFunction<UserService['getByEmail']>;
+    getByIdOrEmail: jest.MockedFunction<UserService['getByIdOrEmail']>;
     updateAll: jest.MockedFunction<UserService['updateAll']>;
     updateById: jest.MockedFunction<UserService['updateById']>;
     deleteAll: jest.MockedFunction<UserService['deleteAll']>;
@@ -58,6 +63,7 @@ describe('Users - Modules (e2e)', () => {
     getAll: jest.fn<Promise<UserResponseDto>, [QueryPaginationParamDto]>(),
     getById: jest.fn(),
     getByEmail: jest.fn(),
+    getByIdOrEmail: jest.fn(),
     updateAll: jest.fn(),
     updateById: jest.fn(),
     deleteAll: jest.fn(),
@@ -156,7 +162,7 @@ describe('Users - Modules (e2e)', () => {
   describe('GET /api/v1/users/:id', () => {
     it('should return 200 with user when id is valid UUID', async () => {
       const id = mockUuidUser;
-      mockUserService.getById.mockResolvedValueOnce(mockUser);
+      mockUserService.getByIdOrEmail.mockResolvedValueOnce(mockUser);
 
       const res = await request(server)
         .get(url(`${PATH}/${id}`))
@@ -165,29 +171,33 @@ describe('Users - Modules (e2e)', () => {
       const body = res.body as User;
       expect(body).toBeDefined();
       expect(body.id).toBe(id);
-      expect(mockUserService.getById).toHaveBeenCalledTimes(1);
-      expect(mockUserService.getById).toHaveBeenCalledWith(id);
+      expect(mockUserService.getByIdOrEmail).toHaveBeenCalledTimes(1);
+      expect(mockUserService.getByIdOrEmail.mock.calls[0][0]).toBe(id);
     });
 
     it('should return 400 when id is not a valid UUID', async () => {
+      mockUserService.getByIdOrEmail.mockImplementationOnce(() => {
+        throw new BadRequestException();
+      });
       await request(server)
         .get(url(`${PATH}/not-a-uuid`))
         .expect(HttpStatus.BAD_REQUEST);
 
-      expect(mockUserService.getById).not.toHaveBeenCalled();
+      expect(mockUserService.getByIdOrEmail).toHaveBeenCalledTimes(1);
     });
   });
 
   describe('GET /api/v1/users/:email', () => {
-    it('should attempt to get by email path; current route config yields 400 for email param', async () => {
-      // Due to @Get(':id') with ParseUUIDPipe defined before @Get(':email'),
-      // a non-UUID email hits the ':id' route and fails validation.
+    it('should return 400 for unsupported email format via unified identifier route', async () => {
+      mockUserService.getByIdOrEmail.mockImplementationOnce(() => {
+        throw new BadRequestException();
+      });
+
       await request(server)
         .get(url(`${PATH}/${mockingUserInfo.email}`))
         .expect(HttpStatus.BAD_REQUEST);
 
-      expect(mockUserService.getByEmail).not.toHaveBeenCalled();
-      expect(mockUserService.getById).not.toHaveBeenCalled();
+      expect(mockUserService.getByIdOrEmail).toHaveBeenCalledTimes(1);
     });
   });
 
@@ -195,15 +205,15 @@ describe('Users - Modules (e2e)', () => {
     it('should return 200 and call updateById with payload', async () => {
       const id = mockUuidUser;
       const payload = { firstName: 'Johnny' } as Partial<User>;
-      const responseBody = { message: `User id - ${id} updated successfully` };
-      mockUserService.updateById.mockResolvedValueOnce(responseBody);
+      const updatedUser = { ...mockUser, ...payload, id } as User;
+      mockUserService.updateById.mockResolvedValueOnce(updatedUser);
 
       const res = await request(server)
         .patch(url(`${PATH}/${id}`))
         .send(payload)
         .expect(HttpStatus.OK);
 
-      expect(res.body).toEqual(responseBody);
+      expect(res.body).toEqual(expect.objectContaining(payload));
       expect(mockUserService.updateById).toHaveBeenCalledTimes(1);
       expect(mockUserService.updateById).toHaveBeenCalledWith(
         id,
@@ -280,35 +290,29 @@ describe('Users - Modules (e2e)', () => {
   });
 
   describe('DELETE - Delete all users with path: /api/v1/users', () => {
-    it('should return 200 and call deleteAll', async () => {
+    it('should return 204 and call deleteAll', async () => {
       const responseBody = {
         message: 'Deleted 1 users successfully.',
         count: 1,
       };
       mockUserService.deleteAll.mockResolvedValueOnce(responseBody);
 
-      const res = await request(server).delete(url(PATH)).expect(HttpStatus.OK);
+      await request(server).delete(url(PATH)).expect(HttpStatus.NO_CONTENT);
 
-      expect(res.body).toEqual(
-        expect.objectContaining({ message: responseBody.message }),
-      );
       expect(mockUserService.deleteAll).toHaveBeenCalledTimes(1);
     });
   });
 
   describe('DELETE - Delete user by id with path: /api/v1/users/:id', () => {
-    it('should return 200 when id is valid UUID', async () => {
+    it('should return 204 when id is valid UUID', async () => {
       const id = mockUuidUser;
       const responseBody = { message: 'User deleted' };
-      mockUserService.deleteById.mockResolvedValueOnce(responseBody);
+      mockUserService.deleteById.mockResolvedValueOnce();
 
-      const res = await request(server)
+      await request(server)
         .delete(url(`${PATH}/${id}`))
-        .expect(HttpStatus.OK);
+        .expect(HttpStatus.NO_CONTENT);
 
-      expect(res.body).toEqual(
-        expect.objectContaining({ message: responseBody.message }),
-      );
       expect(mockUserService.deleteById).toHaveBeenCalledTimes(1);
       expect(mockUserService.deleteById).toHaveBeenCalledWith(id);
     });
@@ -322,28 +326,25 @@ describe('Users - Modules (e2e)', () => {
     });
   });
 
-  describe("DELETE - Delete user's post by id with path: /api/v1/users/:id/post/:postId", () => {
+  describe("DELETE - Delete user's post by id with path: /api/v1/users/:id/posts/:postId", () => {
     const postId = '22222222-2222-2222-2222-222222222222';
 
-    it('should return 200 when both ids are valid UUID', async () => {
+    it('should return 204 when both ids are valid UUID', async () => {
       const id = mockUuidUser;
       const responseBody = { message: 'Post deleted' };
-      mockUserService.deletePostById.mockResolvedValueOnce(responseBody);
+      mockUserService.deletePostById.mockResolvedValueOnce();
 
-      const res = await request(server)
-        .delete(url(`${PATH}/${id}/post/${postId}`))
-        .expect(HttpStatus.OK);
+      await request(server)
+        .delete(url(`${PATH}/${id}/posts/${postId}`))
+        .expect(HttpStatus.NO_CONTENT);
 
-      expect(res.body).toEqual(
-        expect.objectContaining({ message: responseBody.message }),
-      );
       expect(mockUserService.deletePostById).toHaveBeenCalledTimes(1);
       expect(mockUserService.deletePostById).toHaveBeenCalledWith(id, postId);
     });
 
     it('should return 400 when user id is not UUID', async () => {
       await request(server)
-        .delete(url(`${PATH}/not-a-uuid/post/${postId}`))
+        .delete(url(`${PATH}/not-a-uuid/posts/${postId}`))
         .expect(HttpStatus.BAD_REQUEST);
 
       expect(mockUserService.deletePostById).not.toHaveBeenCalled();
@@ -351,7 +352,7 @@ describe('Users - Modules (e2e)', () => {
 
     it('should return 400 when post id is not UUID', async () => {
       await request(server)
-        .delete(url(`${PATH}/${mockUuidUser}/post/not-a-uuid`))
+        .delete(url(`${PATH}/${mockUuidUser}/posts/not-a-uuid`))
         .expect(HttpStatus.BAD_REQUEST);
 
       expect(mockUserService.deletePostById).not.toHaveBeenCalled();

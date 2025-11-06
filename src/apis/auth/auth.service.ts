@@ -23,7 +23,7 @@ import { CUSTOM_PROVIDER_TOKENS, JWT_KEYS } from '@app/shared/common';
 import { MESSAGES, REDIS_CACHE_KEYS, TTL_CACHE } from '@app/shared/constants';
 import { IJwtAuthPayload, UserRole, UserStatus } from '@app/shared/types';
 import { HashingAbstractService } from '@app/shared/modules/hashing/hashing.abstract.service';
-import { RedisService } from '@app/shared/modules/cache/redis/redis.service';
+import { CacheAbstractService } from '@app/shared/modules/cache/cache.abstract.service';
 
 // Local sources
 import {
@@ -47,7 +47,7 @@ export class AuthService {
     private readonly jwtService: JwtService,
     private readonly userService: UserService,
     private readonly appLoggerService: AppLoggerService,
-    private readonly redisService: RedisService,
+    private readonly cacheService: CacheAbstractService,
   ) {
     this.logger = this.appLoggerService.getLoggerName(AuthService.name);
   }
@@ -176,7 +176,7 @@ export class AuthService {
       const hashedRefreshToken = await this.hashingService.hash(refreshToken);
 
       // Add refresh token into Redis cache
-      await this.redisService.setKey(
+      await this.cacheService.setKey(
         `${REDIS_CACHE_KEYS.REFRESH_TOKEN}:${id}`,
         hashedRefreshToken,
         TTL_CACHE.REFRESH_TOKEN,
@@ -220,7 +220,7 @@ export class AuthService {
       );
 
       // Get cached refresh token first from Redis cache
-      const cachedHashedRefreshToken = await this.redisService.getKey<string>(
+      const cachedHashedRefreshToken = await this.cacheService.getKey<string>(
         `${REDIS_CACHE_KEYS.REFRESH_TOKEN}:${payload.id}`,
       );
 
@@ -302,11 +302,11 @@ export class AuthService {
         await this.hashingService.hash(newRefreshToken);
 
       // Invalidate caches
-      await this.redisService.deleteKey(
+      await this.cacheService.deleteKey(
         `${REDIS_CACHE_KEYS.REFRESH_TOKEN}:${payload.id}`,
       );
 
-      await this.redisService.setKey(
+      await this.cacheService.setKey(
         `${REDIS_CACHE_KEYS.REFRESH_TOKEN}:${payload.id}`,
         newHashedRefreshToken,
         TTL_CACHE.REFRESH_TOKEN,

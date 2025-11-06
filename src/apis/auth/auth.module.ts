@@ -38,7 +38,7 @@ import { CacheModule } from '@app/shared/modules/cache/cache.module';
       }),
     }),
     UserModule,
-    CacheModule.register(CacheProvider.REDIS),
+    CacheModule.register(CacheProvider.MEMORY),
   ],
   controllers: [AuthController],
   providers: [

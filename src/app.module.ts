@@ -18,6 +18,7 @@ import { LoggerModule } from './shared/modules/logger/logger.module';
 import { AppLoggerService } from './shared/modules/logger/logger.service';
 import { CacheModule } from './shared/modules/cache/cache.module';
 import { CacheProvider } from './shared/types';
+import { HealthController } from './apis/health/health.controller';
 
 @Module({
   imports: [
@@ -31,10 +32,9 @@ import { CacheProvider } from './shared/types';
     AuthModule,
     PostModule,
     CommentModule,
-
-    // Config Redis cache
     CacheModule.register(CacheProvider.REDIS),
   ],
+  controllers: [HealthController],
   providers: [
     {
       provide: AppLoggerService,

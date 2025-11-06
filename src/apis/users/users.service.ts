@@ -27,7 +27,7 @@ import {
 } from '@app/shared/utils';
 import { HashingAbstractService } from '@app/shared/modules/hashing/hashing.abstract.service';
 import { AppLoggerService } from '@app/shared/modules/logger/logger.service';
-import { RedisService } from '@app/shared/modules/cache/redis/redis.service';
+import { CacheAbstractService } from '@app/shared/modules/cache/cache.abstract.service';
 
 // Apis
 import { PostService } from '@app/apis/posts/posts.service';
@@ -61,7 +61,7 @@ export class UserService {
     @Inject(forwardRef(() => PostService))
     private readonly postService: PostService,
 
-    private readonly redisService: RedisService,
+    private readonly cacheService: CacheAbstractService,
   ) {
     // Create context name for logger
     this.logger = this.appLoggerServices.getLoggerName(UserService.name);
@@ -141,13 +141,13 @@ export class UserService {
 
     // Get data from Redis cache
     const cacheKey = `${REDIS_CACHE_KEYS.USERS.BY_EMAIL}:${email}`;
-    const cached = await this.redisService.getKey<User>(cacheKey);
+    const cached = await this.cacheService.getKey<User>(cacheKey);
     if (cached) {
       if (this.isValidUser(cached)) {
         this.logger.log('User by email served from cache');
         return cached;
       }
-      await this.redisService.deleteKey(cacheKey);
+      await this.cacheService.deleteKey(cacheKey);
     }
 
     const user = await this.getUserByEmail(email);
@@ -162,7 +162,7 @@ export class UserService {
     }
 
     // Cache data into Redis cache
-    await this.redisService.setKey(cacheKey, user, TTL_CACHE.USER_BY_EMAIL);
+    await this.cacheService.setKey(cacheKey, user, TTL_CACHE.USER_BY_EMAIL);
 
     return user;
   }
@@ -177,13 +177,13 @@ export class UserService {
 
     // Get data from Redis cache
     const cacheKey = `${REDIS_CACHE_KEYS.USERS.BY_ID}:${id}`;
-    const cached = await this.redisService.getKey<User>(cacheKey);
+    const cached = await this.cacheService.getKey<User>(cacheKey);
     if (cached) {
       if (this.isValidUser(cached)) {
         this.logger.log('User by id served from cache');
         return cached;
       }
-      await this.redisService.deleteKey(cacheKey);
+      await this.cacheService.deleteKey(cacheKey);
     }
 
     const user = await this.usersRepo.findOne({
@@ -192,7 +192,7 @@ export class UserService {
 
     if (user) {
       // Cache data into Redis cache
-      await this.redisService.setKey(cacheKey, user, TTL_CACHE.USER_BY_ID);
+      await this.cacheService.setKey(cacheKey, user, TTL_CACHE.USER_BY_ID);
     }
 
     return user;
@@ -209,13 +209,14 @@ export class UserService {
 
     // Get data from Redis cache
     const cacheKey = `${REDIS_CACHE_KEYS.USERS.BY_ID}:${id}`;
-    const cached = await this.redisService.getKey<User>(cacheKey);
+    const cached = await this.cacheService.getKey<User>(cacheKey);
+    console.log('cached==========>', cached)
     if (cached) {
       if (this.isValidUser(cached)) {
         this.logger.log('User by id served from cache');
         return cached;
       }
-      await this.redisService.deleteKey(cacheKey);
+      await this.cacheService.deleteKey(cacheKey);
     }
 
     const user = await this.getUserById(id);
@@ -230,8 +231,9 @@ export class UserService {
     }
 
     if (user) {
+      console.log('user', cacheKey, user)
       // Cache data into Redis cache
-      await this.redisService.setKey(cacheKey, user, TTL_CACHE.USER_BY_ID);
+      await this.cacheService.setKey(cacheKey, user, TTL_CACHE.USER_BY_ID);
     }
 
     return user;
@@ -333,20 +335,20 @@ export class UserService {
       // Invalidate related caches
       try {
         // Invalidate list caches
-        await this.redisService.deleteByPattern(
+        await this.cacheService.deleteByPattern(
           `${REDIS_CACHE_KEYS.USERS.LIST}:*`,
         );
         // Invalidate and refresh item caches per updated user
         for (const user of updatedUsers) {
-          await this.redisService.deleteKey(
+          await this.cacheService.deleteKey(
             `${REDIS_CACHE_KEYS.USERS.BY_ID}:${user.id}`,
           );
           if (user.email) {
-            await this.redisService.deleteKey(
+            await this.cacheService.deleteKey(
               `${REDIS_CACHE_KEYS.USERS.BY_EMAIL}:${user.email}`,
             );
           }
-          await this.redisService.setKey(
+          await this.cacheService.setKey(
             `${REDIS_CACHE_KEYS.USERS.BY_ID}:${user.id}`,
             user,
             TTL_CACHE.USER_BY_ID,
@@ -407,15 +409,15 @@ export class UserService {
       });
 
       // Invalidate caches
-      await this.redisService.deleteKey(
+      await this.cacheService.deleteKey(
         `${REDIS_CACHE_KEYS.USERS.BY_ID}:${id}`,
       );
-      await this.redisService.deleteByPattern(
+      await this.cacheService.deleteByPattern(
         `${REDIS_CACHE_KEYS.USERS.LIST}:*`,
       );
       // Invalidate email cache (old and possibly new email)
       try {
-        await this.redisService.deleteKey(
+        await this.cacheService.deleteKey(
           `${REDIS_CACHE_KEYS.USERS.BY_EMAIL}:${email}`,
         );
       } catch (cacheErr) {
@@ -424,7 +426,7 @@ export class UserService {
         );
       }
       // Refresh item cache
-      await this.redisService.setKey(
+      await this.cacheService.setKey(
         `${REDIS_CACHE_KEYS.USERS.BY_ID}:${id}`,
         updatedUser,
         TTL_CACHE.USER_BY_ID,
@@ -473,13 +475,13 @@ export class UserService {
 
       // Invalidate caches for users domain
       try {
-        await this.redisService.deleteByPattern(
+        await this.cacheService.deleteByPattern(
           `${REDIS_CACHE_KEYS.USERS.BY_ID}:*`,
         );
-        await this.redisService.deleteByPattern(
+        await this.cacheService.deleteByPattern(
           `${REDIS_CACHE_KEYS.USERS.BY_EMAIL}:*`,
         );
-        await this.redisService.deleteByPattern(
+        await this.cacheService.deleteByPattern(
           `${REDIS_CACHE_KEYS.USERS.LIST}:*`,
         );
       } catch (cacheError) {
@@ -520,15 +522,15 @@ export class UserService {
       await this.usersRepo.remove(existedUser);
 
       // Invalidate caches
-      await this.redisService.deleteKey(
+      await this.cacheService.deleteKey(
         `${REDIS_CACHE_KEYS.USERS.BY_ID}:${id}`,
       );
-      await this.redisService.deleteByPattern(
+      await this.cacheService.deleteByPattern(
         `${REDIS_CACHE_KEYS.USERS.LIST}:*`,
       );
       try {
         if (existedUser.email) {
-          await this.redisService.deleteKey(
+          await this.cacheService.deleteKey(
             `${REDIS_CACHE_KEYS.USERS.BY_EMAIL}:${existedUser.email}`,
           );
         }

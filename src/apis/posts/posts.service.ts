@@ -23,7 +23,7 @@ import {
   validateOwnerRole,
 } from '@app/shared/utils';
 import { AppLoggerService } from '@app/shared/modules/logger/logger.service';
-import { RedisService } from '@app/shared/modules/cache/redis/redis.service';
+import { CacheAbstractService } from '@app/shared/modules/cache/cache.abstract.service';
 
 // Apis
 import { UserService } from '@app/apis/users/users.service';
@@ -48,7 +48,7 @@ export class PostService {
     private readonly usersService: UserService,
 
     private readonly appLoggerService: AppLoggerService,
-    private readonly redisService: RedisService,
+    private readonly cacheService: CacheAbstractService,
   ) {
     // Create context name for logger
     this.logger = this.appLoggerService.getLoggerName(PostService.name);
@@ -71,7 +71,7 @@ export class PostService {
       // Try cache first using query as part of the key
       const listCacheKey = `${REDIS_CACHE_KEYS.POSTS.LIST}:${JSON.stringify(queryUrl)}`;
       const cached =
-        await this.redisService.getKey<PostPaginationResponseDto>(listCacheKey);
+        await this.cacheService.getKey<PostPaginationResponseDto>(listCacheKey);
       if (cached) {
         this.logger.log('Posts list served from cache');
         return cached;
@@ -103,7 +103,7 @@ export class PostService {
       });
 
       // Cache the result
-      await this.redisService.setKey(
+      await this.cacheService.setKey(
         listCacheKey,
         result,
         TTL_CACHE.POSTS_LIST,
@@ -132,7 +132,7 @@ export class PostService {
     this.logger.log(`Get post by Id - ${slug}...`);
     // Try cache first
     const slugCacheKey = `${REDIS_CACHE_KEYS.POSTS.BY_SLUG}:${slug}`;
-    const cached = await this.redisService.getKey<Post>(slugCacheKey);
+    const cached = await this.cacheService.getKey<Post>(slugCacheKey);
     if (cached) {
       this.logger.log('Post by slug served from cache');
       return cached;
@@ -143,7 +143,7 @@ export class PostService {
     });
 
     if (post) {
-      await this.redisService.setKey(
+      await this.cacheService.setKey(
         slugCacheKey,
         post,
         TTL_CACHE.POST_BY_SLUG,
@@ -163,7 +163,7 @@ export class PostService {
     this.logger.log(`Get post by Id - ${id}...`);
     // Try cache first
     const idCacheKey = `${REDIS_CACHE_KEYS.POSTS.BY_ID}:${id}`;
-    const cached = await this.redisService.getKey<Post>(idCacheKey);
+    const cached = await this.cacheService.getKey<Post>(idCacheKey);
     if (cached) {
       this.logger.log('Post by id served from cache');
       return cached;
@@ -183,7 +183,7 @@ export class PostService {
     }
 
     if (post) {
-      await this.redisService.setKey(idCacheKey, post, TTL_CACHE.POST_BY_ID);
+      await this.cacheService.setKey(idCacheKey, post, TTL_CACHE.POST_BY_ID);
     }
 
     return post;
@@ -220,15 +220,15 @@ export class PostService {
         authorId,
       });
       // Invalidate list caches and set item caches
-      await this.redisService.deleteByPattern(
+      await this.cacheService.deleteByPattern(
         `${REDIS_CACHE_KEYS.POSTS.LIST}:*`,
       );
-      await this.redisService.setKey(
+      await this.cacheService.setKey(
         `${REDIS_CACHE_KEYS.POSTS.BY_ID}:${newPost.id}`,
         newPost,
         TTL_CACHE.POST_BY_ID,
       );
-      await this.redisService.setKey(
+      await this.cacheService.setKey(
         `${REDIS_CACHE_KEYS.POSTS.BY_SLUG}:${newPost.slug}`,
         newPost,
         TTL_CACHE.POST_BY_SLUG,
@@ -291,22 +291,22 @@ export class PostService {
         this.logger.log(`Post id - ${id} have update by ${user.role}`);
 
         // Invalidate caches
-        await this.redisService.deleteKey(
+        await this.cacheService.deleteKey(
           `${REDIS_CACHE_KEYS.POSTS.BY_ID}:${id}`,
         );
-        await this.redisService.deleteKey(
+        await this.cacheService.deleteKey(
           `${REDIS_CACHE_KEYS.POSTS.BY_SLUG}:${saved.slug}`,
         );
-        await this.redisService.deleteByPattern(
+        await this.cacheService.deleteByPattern(
           `${REDIS_CACHE_KEYS.POSTS.LIST}:*`,
         );
         // Refresh item caches
-        await this.redisService.setKey(
+        await this.cacheService.setKey(
           `${REDIS_CACHE_KEYS.POSTS.BY_ID}:${saved.id}`,
           saved,
           TTL_CACHE.POST_BY_ID,
         );
-        await this.redisService.setKey(
+        await this.cacheService.setKey(
           `${REDIS_CACHE_KEYS.POSTS.BY_SLUG}:${saved.slug}`,
           saved,
           TTL_CACHE.POST_BY_SLUG,
@@ -351,13 +351,13 @@ export class PostService {
         this.logger.log(`User deleted Post id - ${id} successfully`);
 
         // Invalidate caches
-        await this.redisService.deleteKey(
+        await this.cacheService.deleteKey(
           `${REDIS_CACHE_KEYS.POSTS.BY_ID}:${id}`,
         );
-        await this.redisService.deleteKey(
+        await this.cacheService.deleteKey(
           `${REDIS_CACHE_KEYS.POSTS.BY_SLUG}:${existedPost.slug}`,
         );
-        await this.redisService.deleteByPattern(
+        await this.cacheService.deleteByPattern(
           `${REDIS_CACHE_KEYS.POSTS.LIST}:*`,
         );
 
@@ -417,12 +417,12 @@ export class PostService {
 
         // Invalidate caches for deleted posts
         for (const post of existingPosts) {
-          await this.redisService.deleteKey(
+          await this.cacheService.deleteKey(
             `${REDIS_CACHE_KEYS.POSTS.BY_ID}:${post.id}`,
           );
           // We don't have slug selected here; ignore slug invalidation in bulk
         }
-        await this.redisService.deleteByPattern(
+        await this.cacheService.deleteByPattern(
           `${REDIS_CACHE_KEYS.POSTS.LIST}:*`,
         );
       }
@@ -501,10 +501,10 @@ export class PostService {
       this.logger.log(`Successfully deleted post ${postId} for user ${userId}`);
 
       // Invalidate caches
-      await this.redisService.deleteKey(
+      await this.cacheService.deleteKey(
         `${REDIS_CACHE_KEYS.POSTS.BY_ID}:${postId}`,
       );
-      await this.redisService.deleteByPattern(
+      await this.cacheService.deleteByPattern(
         `${REDIS_CACHE_KEYS.POSTS.LIST}:*`,
       );
     } catch (error) {
@@ -543,7 +543,7 @@ export class PostService {
       // Try cache first (defaults: page=1, limit=10, sort=createdAt ASC)
       const cacheKey = `${REDIS_CACHE_KEYS.POSTS.LIST}:byUser:${userId}`;
       const cached =
-        await this.redisService.getKey<PostPaginationResponseDto>(cacheKey);
+        await this.cacheService.getKey<PostPaginationResponseDto>(cacheKey);
       if (cached) {
         this.logger.log('User posts list served from cache');
         return cached;
@@ -566,7 +566,7 @@ export class PostService {
       });
 
       // Cache the result
-      await this.redisService.setKey(cacheKey, result, TTL_CACHE.POSTS_LIST);
+      await this.cacheService.setKey(cacheKey, result, TTL_CACHE.POSTS_LIST);
 
       return result;
     } catch (error) {

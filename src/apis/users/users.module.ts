@@ -18,7 +18,7 @@ import { CacheProvider } from '@app/shared/types';
   imports: [
     TypeOrmModule.forFeature([User]),
     forwardRef(() => PostModule),
-    CacheModule.register(CacheProvider.REDIS),
+    CacheModule.register(CacheProvider.MEMORY),
   ],
   controllers: [UserController],
   providers: [

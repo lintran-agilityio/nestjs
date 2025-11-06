@@ -22,20 +22,40 @@ export default class MainSeeder implements Seeder {
     const postFactory = factoryManager.get<Post>(Post);
     const commentFactory = factoryManager.get<Comment>(Comment);
 
-    // Create one admin with fixed credentials
-    const admin = new User();
-    admin.firstName = 'Admin';
-    admin.lastName = 'User';
-    admin.email = 'admin@gmail.com';
-    admin.password = await hash('Admin@123', 8);
-    admin.role = UserRole.ADMIN;
-    admin.status = UserStatus.ACTIVE;
+    const userRepo = dataSource.getRepository(User);
 
-    const savedAdmin = await dataSource.getRepository(User).save(admin);
+    // Create one admin with fixed credentials (or use existing)
+    let admin = await userRepo.findOne({ where: { email: 'admin@gmail.com' } });
+    if (!admin) {
+      admin = new User();
+      admin.firstName = 'Admin';
+      admin.lastName = 'User';
+      admin.email = 'admin@gmail.com';
+      admin.password = await hash('Admin@123', 8);
+      admin.role = UserRole.ADMIN;
+      admin.status = UserStatus.ACTIVE;
+      admin = await userRepo.save(admin);
+    }
+
+    // Create test user for load tests with fixed credentials (or use existing)
+    let testUser = await userRepo.findOne({ where: { email: 'lin+01@gmail.com' } });
+    if (!testUser) {
+      testUser = new User();
+      testUser.firstName = 'Test';
+      testUser.lastName = 'User';
+      testUser.email = 'lin+01@gmail.com';
+      testUser.password = await hash('Abc@1234', 8);
+      testUser.role = UserRole.USER;
+      testUser.status = UserStatus.ACTIVE;
+      testUser = await userRepo.save(testUser);
+    }
+
+    const savedAdmin = admin;
+    const savedTestUser = testUser;
 
     // Create additional regular users
     const userUsers: User[] = await userFactory.saveMany(9);
-    const users: User[] = [savedAdmin, ...userUsers];
+    const users: User[] = [savedAdmin, savedTestUser, ...userUsers];
 
     const allPosts: Post[] = [];
     for (const user of users) {
