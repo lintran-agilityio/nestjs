@@ -18,7 +18,7 @@ export class NoOpCacheService extends CacheAbstractService {
     // No-op: do nothing
   }
 
-  async getKey<T>(_key: string): Promise<T | null> {
+  getKey<T>(_key: string): Promise<T | null> {
     // No-op: always return null (cache miss)
     return null;
   }

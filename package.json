@@ -29,15 +29,17 @@
     "load:build": "node scripts/build-loadtests.mjs",
     "load:auth": "npm run load:build && k6 run test/loadTest/dist/scenarios/01-auth.test.js",
     "load:post": "npm run load:build && k6 run test/loadTest/dist/scenarios/02-user-post-flow.test.js",
-    "load:comment": "npm run load:build && k6 run test/loadTest/dist/scenarios/03-user-post-comment-flow.test.js",
-    "load:update": "npm run load:build && k6 run test/loadTest/dist/scenarios/04-user-update-post.test.js",
-    "load:delete": "npm run load:build && k6 run test/loadTest/dist/scenarios/05-user-post-comment-delete-comment.test.ts",
+    "load:comment": "npm run load:build && k6 run test/loadTest/dist/scenarios/03-user-comment-flow.test.js",
+    "load:flow": "npm run load:build && k6 run test/loadTest/dist/scenarios/04-user-post-comment.test.js",
+    "load:delete-post": "npm run load:build && k6 run test/loadTest/dist/scenarios/05-auth-get-delete-post.test.ts",
+    "load:user": "npm run load:build && k6 run test/loadTest/dist/scenarios/06-user-flow.test.js",
     "load:reports:mkdir": "powershell -NoProfile -Command \"New-Item -ItemType Directory -Force test/loadTest/reports > $null\"",
     "load:auth:report": "npm run load:build && npm run load:reports:mkdir && k6 run test/loadTest/dist/scenarios/01-auth.test.js",
     "load:post:report": "npm run load:build && npm run load:reports:mkdir && k6 run test/loadTest/dist/scenarios/02-user-post-flow.test.js",
-    "load:comment:report": "npm run load:build && npm run load:reports:mkdir && k6 run test/loadTest/dist/scenarios/03-user-post-comment-flow.test.js",
-    "load:update:report": "npm run load:build && npm run load:reports:mkdir && k6 run test/loadTest/dist/scenarios/04-user-update-post.test.js",
-    "load:delete:report": "npm run load:build && npm run load:reports:mkdir && k6 run test/loadTest/dist/scenarios/05-user-post-comment-delete-comment-flow.test.js"
+    "load:comment:report": "npm run load:build && npm run load:reports:mkdir && k6 run test/loadTest/dist/scenarios/03-user-comment-flow.test.js",
+    "load:flow:report": "npm run load:build && npm run load:reports:mkdir && k6 run test/loadTest/dist/scenarios/04-user-post-comment.test.js",
+    "load:delete-post:report": "npm run load:build && npm run load:reports:mkdir && k6 run test/loadTest/dist/scenarios/05-auth-get-delete-post.test.js",
+    "load:user:report": "npm run load:build && npm run load:reports:mkdir && k6 run test/loadTest/dist/scenarios/06-user-flow.test.js"
   },
   "dependencies": {
     "@faker-js/faker": "^9.2.0",

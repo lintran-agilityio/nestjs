@@ -1,0 +1,232 @@
+{
+    "metrics": {
+        "upc_flow_list_users_duration": {
+            "min": 26.8136,
+            "med": 99.86410000000001,
+            "max": 318.7757,
+            "p(90)": 192.17433000000008,
+            "p(95)": 231.467105,
+            "avg": 110.44564827586198,
+            "thresholds": {
+                "p(95)<600": false
+            }
+        },
+        "http_req_connecting": {
+            "avg": 0.01099609195402299,
+            "min": 0,
+            "med": 0,
+            "max": 0.732,
+            "p(90)": 0,
+            "p(95)": 0
+        },
+        "http_reqs": {
+            "count": 870,
+            "rate": 83.69452088624186
+        },
+        "http_req_sending": {
+            "med": 0,
+            "max": 1.0037,
+            "p(90)": 0,
+            "p(95)": 0,
+            "avg": 0.012584942528735635,
+            "min": 0
+        },
+        "data_received": {
+            "count": 682352,
+            "rate": 65642.67093766542
+        },
+        "iteration_duration": {
+            "avg": 1187.8765011494254,
+            "min": 458.2514,
+            "med": 1197.6004,
+            "max": 1911.3157,
+            "p(90)": 1350.5715100000004,
+            "p(95)": 1459.6421199999995
+        },
+        "http_req_failed": {
+            "passes": 0,
+            "fails": 870,
+            "thresholds": {
+                "rate<0.01": false
+            },
+            "value": 0
+        },
+        "http_req_duration{expected_response:true}": {
+            "p(90)": 462.2517,
+            "p(95)": 543.8523499999999,
+            "avg": 237.45864022988474,
+            "min": 8.8587,
+            "med": 199.1307,
+            "max": 881.6843
+        },
+        "http_req_tls_handshaking": {
+            "p(95)": 0,
+            "avg": 0,
+            "min": 0,
+            "med": 0,
+            "max": 0,
+            "p(90)": 0
+        },
+        "http_req_blocked": {
+            "max": 1.3086,
+            "p(90)": 0,
+            "p(95)": 0,
+            "avg": 0.02809724137931035,
+            "min": 0,
+            "med": 0
+        },
+        "upc_flow_login_duration": {
+            "avg": 416.14771379310326,
+            "min": 150.856,
+            "med": 404.9301,
+            "max": 881.6843,
+            "p(90)": 745.67407,
+            "p(95)": 778.5177549999997,
+            "thresholds": {
+                "p(95)<650": true
+            }
+        },
+        "upc_flow_create_comment_duration": {
+            "med": 196.0879,
+            "max": 666.7462,
+            "p(90)": 512.71033,
+            "p(95)": 549.408325,
+            "avg": 237.2288431034483,
+            "min": 48.4893,
+            "thresholds": {
+                "p(95)<1200": false
+            }
+        },
+        "vus": {
+            "value": 20,
+            "min": 20,
+            "max": 20
+        },
+        "http_req_receiving": {
+            "med": 0,
+            "max": 1.0591,
+            "p(90)": 0.77281,
+            "p(95)": 0.908655,
+            "avg": 0.22687873563218391,
+            "min": 0
+        },
+        "upc_flow_list_comments_duration": {
+            "min": 8.8587,
+            "med": 144.26085,
+            "max": 444.0291,
+            "p(90)": 301.9882,
+            "p(95)": 343.7532,
+            "avg": 164.11441724137936,
+            "thresholds": {
+                "p(95)<650": false
+            }
+        },
+        "http_req_duration": {
+            "med": 199.1307,
+            "max": 881.6843,
+            "p(90)": 462.2517,
+            "p(95)": 543.8523499999999,
+            "avg": 237.45864022988474,
+            "min": 8.8587,
+            "thresholds": {
+                "p(95)<800": false
+            }
+        },
+        "iterations": {
+            "count": 174,
+            "rate": 16.738904177248372
+        },
+        "upc_flow_create_post_duration": {
+            "med": 250.99145,
+            "max": 701.8726,
+            "p(90)": 417.2161700000001,
+            "p(95)": 462.2948899999999,
+            "avg": 259.35657873563224,
+            "min": 96.857,
+            "thresholds": {
+                "p(95)<1200": false
+            }
+        },
+        "checks": {
+            "passes": 870,
+            "fails": 0,
+            "value": 1
+        },
+        "http_req_waiting": {
+            "med": 198.6367,
+            "max": 880.6833,
+            "p(90)": 461.36349,
+            "p(95)": 543.4922599999998,
+            "avg": 237.21917655172405,
+            "min": 8.8587
+        },
+        "vus_max": {
+            "min": 20,
+            "max": 20,
+            "value": 20
+        },
+        "group_duration": {
+            "avg": 1187.8414477011493,
+            "min": 458.2514,
+            "med": 1197.6004,
+            "max": 1911.3157,
+            "p(90)": 1350.5715100000004,
+            "p(95)": 1459.6421199999995
+        },
+        "data_sent": {
+            "count": 370544,
+            "rate": 35646.55465203633
+        }
+    },
+    "root_group": {
+        "name": "",
+        "path": "",
+        "id": "d41d8cd98f00b204e9800998ecf8427e",
+        "groups": {
+            "User-Post-Comment Flow - login + CRUD": {
+                "id": "33e9293a5bc1fcf45f2091eb91a31a0c",
+                "groups": {},
+                "checks": {
+                        "login 200": {
+                            "name": "login 200",
+                            "path": "::User-Post-Comment Flow - login + CRUD::login 200",
+                            "id": "ad2662b19f7538e31b221dae79e0fb44",
+                            "passes": 174,
+                            "fails": 0
+                        },
+                        "list users 200": {
+                            "passes": 174,
+                            "fails": 0,
+                            "name": "list users 200",
+                            "path": "::User-Post-Comment Flow - login + CRUD::list users 200",
+                            "id": "2e0f6464c0a96db75b98b92021cef1eb"
+                        },
+                        "create post 201": {
+                            "passes": 174,
+                            "fails": 0,
+                            "name": "create post 201",
+                            "path": "::User-Post-Comment Flow - login + CRUD::create post 201",
+                            "id": "acb82f85decd4e2ec5617ee58c90d64c"
+                        },
+                        "create comment 201": {
+                            "fails": 0,
+                            "name": "create comment 201",
+                            "path": "::User-Post-Comment Flow - login + CRUD::create comment 201",
+                            "id": "069560406d42f0434f83c128e396e461",
+                            "passes": 174
+                        },
+                        "list comments 200": {
+                            "name": "list comments 200",
+                            "path": "::User-Post-Comment Flow - login + CRUD::list comments 200",
+                            "id": "68afc4c716f9a9ec306555b47de84c9b",
+                            "passes": 174,
+                            "fails": 0
+                        }
+                    },
+                "name": "User-Post-Comment Flow - login + CRUD",
+                "path": "::User-Post-Comment Flow - login + CRUD"
+            }
+        },
+        "checks": {}
+    }
+}

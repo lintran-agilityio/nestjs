@@ -3,6 +3,8 @@ export const BASE_URL: string =
 
 export const USER_EMAIL: string = __ENV.USER_EMAIL || 'lin+01@gmail.com';
 export const USER_PASSWORD: string = __ENV.USER_PASSWORD || 'Abc@1234';
+export const ADMIN_EMAIL: string = 'admin@gmail.com';
+export const ADMIN_PASSWORD: string = 'Admin@123';
 
 // Auth config (override via env to match your API)
 export const AUTH_PATH: string = __ENV.AUTH_PATH || 'auth/login';

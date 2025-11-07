@@ -104,14 +104,14 @@ var successFlow = () => {
       return;
     }
     const viewCommentRes = http.get(
-      `${BASE_URL}/${COMMENTS_PATH}/${commentId}`,
+      `${BASE_URL}/${COMMENTS_PATH}?postId=${postId}`,
       {
-        headers: { ...getAuthHeaders().headers },
+        headers: { ...jsonHeaders.headers },
         tags: { type: "success", endpoint: "view_comment" }
       }
     );
     viewCommentTrend.add(viewCommentRes.timings.duration);
-    check(viewCommentRes, { "view comment 200": (r) => r.status === 200 });
+    check(viewCommentRes, { "view comments 200": (r) => r.status === 200 });
     const deleteCommentRes = http.del(
       `${BASE_URL}/${COMMENTS_PATH}/${commentId}`,
       null,
@@ -122,7 +122,7 @@ var successFlow = () => {
     );
     deleteCommentTrend.add(deleteCommentRes.timings.duration);
     check(deleteCommentRes, {
-      "delete comment 200": (r) => r.status === 200
+      "delete comment 204": (r) => r.status === 204
     });
   });
 };
