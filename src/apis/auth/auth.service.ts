@@ -94,6 +94,28 @@ export class AuthService {
 
       const savedUser = await this.usersRepo.save(newUser);
 
+      try {
+        await this.cacheService.deleteByPattern(
+          `${REDIS_CACHE_KEYS.USERS.LIST}:*`,
+        );
+        await this.cacheService.setKey(
+          `${REDIS_CACHE_KEYS.USERS.BY_ID}:${savedUser.id}`,
+          savedUser,
+          TTL_CACHE.USER_BY_ID,
+        );
+        if (savedUser.email) {
+          await this.cacheService.setKey(
+            `${REDIS_CACHE_KEYS.USERS.BY_EMAIL}:${savedUser.email}`,
+            savedUser,
+            TTL_CACHE.USER_BY_EMAIL,
+          );
+        }
+      } catch (cacheError) {
+        this.logger.error(
+          `[Cache] - Failed to prime user cache after register: ${JSON.stringify(cacheError)}`,
+        );
+      }
+
       return new RegisterResponseDto({
         id: savedUser.id,
         email: savedUser.email,

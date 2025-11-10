@@ -18,8 +18,19 @@ export class CacheModule {
     const providers: Provider[] = [];
     const exports: any[] = [CacheAbstractService];
 
+    const envProvider = (process.env.CACHE_PROVIDER ?? '').toLowerCase();
+    const cacheProviders = Object.values(CacheProvider) as string[];
+    const normalizedEnvProvider = cacheProviders.find(
+      (value) => value === envProvider,
+    ) as CacheProvider;
+    const isLoadTestMode = process.env.LOAD_TEST_MODE === 'true';
+
+    const selectedProvider = isLoadTestMode
+      ? CacheProvider.MEMORY
+      : (normalizedEnvProvider ?? provider);
+
     // Cache with Redis
-    if (provider === CacheProvider.REDIS) {
+    if (selectedProvider === CacheProvider.REDIS) {
       providers.push(
         // Create Redis client with REDIS_CLIENT token
         {

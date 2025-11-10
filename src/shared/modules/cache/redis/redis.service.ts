@@ -50,7 +50,6 @@ export class RedisService extends CacheAbstractService {
 
   async getKey<T>(key: string): Promise<T | null> {
     this.log(`Get cache for ${key}`);
-    console.log('======== CACHE ====', key)
     const result = await this.client.get(key);
     return result ? (JSON.parse(result) as T) : null;
   }

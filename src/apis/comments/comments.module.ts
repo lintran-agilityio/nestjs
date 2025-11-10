@@ -23,7 +23,7 @@ import { CacheModule } from '@app/shared/modules/cache/cache.module';
     TypeOrmModule.forFeature([Comment]),
     forwardRef(() => UserModule),
     forwardRef(() => PostModule),
-    CacheModule.register(CacheProvider.MEMORY),
+    CacheModule.register(CacheProvider.REDIS),
   ],
   controllers: [CommentController],
   providers: [CommentService],
