@@ -270,7 +270,6 @@ export class UserService {
     }
 
     if (user) {
-      console.log('user', cacheKey, user);
       // Cache data into Redis cache
       await this.cacheUser(cacheKey, user, TTL_CACHE.USER_BY_ID);
     }
@@ -365,8 +364,14 @@ export class UserService {
       for (const userDto of users) {
         const { id } = userDto;
         const existingUser = await this.getById(id);
-        userDto.password = await this.hashingService.hash(userDto.password);
-        const userUpdating = this.usersRepo.merge(existingUser, userDto);
+        const payload: Partial<User> = { ...userDto };
+        const { password } = payload;
+
+        if (password) {
+          payload.password = await this.hashingService.hash(password);
+        }
+
+        const userUpdating = this.usersRepo.merge(existingUser, payload);
         const userUpdated = await this.usersRepo.save(userUpdating);
         updatedUsers.push(userUpdated);
       }
