@@ -31,10 +31,8 @@ const listUserPostsTrend = new Trend('delete_flow_list_user_posts_duration');
 const deletePostTrend = new Trend('delete_flow_delete_post_duration');
 
 const FLOW_PASSWORD = __ENV.DELETE_FLOW_PASSWORD || USER_PASSWORD;
-const FLOW_FIRST_NAME_PREFIX =
-  __ENV.DELETE_FLOW_FIRST_NAME_PREFIX || 'Del';
-const FLOW_LAST_NAME_PREFIX =
-  __ENV.DELETE_FLOW_LAST_NAME_PREFIX || 'Flow';
+const FLOW_FIRST_NAME_PREFIX = __ENV.DELETE_FLOW_FIRST_NAME_PREFIX || 'Del';
+const FLOW_LAST_NAME_PREFIX = __ENV.DELETE_FLOW_LAST_NAME_PREFIX || 'Flow';
 const FLOW_EMAIL_PREFIX = __ENV.DELETE_FLOW_EMAIL_PREFIX || 'delete-flow';
 
 export const options = {

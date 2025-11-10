@@ -20,8 +20,7 @@ const POSTS_PATH = 'posts';
 const COMMENTS_PATH = 'comments';
 
 const FLOW_EMAIL = __ENV.USER_POST_COMMENT_FLOW_EMAIL || USER_EMAIL;
-const FLOW_PASSWORD =
-  __ENV.USER_POST_COMMENT_FLOW_PASSWORD || USER_PASSWORD;
+const FLOW_PASSWORD = __ENV.USER_POST_COMMENT_FLOW_PASSWORD || USER_PASSWORD;
 
 // Treat expected non-2xx statuses as successes to avoid skewing http_req_failed
 http.setResponseCallback(

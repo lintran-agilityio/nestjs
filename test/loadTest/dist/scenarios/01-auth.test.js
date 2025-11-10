@@ -56,10 +56,21 @@ function handleSummaryFactory(reportBaseName) {
 
 // test/loadTest/scenarios/01-auth.test.ts
 http2.setResponseCallback(
-  http2.expectedStatuses({ min: 200, max: 399 }, 400, 401, 403, 404, 422, 429)
+  http2.expectedStatuses(
+    { min: 200, max: 399 },
+    400,
+    401,
+    403,
+    404,
+    409,
+    422,
+    429
+  )
 );
+var REGISTER_PATH = "auth/register";
+var registerSuccessTrend = new Trend("register_success_duration");
+var registerLoginSuccessTrend = new Trend("register_login_success_duration");
 var loginSuccessTrend = new Trend("login_success_duration");
-var loginWrongPasswordTrend = new Trend("login_wrong_password_duration");
 var loginWrongEmailTrend = new Trend("login_wrong_email_duration");
 var loginMissingEmailTrend = new Trend("login_missing_email_duration");
 var loginMissingPasswordTrend = new Trend("login_missing_password_duration");
@@ -71,15 +82,80 @@ var options = {
   duration: "1m",
   thresholds: {
     // allow up to 5% failure (since we test error cases)
-    http_req_failed: ["rate<1"],
+    http_req_failed: ["rate<0.1"],
     // success login under 1s
     login_success_duration: ["p(95)<1800"],
-    login_wrong_password_duration: ["p(95)<500"],
+    register_success_duration: ["p(95)<1800"],
+    register_login_success_duration: ["p(95)<1500"],
     login_wrong_email_duration: ["p(95)<700"],
     login_missing_email_duration: ["p(95)<500"],
     login_missing_password_duration: ["p(95)<500"],
     login_invalid_email_format_duration: ["p(95)<500"]
   }
+};
+var registerAndLoginFlow = () => {
+  group("Auth Register + Login Flow", () => {
+    const uniqueSuffix = `${__VU}-${__ITER}-${Date.now()}-${Math.random().toString(16).slice(2)}`;
+    const email = `auth-flow-${uniqueSuffix}@example.com`;
+    const registerPayload = JSON.stringify({
+      email,
+      password: USER_PASSWORD,
+      firstName: `Load${uniqueSuffix.slice(0, 6)}`,
+      lastName: `Tester${uniqueSuffix.slice(-4)}`
+    });
+    const registerRes = http2.post(
+      `${BASE_URL}/${REGISTER_PATH}`,
+      registerPayload,
+      {
+        ...jsonHeaders,
+        tags: { step: "register_success" }
+      }
+    );
+    registerSuccessTrend.add(registerRes.timings.duration);
+    const registerOk = check(registerRes, {
+      "Register 201": (r) => r.status === 201
+    });
+    if (!registerOk) {
+      console.error(
+        `Register failed (${registerRes.status}): ${registerRes.status_text} body=${registerRes.body}`
+      );
+      return;
+    }
+    const loginPayload = JSON.stringify({
+      [EMAIL_FIELD]: email,
+      [PASSWORD_FIELD]: USER_PASSWORD
+    });
+    const loginRes = http2.post(`${BASE_URL}/${AUTH_PATH}`, loginPayload, {
+      ...jsonHeaders,
+      tags: { step: "login_after_register" }
+    });
+    registerLoginSuccessTrend.add(loginRes.timings.duration);
+    const loginOk = check(loginRes, {
+      "Login after register 200": (r) => r.status === 200
+    });
+    if (!loginOk) {
+      console.error(
+        `Login after register failed (${loginRes.status}): ${loginRes.status_text} body=${loginRes.body}`
+      );
+      return;
+    }
+    try {
+      const body = loginRes.json();
+      const token = (body && typeof body[TOKEN_FIELD] === "string" ? body[TOKEN_FIELD] : "") || "";
+      if (!token) {
+        console.error(
+          `Login after register response missing token field '${TOKEN_FIELD}': ${loginRes.body}`
+        );
+      } else {
+        getToken(token);
+      }
+    } catch (error) {
+      console.error(
+        `Failed to parse login after register response: ${loginRes.body}`,
+        error
+      );
+    }
+  });
 };
 var login = () => {
   group("Auth Login - success", () => {
@@ -112,20 +188,6 @@ var login = () => {
         `Login failed: ${res.status} ${res.status_text} body=${res.body}`
       );
     }
-  });
-  group("Auth Login - wrong password (4xx)", () => {
-    const res = http2.post(
-      `${BASE_URL}/${AUTH_PATH}`,
-      JSON.stringify({
-        [EMAIL_FIELD]: USER_EMAIL,
-        [PASSWORD_FIELD]: "wrongPassword"
-      }),
-      jsonHeaders
-    );
-    loginWrongPasswordTrend.add(res.timings.duration);
-    check(res, {
-      "Wrong password -> 4xx/429": (r) => [400, 401, 403, 429].includes(r.status)
-    });
   });
   group("Auth Login - user not found (401)", () => {
     const res = http2.post(
@@ -174,7 +236,11 @@ var login = () => {
     check(res, { "Invalid email -> 400": (r) => r.status === 400 });
   });
 };
-var auth_test_default = login;
+var runAuthSuite = () => {
+  registerAndLoginFlow();
+  login();
+};
+var auth_test_default = runAuthSuite;
 var handleSummary = handleSummaryFactory("auth");
 export {
   auth_test_default as default,

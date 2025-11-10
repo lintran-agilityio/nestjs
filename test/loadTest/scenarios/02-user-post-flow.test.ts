@@ -191,14 +191,10 @@ const userPostFlow = () => {
     });
 
     // Delete the post
-    const deleteRes = http.del(
-      `${BASE_URL}/${POSTS_PATH}/${postId}`,
-      null,
-      {
-        ...authHeaders,
-        tags: { step: 'delete_post_post_flow' },
-      },
-    );
+    const deleteRes = http.del(`${BASE_URL}/${POSTS_PATH}/${postId}`, null, {
+      ...authHeaders,
+      tags: { step: 'delete_post_post_flow' },
+    });
     deletePostTrend.add(deleteRes.timings.duration);
 
     check(deleteRes, {

@@ -175,7 +175,10 @@ const commentFlow = () => {
     let commentId = '';
 
     try {
-      const commentBody = createCommentRes.json() as Record<string, unknown> | null;
+      const commentBody = createCommentRes.json() as Record<
+        string,
+        unknown
+      > | null;
       commentId = (commentBody?.['id'] as string) ?? '';
     } catch (error) {
       console.error('Failed to parse create comment response', error);

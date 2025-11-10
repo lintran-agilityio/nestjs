@@ -163,14 +163,10 @@ var userPostFlow = () => {
     check(userPostsRes, {
       "get user posts 200": (r) => r.status === 200
     });
-    const deleteRes = http.del(
-      `${BASE_URL}/${POSTS_PATH}/${postId}`,
-      null,
-      {
-        ...authHeaders,
-        tags: { step: "delete_post_post_flow" }
-      }
-    );
+    const deleteRes = http.del(`${BASE_URL}/${POSTS_PATH}/${postId}`, null, {
+      ...authHeaders,
+      tags: { step: "delete_post_post_flow" }
+    });
     deletePostTrend.add(deleteRes.timings.duration);
     check(deleteRes, {
       "delete post 204|200": (r) => r.status === 204 || r.status === 200
