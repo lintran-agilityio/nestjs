@@ -34,6 +34,7 @@ import {
   DeletePostsRequestDto,
   PostPaginationResponseDto,
   PostRequestDto,
+  UpdatePostRequestDto,
 } from './dtos';
 import { Post } from './entities';
 @Injectable()
@@ -257,9 +258,11 @@ export class PostService {
   async updateById(
     user: IUserInfo,
     id: string,
-    updateDto: PostRequestDto,
+    updateDto: UpdatePostRequestDto,
   ): Promise<Post> {
     const existedPost = await this.getById(id);
+    const { slug, title, contents } = updateDto || {};
+    const previousSlug = existedPost?.slug;
 
     // Validate ownership role
     validateOwnerRole(user, existedPost, 'authorId');
@@ -268,23 +271,40 @@ export class PostService {
       `Post id ${id} need to update with body ${JSON.stringify(updateDto)}`,
     );
 
-    // Validate required fields explicitly to ensure 400 on invalid body
-    if (
-      !updateDto ||
-      !updateDto.slug ||
-      !updateDto.title ||
-      !updateDto.contents
-    ) {
+    // Ensure there is at least one field to update
+    if (!updateDto || (!slug && !title && !contents)) {
       handleErrorException({
         defaultMessage: MESSAGES.INVALID_REQUEST_BODY,
         ExceptionClass: BadRequestException,
       });
     }
 
+    if (slug && slug !== previousSlug) {
+      const duplicated = await this.getBySlug(slug);
+
+      if (duplicated && duplicated.id !== id) {
+        this.logger.log(`Post slug already exists: ${slug}`);
+
+        handleErrorException({
+          defaultMessage: MESSAGES.POST_SLUG_IS_EXISTED,
+          ExceptionClass: BadRequestException,
+        });
+      }
+    }
+
     if (existedPost) {
       try {
-        existedPost.title = updateDto.title;
-        existedPost.contents = updateDto.contents;
+        if (title) {
+          existedPost.title = title;
+        }
+
+        if (contents) {
+          existedPost.contents = contents;
+        }
+
+        if (slug) {
+          existedPost.slug = slug;
+        }
 
         const saved = await this.postsRepo.save(existedPost);
 
@@ -294,6 +314,11 @@ export class PostService {
         await this.cacheService.deleteKey(
           `${REDIS_CACHE_KEYS.POSTS.BY_ID}:${id}`,
         );
+        if (previousSlug) {
+          await this.cacheService.deleteKey(
+            `${REDIS_CACHE_KEYS.POSTS.BY_SLUG}:${previousSlug}`,
+          );
+        }
         await this.cacheService.deleteKey(
           `${REDIS_CACHE_KEYS.POSTS.BY_SLUG}:${saved.slug}`,
         );

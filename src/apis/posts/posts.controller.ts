@@ -36,6 +36,7 @@ import {
   DeletePostsRequestDto,
   PostPaginationResponseDto,
   PostRequestDto,
+  UpdatePostRequestDto,
 } from './dtos';
 import { Post as PostEntities } from './entities';
 import { PostService } from './posts.service';
@@ -130,7 +131,7 @@ export class PostController {
   async updateById(
     @Param('id', ParseUUIDPipe) id: string,
     @GetCurrentUser() user: IUserInfo,
-    @Body() updatePostDto: PostRequestDto,
+    @Body() updatePostDto: UpdatePostRequestDto,
   ): Promise<PostEntities> {
     return await this.postService.updateById(user, id, updatePostDto);
   }

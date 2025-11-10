@@ -1,5 +1,6 @@
 // libs
-import { ApiProperty } from '@nestjs/swagger';
+import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
+import { PartialType } from '@nestjs/mapped-types';
 import { IsDefined, IsNotEmpty, IsString, MaxLength } from 'class-validator';
 
 export class PostRequestDto {
@@ -33,6 +34,31 @@ export class PostRequestDto {
   contents: string;
 
   constructor(partial: Partial<PostRequestDto>) {
+    Object.assign(this, partial);
+  }
+}
+
+export class UpdatePostRequestDto extends PartialType(PostRequestDto) {
+  @ApiPropertyOptional({
+    example: 'my-updated-blog-post',
+    description: 'Updated slug of Post',
+  })
+  slug?: string;
+
+  @ApiPropertyOptional({
+    example: 'My updated blog post',
+    description: 'Updated title of Post',
+  })
+  title?: string;
+
+  @ApiPropertyOptional({
+    example: 'This is the updated content of my post.',
+    description: 'Updated contents of this post',
+  })
+  contents?: string;
+
+  constructor(partial: Partial<UpdatePostRequestDto>) {
+    super(partial);
     Object.assign(this, partial);
   }
 }
