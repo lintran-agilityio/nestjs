@@ -20,8 +20,4 @@ export class UserResponseDto implements IPaginationResponse<User> {
     type: MetadataResponseDto,
   })
   meta: MetadataResponseDto;
-
-  constructor(partial: Partial<UserResponseDto>) {
-    Object.assign(this, partial);
-  }
 }

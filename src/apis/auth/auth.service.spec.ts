@@ -10,7 +10,7 @@ import { Repository } from 'typeorm';
 import { CUSTOM_PROVIDER_TOKENS } from '@app/shared/common';
 import { MESSAGES, REDIS_CACHE_KEYS, TTL_CACHE } from '@app/shared/constants';
 import { UserRole, UserStatus } from '@app/shared/types';
-import { RedisService } from '@app/shared/modules/cache/redis/redis.service';
+import { CacheAbstractService } from '@app/shared/modules/cache/cache.abstract.service';
 
 // Apis
 import { UserService } from '@app/apis/users/users.service';
@@ -46,12 +46,16 @@ describe('AuthService', () => {
   let redisService: {
     getKey: jest.Mock;
     setKey: jest.Mock;
+    deleteKey: jest.Mock;
+    deleteByPattern: jest.Mock;
   };
 
   beforeEach(async () => {
     redisService = {
       getKey: jest.fn().mockResolvedValue(null),
       setKey: jest.fn().mockResolvedValue(undefined),
+      deleteKey: jest.fn().mockResolvedValue(undefined),
+      deleteByPattern: jest.fn().mockResolvedValue(undefined),
     };
 
     const module: TestingModule = await Test.createTestingModule({
@@ -75,10 +79,7 @@ describe('AuthService', () => {
             updateRefreshToken: jest.fn(),
           },
         },
-        {
-          provide: RedisService,
-          useValue: redisService,
-        },
+        { provide: CacheAbstractService, useValue: redisService },
         createMockLoggerProvider(),
       ],
     }).compile();
@@ -91,7 +92,7 @@ describe('AuthService', () => {
     configService = module.get(ConfigService);
     jwtService = module.get(JwtService);
     userService = module.get(UserService);
-    redisService = module.get(RedisService);
+    redisService = module.get(CacheAbstractService);
   });
 
   afterEach(() => {
@@ -297,19 +298,41 @@ describe('AuthService', () => {
       jwtService.verifyAsync.mockResolvedValue(payload);
       redisService.getKey.mockResolvedValue('cached.hashed.refresh');
       hashingService.compare.mockResolvedValue(true);
+      hashingService.hash.mockResolvedValue('hashed.new.refresh');
       configService.get
-        .mockReturnValueOnce('refresh-secret') // JWT_REFRESH_SECRET
+        .mockReturnValueOnce('refresh-secret') // JWT_REFRESH_SECRET (verify)
         .mockReturnValueOnce('jwt-secret') // JWT_SECRET
-        .mockReturnValueOnce('1h'); // JWT_EXPIRES_IN
-      jwtService.signAsync.mockResolvedValue('new.access.token');
+        .mockReturnValueOnce('1h') // JWT_EXPIRES_IN
+        .mockReturnValueOnce('refresh-secret') // JWT_REFRESH_SECRET (rotate)
+        .mockReturnValueOnce('7d'); // JWT_REFRESH_EXPIRES_IN
+      jwtService.signAsync
+        .mockResolvedValueOnce('new.access.token')
+        .mockResolvedValueOnce('new.refresh.token');
 
       const result = await service.refreshTokens('valid.refresh.token');
 
-      expect(result).toEqual({ accessToken: 'new.access.token' });
+      expect(result).toEqual({
+        accessToken: 'new.access.token',
+        refreshToken: 'new.refresh.token',
+      });
       expect(redisService.getKey).toHaveBeenCalledWith(
         `${REDIS_CACHE_KEYS.REFRESH_TOKEN}:${mockUuidUser}`,
       );
       expect(userService.getUserById).not.toHaveBeenCalled();
+      expect(jwtService.signAsync).toHaveBeenCalledTimes(2);
+      expect(hashingService.hash).toHaveBeenCalledWith('new.refresh.token');
+      expect(redisService.deleteKey).toHaveBeenCalledWith(
+        `${REDIS_CACHE_KEYS.REFRESH_TOKEN}:${mockUuidUser}`,
+      );
+      expect(redisService.setKey).toHaveBeenCalledWith(
+        `${REDIS_CACHE_KEYS.REFRESH_TOKEN}:${mockUuidUser}`,
+        'hashed.new.refresh',
+        TTL_CACHE.REFRESH_TOKEN,
+      );
+      expect(userService.updateRefreshToken).toHaveBeenCalledWith(
+        mockUuidUser,
+        'hashed.new.refresh',
+      );
     });
 
     it('should throw error when cached refresh token is invalid', async () => {
@@ -366,7 +389,7 @@ describe('AuthService', () => {
       );
     });
 
-    it('should return new accessToken using DB stored token when cache is missing', async () => {
+    it('should return new tokens using DB stored token when cache is missing', async () => {
       const payload = {
         id: mockUuidUser,
         ...mockingUserInfo,
@@ -378,15 +401,23 @@ describe('AuthService', () => {
         refreshToken: 'stored.hash',
       } as User);
       hashingService.compare.mockResolvedValue(true);
+      hashingService.hash.mockResolvedValue('hashed.new.refresh');
       configService.get
-        .mockReturnValueOnce('refresh-secret') // JWT_REFRESH_SECRET
+        .mockReturnValueOnce('refresh-secret') // JWT_REFRESH_SECRET (verify)
         .mockReturnValueOnce('jwt-secret') // JWT_SECRET
-        .mockReturnValueOnce('1h'); // JWT_EXPIRES_IN
-      jwtService.signAsync.mockResolvedValue('new.access.token');
+        .mockReturnValueOnce('1h') // JWT_EXPIRES_IN
+        .mockReturnValueOnce('refresh-secret') // JWT_REFRESH_SECRET (rotate)
+        .mockReturnValueOnce('7d'); // JWT_REFRESH_EXPIRES_IN
+      jwtService.signAsync
+        .mockResolvedValueOnce('new.access.token')
+        .mockResolvedValueOnce('new.refresh.token');
 
       const result = await service.refreshTokens('incoming.refresh');
 
-      expect(result).toEqual({ accessToken: 'new.access.token' });
+      expect(result).toEqual({
+        accessToken: 'new.access.token',
+        refreshToken: 'new.refresh.token',
+      });
       expect(redisService.getKey).toHaveBeenCalledWith(
         `${REDIS_CACHE_KEYS.REFRESH_TOKEN}:${mockUuidUser}`,
       );
@@ -395,7 +426,20 @@ describe('AuthService', () => {
         'incoming.refresh',
         'stored.hash',
       );
-      expect(jwtService.signAsync).toHaveBeenCalled();
+      expect(jwtService.signAsync).toHaveBeenCalledTimes(2);
+      expect(hashingService.hash).toHaveBeenCalledWith('new.refresh.token');
+      expect(redisService.deleteKey).toHaveBeenCalledWith(
+        `${REDIS_CACHE_KEYS.REFRESH_TOKEN}:${mockUuidUser}`,
+      );
+      expect(redisService.setKey).toHaveBeenCalledWith(
+        `${REDIS_CACHE_KEYS.REFRESH_TOKEN}:${mockUuidUser}`,
+        'hashed.new.refresh',
+        TTL_CACHE.REFRESH_TOKEN,
+      );
+      expect(userService.updateRefreshToken).toHaveBeenCalledWith(
+        mockUuidUser,
+        'hashed.new.refresh',
+      );
     });
 
     it('should use default config values when refreshing tokens with null config', async () => {
@@ -411,16 +455,31 @@ describe('AuthService', () => {
       } as User);
       hashingService.compare.mockResolvedValue(true);
       configService.get.mockReturnValue(null);
-      jwtService.signAsync.mockResolvedValue('new.access.token');
+      hashingService.hash.mockResolvedValue('hashed.new.refresh');
+      jwtService.signAsync
+        .mockResolvedValueOnce('new.access.token')
+        .mockResolvedValueOnce('new.refresh.token');
 
       const result = await service.refreshTokens('incoming.refresh');
 
-      expect(result).toEqual({ accessToken: 'new.access.token' });
-      expect(jwtService.signAsync).toHaveBeenCalledWith(
+      expect(result).toEqual({
+        accessToken: 'new.access.token',
+        refreshToken: 'new.refresh.token',
+      });
+      expect(jwtService.signAsync).toHaveBeenNthCalledWith(
+        1,
         payload,
         expect.objectContaining({
-          secret: 'default-secret',
+          secret: 'super-secret',
           expiresIn: '1h',
+        }),
+      );
+      expect(jwtService.signAsync).toHaveBeenNthCalledWith(
+        2,
+        payload,
+        expect.objectContaining({
+          secret: 'super-refresh-secret',
+          expiresIn: '7d',
         }),
       );
     });

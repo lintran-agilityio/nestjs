@@ -18,7 +18,7 @@ import {
   mockingUserInfo,
   mockingMetadata,
 } from '@app/shared/mocks';
-import { RedisService } from '@app/shared/modules/cache/redis/redis.service';
+import { CacheAbstractService } from '@app/shared/modules/cache/cache.abstract.service';
 import { IUserInfo, UserRole, UserStatus } from '@app/shared/types';
 import * as utils from '@app/shared/utils';
 
@@ -47,7 +47,7 @@ describe('PostService', () => {
     create: jest.Mock;
   };
   let userService: { getById: jest.Mock<Promise<User>, [string]> };
-  let redisService: {
+  let cacheService: {
     getKey: jest.Mock;
     setKey: jest.Mock;
     deleteKey: jest.Mock;
@@ -85,7 +85,7 @@ describe('PostService', () => {
       getMany: jest.fn(),
     };
 
-    redisService = {
+    cacheService = {
       getKey: jest.fn().mockResolvedValue(null),
       setKey: jest.fn().mockResolvedValue(undefined),
       deleteKey: jest.fn().mockResolvedValue(undefined),
@@ -113,8 +113,8 @@ describe('PostService', () => {
           useValue: { getById: jest.fn() },
         },
         {
-          provide: RedisService,
-          useValue: redisService,
+          provide: CacheAbstractService,
+          useValue: cacheService,
         },
         createMockLoggerProvider(),
       ],
@@ -123,7 +123,7 @@ describe('PostService', () => {
     service = module.get<PostService>(PostService);
     postsRepo = module.get(getRepositoryToken(Post));
     userService = module.get(UserService);
-    redisService = module.get(RedisService);
+    cacheService = module.get(CacheAbstractService);
   });
 
   afterEach(() => {
@@ -136,12 +136,12 @@ describe('PostService', () => {
 
   describe('getById', () => {
     it('throws NotFoundException when post missing', async () => {
-      redisService.getKey.mockResolvedValue(null);
+      cacheService.getKey.mockResolvedValue(null);
       postsRepo.findOne.mockResolvedValue(null);
       await expect(service.getById('id-1')).rejects.toBeInstanceOf(
         NotFoundException,
       );
-      expect(redisService.getKey).toHaveBeenCalledWith(
+      expect(cacheService.getKey).toHaveBeenCalledWith(
         `${REDIS_CACHE_KEYS.POSTS.BY_ID}:id-1`,
       );
     });
@@ -150,7 +150,7 @@ describe('PostService', () => {
       const cachedPost: Post = Object.assign(new Post(), {
         id: mockingPostUuid,
       } as Partial<Post>);
-      redisService.getKey.mockResolvedValue(cachedPost);
+      cacheService.getKey.mockResolvedValue(cachedPost);
 
       const result = await service.getById(mockingPostUuid);
 
@@ -159,7 +159,7 @@ describe('PostService', () => {
     });
 
     it('returns post from database and caches it', async () => {
-      redisService.getKey.mockResolvedValue(null);
+      cacheService.getKey.mockResolvedValue(null);
       const post: Post = Object.assign(new Post(), {
         id: mockingPostUuid,
       } as Partial<Post>);
@@ -168,7 +168,7 @@ describe('PostService', () => {
       const result = await service.getById(mockingPostUuid);
 
       expect(result).toBe(post);
-      expect(redisService.setKey).toHaveBeenCalledWith(
+      expect(cacheService.setKey).toHaveBeenCalledWith(
         `${REDIS_CACHE_KEYS.POSTS.BY_ID}:${mockingPostUuid}`,
         post,
         TTL_CACHE.POST_BY_ID,
@@ -182,7 +182,7 @@ describe('PostService', () => {
         id: mockingPostUuid,
         slug: 'test-slug',
       } as Partial<Post>);
-      redisService.getKey.mockResolvedValue(cachedPost);
+      cacheService.getKey.mockResolvedValue(cachedPost);
 
       const result = await service.getBySlug('test-slug');
 
@@ -191,7 +191,7 @@ describe('PostService', () => {
     });
 
     it('returns post when found by slug and caches it', async () => {
-      redisService.getKey.mockResolvedValue(null);
+      cacheService.getKey.mockResolvedValue(null);
       const post: Post = Object.assign(new Post(), {
         id: mockingPostUuid,
         slug: 'test-slug',
@@ -204,7 +204,7 @@ describe('PostService', () => {
         where: { slug: 'test-slug' },
       });
       expect(result).toBe(post);
-      expect(redisService.setKey).toHaveBeenCalledWith(
+      expect(cacheService.setKey).toHaveBeenCalledWith(
         `${REDIS_CACHE_KEYS.POSTS.BY_SLUG}:test-slug`,
         post,
         TTL_CACHE.POST_BY_SLUG,
@@ -212,13 +212,13 @@ describe('PostService', () => {
     });
 
     it('returns null when post not found by slug', async () => {
-      redisService.getKey.mockResolvedValue(null);
+      cacheService.getKey.mockResolvedValue(null);
       postsRepo.findOne.mockResolvedValue(null);
 
       const result = await service.getBySlug('non-existent-slug');
 
       expect(result).toBeNull();
-      expect(redisService.setKey).not.toHaveBeenCalled();
+      expect(cacheService.setKey).not.toHaveBeenCalled();
     });
   });
 
@@ -246,10 +246,10 @@ describe('PostService', () => {
         authorId: mockUuidUser,
       });
       expect(result).toEqual(savedPost);
-      expect(redisService.deleteByPattern).toHaveBeenCalledWith(
+      expect(cacheService.deleteByPattern).toHaveBeenCalledWith(
         `${REDIS_CACHE_KEYS.POSTS.LIST}:*`,
       );
-      expect(redisService.setKey).toHaveBeenCalledTimes(2);
+      expect(cacheService.setKey).toHaveBeenCalledTimes(2);
     });
 
     it('throws when slug already exists', async () => {
@@ -310,11 +310,11 @@ describe('PostService', () => {
       expect(postsRepo.save).toHaveBeenCalled();
       expect(result.title).toBe('new');
       expect(result.contents).toBe('new');
-      expect(redisService.deleteKey).toHaveBeenCalledTimes(2);
-      expect(redisService.deleteByPattern).toHaveBeenCalledWith(
+      expect(cacheService.deleteKey).toHaveBeenCalledTimes(2);
+      expect(cacheService.deleteByPattern).toHaveBeenCalledWith(
         `${REDIS_CACHE_KEYS.POSTS.LIST}:*`,
       );
-      expect(redisService.setKey).toHaveBeenCalledTimes(2);
+      expect(cacheService.setKey).toHaveBeenCalledTimes(2);
     });
 
     it('throws BadRequestException when updateDto is invalid', async () => {
@@ -366,8 +366,8 @@ describe('PostService', () => {
       expect(utils.validateOwnerRole).toHaveBeenCalledWith(mockUser, existed, 'authorId');
       expect(postsRepo.remove).toHaveBeenCalledWith(existed);
       expect(result).toEqual({ message: MESSAGES.POST_DELETE_SUCCESS });
-      expect(redisService.deleteKey).toHaveBeenCalledTimes(2);
-      expect(redisService.deleteByPattern).toHaveBeenCalledWith(
+      expect(cacheService.deleteKey).toHaveBeenCalledTimes(2);
+      expect(cacheService.deleteByPattern).toHaveBeenCalledWith(
         `${REDIS_CACHE_KEYS.POSTS.LIST}:*`,
       );
     });
@@ -403,10 +403,10 @@ describe('PostService', () => {
         where: { id: mockingPostUuid, authorId: mockUuidUser },
       });
       expect(postsRepo.remove).toHaveBeenCalledWith(post);
-      expect(redisService.deleteKey).toHaveBeenCalledWith(
+      expect(cacheService.deleteKey).toHaveBeenCalledWith(
         `${REDIS_CACHE_KEYS.POSTS.BY_ID}:${mockingPostUuid}`,
       );
-      expect(redisService.deleteByPattern).toHaveBeenCalledWith(
+      expect(cacheService.deleteByPattern).toHaveBeenCalledWith(
         `${REDIS_CACHE_KEYS.POSTS.LIST}:*`,
       );
     });
@@ -447,7 +447,7 @@ describe('PostService', () => {
         data: [],
         meta: mockingMetadata,
       };
-      redisService.getKey.mockResolvedValue(cachedResult);
+      cacheService.getKey.mockResolvedValue(cachedResult);
 
       const result = await service.getAll({});
 
@@ -456,7 +456,7 @@ describe('PostService', () => {
     });
 
     it('returns paginated posts without search', async () => {
-      redisService.getKey.mockResolvedValue(null);
+      cacheService.getKey.mockResolvedValue(null);
       const mockPost: Post = Object.assign(new Post(), {
         id: mockingPostUuid,
         title: 'Test Post',
@@ -472,11 +472,11 @@ describe('PostService', () => {
       expect(queryBuilder.select).toHaveBeenCalled();
       expect(result.data).toEqual([mockPost]);
       expect(result.meta.total).toBe(1);
-      expect(redisService.setKey).toHaveBeenCalled();
+      expect(cacheService.setKey).toHaveBeenCalled();
     });
 
     it('filters by search when provided', async () => {
-      redisService.getKey.mockResolvedValue(null);
+      cacheService.getKey.mockResolvedValue(null);
       const mockPost: Post = Object.assign(new Post(), {
         id: mockingPostUuid,
         title: 'Test Post',
@@ -496,7 +496,7 @@ describe('PostService', () => {
     });
 
     it('handles errors when query fails', async () => {
-      redisService.getKey.mockResolvedValue(null);
+      cacheService.getKey.mockResolvedValue(null);
       (utils.getDataPagination as jest.Mock).mockRejectedValue(new Error('query-fail'));
 
       await expect(service.getAll({})).rejects.toThrow();
@@ -529,8 +529,8 @@ describe('PostService', () => {
 
       expect(result.count).toBe(2);
       expect(result.message).toBeDefined();
-      expect(redisService.deleteKey).toHaveBeenCalledTimes(2);
-      expect(redisService.deleteByPattern).toHaveBeenCalledWith(
+      expect(cacheService.deleteKey).toHaveBeenCalledTimes(2);
+      expect(cacheService.deleteByPattern).toHaveBeenCalledWith(
         `${REDIS_CACHE_KEYS.POSTS.LIST}:*`,
       );
     });
@@ -552,7 +552,7 @@ describe('PostService', () => {
       expect(result.count).toBe(0);
       expect(result.message).toContain('post');
       // deleteByPattern is only called when posts are found (inside if block)
-      expect(redisService.deleteByPattern).not.toHaveBeenCalled();
+      expect(cacheService.deleteByPattern).not.toHaveBeenCalled();
     });
 
     it('handles empty postIds array', async () => {
@@ -593,7 +593,7 @@ describe('PostService', () => {
         id: mockUuidUser,
       } as Partial<User>);
       userService.getById.mockResolvedValue(mockUserEntity);
-      redisService.getKey.mockResolvedValue(cachedResult);
+      cacheService.getKey.mockResolvedValue(cachedResult);
 
       const result = await service.getAllPostOfUser(mockUuidUser);
 
@@ -605,7 +605,7 @@ describe('PostService', () => {
     });
 
     it('returns paginated posts for user', async () => {
-      redisService.getKey.mockResolvedValue(null);
+      cacheService.getKey.mockResolvedValue(null);
       const mockUserEntity: User = Object.assign(new User(), {
         id: mockUuidUser,
       } as Partial<User>);
@@ -627,11 +627,11 @@ describe('PostService', () => {
         userId: mockUuidUser,
       });
       expect(result.data).toEqual([mockPost]);
-      expect(redisService.setKey).toHaveBeenCalled();
+      expect(cacheService.setKey).toHaveBeenCalled();
     });
 
     it('handles errors when query fails', async () => {
-      redisService.getKey.mockResolvedValue(null);
+      cacheService.getKey.mockResolvedValue(null);
       const mockUserEntity: User = Object.assign(new User(), {
         id: mockUuidUser,
       } as Partial<User>);

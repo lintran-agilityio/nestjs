@@ -227,9 +227,7 @@ describe('Posts - Modules (e2e)', () => {
         expect.objectContaining({ title: updatePayload.title }),
       );
       // Service signature: updateById(user, id, dto)
-      expect(mockPostService.updateById.mock.calls[0][1]).toBe(
-        mockingPostUuid,
-      );
+      expect(mockPostService.updateById.mock.calls[0][1]).toBe(mockingPostUuid);
       expect(mockPostService.updateById.mock.calls[0][2]).toEqual(
         expect.objectContaining(updatePayload),
       );
@@ -266,9 +264,7 @@ describe('Posts - Modules (e2e)', () => {
         .expect(HttpStatus.NO_CONTENT);
 
       // Service signature: deleteById(id, user)
-      expect(mockPostService.deleteById.mock.calls[0][0]).toBe(
-        mockingPostUuid,
-      );
+      expect(mockPostService.deleteById.mock.calls[0][0]).toBe(mockingPostUuid);
     });
 
     it('should return 400 when id is not UUID', async () => {

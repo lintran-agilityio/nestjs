@@ -7,7 +7,6 @@ import { NotFoundException, ForbiddenException } from '@nestjs/common';
 // App sources
 import { CUSTOM_PROVIDER_TOKENS } from '@app/shared/common';
 import { PostService } from '@app/apis/posts/posts.service';
-import { MESSAGES } from '@app/shared/constants';
 import { UserRole } from '@app/shared/types';
 import {
   createMockLoggerProvider,
@@ -18,7 +17,14 @@ import {
   mockingUserResponse,
   mockUuidUser,
 } from '@app/shared/mocks';
-import { RedisService } from '@app/shared/modules/cache/redis/redis.service';
+import { CacheAbstractService } from '@app/shared/modules/cache/cache.abstract.service';
+
+type CacheServiceMock = jest.Mocked<
+  Pick<
+    CacheAbstractService,
+    'getKey' | 'setKey' | 'deleteKey' | 'deleteByPattern' | 'deleteAll'
+  >
+>;
 
 // Local sources
 import { UserService } from './users.service';
@@ -30,11 +36,7 @@ describe('UserService', () => {
   let usersRepo: jest.Mocked<Repository<User>>;
   let postService: { deletePostById: jest.Mock; getAllPostOfUser: jest.Mock };
   let hashing: { hash: jest.Mock; compare: jest.Mock };
-  let redisService: {
-    getKey: jest.Mock;
-    setKey: jest.Mock;
-    deleteKey: jest.Mock;
-  };
+  let cacheService: CacheServiceMock;
   let queryBuilder: {
     select: jest.Mock;
     andWhere: jest.Mock;
@@ -54,11 +56,13 @@ describe('UserService', () => {
       getManyAndCount: jest.fn(),
     };
 
-    redisService = {
+    cacheService = {
       getKey: jest.fn().mockResolvedValue(null),
       setKey: jest.fn().mockResolvedValue(undefined),
       deleteKey: jest.fn().mockResolvedValue(undefined),
-    };
+      deleteByPattern: jest.fn().mockResolvedValue(undefined),
+      deleteAll: jest.fn().mockResolvedValue(undefined),
+    } as CacheServiceMock;
 
     const module: TestingModule = await Test.createTestingModule({
       providers: [
@@ -94,8 +98,8 @@ describe('UserService', () => {
           },
         },
         {
-          provide: RedisService,
-          useValue: redisService,
+          provide: CacheAbstractService,
+          useValue: cacheService,
         },
       ],
     }).compile();
@@ -104,7 +108,7 @@ describe('UserService', () => {
     usersRepo = module.get(getRepositoryToken(User));
     postService = module.get(PostService);
     hashing = module.get(CUSTOM_PROVIDER_TOKENS.PASSWORD_HASHING_SERVICE);
-    redisService = module.get(RedisService);
+    cacheService = module.get(CacheAbstractService) as CacheServiceMock;
   });
 
   it('should be defined', () => {
@@ -124,8 +128,8 @@ describe('UserService', () => {
       expect(queryBuilder.select).toHaveBeenCalled();
       expect(result.data).toEqual([mockUser]);
       expect(result.meta.total).toBe(1);
-      expect(redisService.getKey).toHaveBeenCalled();
-      expect(redisService.setKey).toHaveBeenCalled();
+      expect(cacheService.getKey).toHaveBeenCalled();
+      expect(cacheService.setKey).toHaveBeenCalled();
     });
 
     it('returns cached users when available', async () => {
@@ -133,7 +137,7 @@ describe('UserService', () => {
         data: [mockingUser],
         meta: { total: 1, page: 1, limit: 10, totalPages: 1 },
       };
-      redisService.getKey.mockResolvedValue(cachedResult);
+      cacheService.getKey.mockResolvedValue(cachedResult);
 
       const result = await service.getAll({});
 
@@ -193,7 +197,7 @@ describe('UserService', () => {
     });
 
     it('returns cached user when available', async () => {
-      redisService.getKey.mockResolvedValue(mockingUserResponse);
+      cacheService.getKey.mockResolvedValue(mockingUserResponse);
 
       const result = await service.getByEmail(mockingUserInfo.email);
 
@@ -207,13 +211,13 @@ describe('UserService', () => {
       const result = await service.getByEmail(mockingUserInfo.email);
 
       expect(result).toBe(mockingUserResponse);
-      expect(redisService.setKey).toHaveBeenCalled();
+      expect(cacheService.setKey).toHaveBeenCalled();
     });
   });
 
   describe('getUserById', () => {
     it('returns cached user when available', async () => {
-      redisService.getKey.mockResolvedValue(mockingUserResponse);
+      cacheService.getKey.mockResolvedValue(mockingUserResponse);
 
       const result = await service.getUserById(mockUuidUser);
 
@@ -230,7 +234,7 @@ describe('UserService', () => {
         where: { id: mockUuidUser },
       });
       expect(result).toBe(mockingUserResponse);
-      expect(redisService.setKey).toHaveBeenCalled();
+      expect(cacheService.setKey).toHaveBeenCalled();
     });
 
     it('returns null when user not found by id', async () => {
@@ -239,7 +243,7 @@ describe('UserService', () => {
       const result = await service.getUserById('non-existent-id');
 
       expect(result).toBeNull();
-      expect(redisService.setKey).not.toHaveBeenCalled();
+      expect(cacheService.setKey).not.toHaveBeenCalled();
     });
   });
 
@@ -252,7 +256,7 @@ describe('UserService', () => {
     });
 
     it('returns cached user when available', async () => {
-      redisService.getKey.mockResolvedValue(mockingUserResponse);
+      cacheService.getKey.mockResolvedValue(mockingUserResponse);
 
       const result = await service.getById(mockUuidUser);
 
@@ -265,7 +269,7 @@ describe('UserService', () => {
       await expect(service.getById(mockUuidUser)).resolves.toBe(
         mockingUserResponse,
       );
-      expect(redisService.setKey).toHaveBeenCalled();
+      expect(cacheService.setKey).toHaveBeenCalled();
     });
   });
 
@@ -433,25 +437,50 @@ describe('UserService', () => {
 
   describe('updateById', () => {
     it('hashes password conditionally and updates', async () => {
-      jest.spyOn(service, 'getById').mockResolvedValue(mockingUser);
+      const existingUser = Object.assign(new User(), {
+        ...mockingUser,
+        password: 'stored-pass',
+      } as Partial<User>);
+      jest.spyOn(service, 'getById').mockResolvedValue(existingUser);
       hashing.hash.mockResolvedValue('hashed');
-      (usersRepo.update as jest.Mock).mockResolvedValue(undefined);
+      (usersRepo.merge as jest.Mock).mockImplementation((entity, payload) => ({
+        ...entity,
+        ...payload,
+      }));
+      const savedUser = { ...mockingUser, password: 'hashed' };
+      (usersRepo.save as jest.Mock).mockResolvedValue(savedUser);
 
       const result = await service.updateById('u1', { password: 'new' });
 
       expect(hashing.hash).toHaveBeenCalledWith('new');
-      expect(usersRepo.update).toHaveBeenCalled();
-      expect(result).toEqual({
-        message: `User id - u1 updated successfully`,
+      expect(usersRepo.merge).toHaveBeenCalledWith(
+        existingUser,
+        expect.objectContaining({ password: 'hashed' }),
+      );
+      expect(usersRepo.save).toHaveBeenCalledWith(
+        expect.objectContaining({ password: 'hashed' }),
+      );
+      expect(result).toMatchObject({
+        id: mockingUser.id,
+        email: mockingUser.email,
       });
+      expect(
+        (result as unknown as { password?: string }).password,
+      ).toBeUndefined();
     });
 
     it('handles error when update fails', async () => {
-      jest.spyOn(service, 'getById').mockResolvedValue(mockingUser);
+      const existingUser = Object.assign(new User(), {
+        ...mockingUser,
+        password: 'stored-pass',
+      } as Partial<User>);
+      jest.spyOn(service, 'getById').mockResolvedValue(existingUser);
       hashing.hash.mockResolvedValue('hashed');
-      (usersRepo.update as jest.Mock).mockRejectedValue(
-        new Error('update-fail'),
-      );
+      (usersRepo.merge as jest.Mock).mockImplementation((entity, payload) => ({
+        ...entity,
+        ...payload,
+      }));
+      (usersRepo.save as jest.Mock).mockRejectedValue(new Error('update-fail'));
 
       await expect(
         service.updateById('u1', { password: 'new' }),
@@ -459,13 +488,21 @@ describe('UserService', () => {
     });
 
     it('does not hash password when not provided', async () => {
-      jest.spyOn(service, 'getById').mockResolvedValue(mockingUser);
-      (usersRepo.update as jest.Mock).mockResolvedValue(undefined);
+      const existingUser = Object.assign(new User(), {
+        ...mockingUser,
+        password: 'stored-pass',
+      } as Partial<User>);
+      jest.spyOn(service, 'getById').mockResolvedValue(existingUser);
+      (usersRepo.merge as jest.Mock).mockImplementation((entity, payload) => ({
+        ...entity,
+        ...payload,
+      }));
+      (usersRepo.save as jest.Mock).mockResolvedValue(existingUser);
 
       await service.updateById('u1', {});
 
       expect(hashing.hash).not.toHaveBeenCalled();
-      expect(usersRepo.update).toHaveBeenCalled();
+      expect(usersRepo.save).toHaveBeenCalled();
     });
   });
 
@@ -506,7 +543,9 @@ describe('UserService', () => {
       (usersRepo.remove as jest.Mock).mockResolvedValue(undefined);
       const result = await service.deleteById('u1');
       expect(usersRepo.remove).toHaveBeenCalled();
-      expect(result).toEqual({ message: MESSAGES.USER_DELETE_SUCCESS });
+      expect(cacheService.deleteKey).toHaveBeenCalled();
+      expect(cacheService.deleteByPattern).toHaveBeenCalled();
+      expect(result).toBeUndefined();
     });
 
     it('handles error when remove fails', async () => {

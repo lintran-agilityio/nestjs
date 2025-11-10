@@ -1,5 +1,9 @@
 // libs
-import { INestApplication, HttpStatus, BadRequestException } from '@nestjs/common';
+import {
+  INestApplication,
+  HttpStatus,
+  BadRequestException,
+} from '@nestjs/common';
 import { Test } from '@nestjs/testing';
 import * as request from 'supertest';
 import type { Server } from 'http';

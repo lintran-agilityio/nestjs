@@ -24,8 +24,4 @@ export class UpdateAllUsersDto {
   @ValidateNested({ each: true })
   @Type(() => UpdateUserDto)
   users: UpdateUserDto[];
-
-  constructor(partial: Partial<UpdateAllUsersDto>) {
-    Object.assign(this, partial);
-  }
 }

@@ -21,7 +21,7 @@ import {
   mockUuidUser,
   mockingUserResponse,
 } from '@app/shared/mocks';
-import { RedisService } from '@app/shared/modules/cache/redis/redis.service';
+import { CacheAbstractService } from '@app/shared/modules/cache/cache.abstract.service';
 import * as utils from '@app/shared/utils';
 import { UserRole } from '@app/shared/types';
 
@@ -45,7 +45,7 @@ describe('CommentService', () => {
   };
   let userService: { getById: jest.Mock<Promise<User>, [string]> };
   let postService: { getById: jest.Mock<Promise<Post>, [string]> };
-  let redisService: {
+  let cacheService: {
     getKey: jest.Mock;
     setKey: jest.Mock;
     deleteKey: jest.Mock;
@@ -86,7 +86,7 @@ describe('CommentService', () => {
       getMany: jest.fn(),
     };
 
-    redisService = {
+    cacheService = {
       getKey: jest.fn().mockResolvedValue(null),
       setKey: jest.fn().mockResolvedValue(undefined),
       deleteKey: jest.fn().mockResolvedValue(undefined),
@@ -105,7 +105,7 @@ describe('CommentService', () => {
         }),
         { provide: UserService, useValue: { getById: jest.fn() } },
         { provide: PostService, useValue: { getById: jest.fn() } },
-        { provide: RedisService, useValue: redisService },
+        { provide: CacheAbstractService, useValue: cacheService },
         createMockLoggerProvider(),
       ],
     }).compile();
@@ -114,7 +114,7 @@ describe('CommentService', () => {
     commentsRepo = module.get(getRepositoryToken(Comment));
     userService = module.get(UserService);
     postService = module.get(PostService);
-    redisService = module.get(RedisService);
+    cacheService = module.get(CacheAbstractService);
   });
 
   afterEach(() => {
@@ -127,7 +127,7 @@ describe('CommentService', () => {
 
   describe('getCommentById', () => {
     it('throws NotFound when missing', async () => {
-      redisService.getKey.mockResolvedValue(null);
+      cacheService.getKey.mockResolvedValue(null);
       commentsRepo.findOne.mockResolvedValue(null);
       await expect(service.getCommentById('id-1')).rejects.toBeInstanceOf(
         NotFoundException,
@@ -135,13 +135,13 @@ describe('CommentService', () => {
     });
 
     it('returns cached comment when available', async () => {
-      redisService.getKey.mockResolvedValue(mockComment);
+      cacheService.getKey.mockResolvedValue(mockComment);
 
       const result = await service.getCommentById(mockingCommentUuid);
 
       expect(result).toEqual(mockComment);
       expect(commentsRepo.findOne).not.toHaveBeenCalled();
-      expect(redisService.getKey).toHaveBeenCalledWith(
+      expect(cacheService.getKey).toHaveBeenCalledWith(
         `${REDIS_CACHE_KEYS.COMMENTS.BY_ID}:${mockingCommentUuid}`,
       );
     });
@@ -152,13 +152,13 @@ describe('CommentService', () => {
         user: { id: mockUuidUser },
         post: { id: mockingPostUuid },
       } as Partial<Comment>);
-      redisService.getKey.mockResolvedValue(null);
+      cacheService.getKey.mockResolvedValue(null);
       commentsRepo.findOne.mockResolvedValue(comment);
 
       const result = await service.getCommentById(mockingCommentUuid);
 
       expect(result).toBe(comment);
-      expect(redisService.setKey).toHaveBeenCalledWith(
+      expect(cacheService.setKey).toHaveBeenCalledWith(
         `${REDIS_CACHE_KEYS.COMMENTS.BY_ID}:${mockingCommentUuid}`,
         comment,
         TTL_CACHE.COMMENT_BY_ID,
@@ -166,12 +166,12 @@ describe('CommentService', () => {
     });
 
     it('does not cache when comment not found', async () => {
-      redisService.getKey.mockResolvedValue(null);
+      cacheService.getKey.mockResolvedValue(null);
       commentsRepo.findOne.mockResolvedValue(null);
 
       await expect(service.getCommentById('id-1')).rejects.toThrow();
 
-      expect(redisService.setKey).not.toHaveBeenCalled();
+      expect(cacheService.setKey).not.toHaveBeenCalled();
     });
   });
 
@@ -209,10 +209,10 @@ describe('CommentService', () => {
       });
       expect(commentsRepo.save).toHaveBeenCalled();
       expect(result).toEqual(savedComment);
-      expect(redisService.deleteByPattern).toHaveBeenCalledWith(
+      expect(cacheService.deleteByPattern).toHaveBeenCalledWith(
         `${REDIS_CACHE_KEYS.COMMENTS.LIST}:*`,
       );
-      expect(redisService.setKey).toHaveBeenCalledWith(
+      expect(cacheService.setKey).toHaveBeenCalledWith(
         `${REDIS_CACHE_KEYS.COMMENTS.BY_ID}:${savedComment.id}`,
         savedComment,
         TTL_CACHE.COMMENT_BY_ID,
@@ -307,13 +307,13 @@ describe('CommentService', () => {
 
       expect(commentsRepo.save).toHaveBeenCalled();
       expect(result.content).toBe('new');
-      expect(redisService.deleteKey).toHaveBeenCalledWith(
+      expect(cacheService.deleteKey).toHaveBeenCalledWith(
         `${REDIS_CACHE_KEYS.COMMENTS.BY_ID}:${mockingCommentUuid}`,
       );
-      expect(redisService.deleteByPattern).toHaveBeenCalledWith(
+      expect(cacheService.deleteByPattern).toHaveBeenCalledWith(
         `${REDIS_CACHE_KEYS.COMMENTS.LIST}:*`,
       );
-      expect(redisService.setKey).toHaveBeenCalledWith(
+      expect(cacheService.setKey).toHaveBeenCalledWith(
         `${REDIS_CACHE_KEYS.COMMENTS.BY_ID}:${updatedComment.id}`,
         updatedComment,
         TTL_CACHE.COMMENT_BY_ID,
@@ -382,10 +382,10 @@ describe('CommentService', () => {
 
       expect(commentsRepo.remove).toHaveBeenCalledWith(comment);
       expect(result).toEqual({ message: MESSAGES.COMMENT_DELETE_SUCCESS });
-      expect(redisService.deleteKey).toHaveBeenCalledWith(
+      expect(cacheService.deleteKey).toHaveBeenCalledWith(
         `${REDIS_CACHE_KEYS.COMMENTS.BY_ID}:${mockingCommentUuid}`,
       );
-      expect(redisService.deleteByPattern).toHaveBeenCalledWith(
+      expect(cacheService.deleteByPattern).toHaveBeenCalledWith(
         `${REDIS_CACHE_KEYS.COMMENTS.LIST}:*`,
       );
     });
@@ -415,10 +415,10 @@ describe('CommentService', () => {
 
       expect(commentsRepo.remove).toHaveBeenCalledWith(existed);
       expect(result).toEqual({ message: MESSAGES.COMMENT_DELETE_SUCCESS });
-      expect(redisService.deleteKey).toHaveBeenCalledWith(
+      expect(cacheService.deleteKey).toHaveBeenCalledWith(
         `${REDIS_CACHE_KEYS.COMMENTS.BY_ID}:${mockingCommentUuid}`,
       );
-      expect(redisService.deleteByPattern).toHaveBeenCalledWith(
+      expect(cacheService.deleteByPattern).toHaveBeenCalledWith(
         `${REDIS_CACHE_KEYS.COMMENTS.LIST}:*`,
       );
     });
@@ -453,20 +453,20 @@ describe('CommentService', () => {
         data: [mockComment],
         meta: mockingMetadata,
       };
-      redisService.getKey.mockResolvedValue(cachedResult);
+      cacheService.getKey.mockResolvedValue(cachedResult);
 
       const result = await service.getComments({});
 
       expect(result).toEqual(cachedResult);
       expect(queryBuilder.select).not.toHaveBeenCalled();
-      expect(redisService.getKey).toHaveBeenCalledWith(
+      expect(cacheService.getKey).toHaveBeenCalledWith(
         `${REDIS_CACHE_KEYS.COMMENTS.LIST}:${JSON.stringify({})}`,
       );
     });
 
     it('returns paginated comments without filters', async () => {
       const mockData = [mockComment];
-      redisService.getKey.mockResolvedValue(null);
+      cacheService.getKey.mockResolvedValue(null);
       queryBuilder.getManyAndCount.mockResolvedValue([mockData, 1]);
       queryBuilder.orderBy.mockReturnThis();
       queryBuilder.skip.mockReturnThis();
@@ -483,13 +483,13 @@ describe('CommentService', () => {
 
       expect(queryBuilder.leftJoinAndSelect).toHaveBeenCalled();
       expect(queryBuilder.select).toHaveBeenCalled();
-      expect(redisService.setKey).toHaveBeenCalled();
+      expect(cacheService.setKey).toHaveBeenCalled();
       getDataPaginationSpy.mockRestore();
     });
 
     it('filters by postId when provided', async () => {
       const mockData = [mockComment];
-      redisService.getKey.mockResolvedValue(null);
+      cacheService.getKey.mockResolvedValue(null);
       queryBuilder.getManyAndCount.mockResolvedValue([mockData, 1]);
 
       const getDataPaginationSpy = jest.spyOn(utils, 'getDataPagination');
@@ -509,7 +509,7 @@ describe('CommentService', () => {
 
     it('filters by search when provided', async () => {
       const mockData = [mockComment];
-      redisService.getKey.mockResolvedValue(null);
+      cacheService.getKey.mockResolvedValue(null);
       queryBuilder.getManyAndCount.mockResolvedValue([mockData, 1]);
 
       const getDataPaginationSpy = jest.spyOn(utils, 'getDataPagination');
@@ -529,7 +529,7 @@ describe('CommentService', () => {
 
     it('filters by both postId and search when provided', async () => {
       const mockData = [mockComment];
-      redisService.getKey.mockResolvedValue(null);
+      cacheService.getKey.mockResolvedValue(null);
       queryBuilder.getManyAndCount.mockResolvedValue([mockData, 1]);
 
       const getDataPaginationSpy = jest.spyOn(utils, 'getDataPagination');
@@ -548,7 +548,7 @@ describe('CommentService', () => {
     });
 
     it('handles errors when query fails', async () => {
-      redisService.getKey.mockResolvedValue(null);
+      cacheService.getKey.mockResolvedValue(null);
       queryBuilder.getManyAndCount.mockRejectedValue(new Error('query-fail'));
 
       const getDataPaginationSpy = jest.spyOn(utils, 'getDataPagination');
@@ -605,8 +605,8 @@ describe('CommentService', () => {
 
       expect(result.count).toBe(2);
       expect(result.message).toBeDefined();
-      expect(redisService.deleteKey).toHaveBeenCalledTimes(2);
-      expect(redisService.deleteByPattern).toHaveBeenCalledWith(
+      expect(cacheService.deleteKey).toHaveBeenCalledTimes(2);
+      expect(cacheService.deleteByPattern).toHaveBeenCalledWith(
         `${REDIS_CACHE_KEYS.COMMENTS.LIST}:*`,
       );
     });
@@ -627,9 +627,9 @@ describe('CommentService', () => {
 
       expect(result.count).toBe(0);
       expect(result.message).toContain('comment');
-      expect(redisService.deleteKey).not.toHaveBeenCalled();
+      expect(cacheService.deleteKey).not.toHaveBeenCalled();
       // When no comments are found, deleteByPattern is not called since existingComments.length === 0
-      expect(redisService.deleteByPattern).not.toHaveBeenCalled();
+      expect(cacheService.deleteByPattern).not.toHaveBeenCalled();
     });
 
     it('handles empty commentIds array', async () => {
@@ -645,7 +645,7 @@ describe('CommentService', () => {
       // When commentIds is empty, findCommentsByIds returns early without querying
       expect(queryBuilder.where).not.toHaveBeenCalled();
       // When no comments to delete, deleteByPattern is not called
-      expect(redisService.deleteByPattern).not.toHaveBeenCalled();
+      expect(cacheService.deleteByPattern).not.toHaveBeenCalled();
     });
 
     it('handles partial deletion when some comments exist', async () => {
@@ -670,7 +670,7 @@ describe('CommentService', () => {
 
       expect(result.count).toBe(1);
       expect(result.message).toContain('1 comment');
-      expect(redisService.deleteKey).toHaveBeenCalledTimes(1);
+      expect(cacheService.deleteKey).toHaveBeenCalledTimes(1);
     });
 
     it('handles errors when delete fails', async () => {

@@ -78,13 +78,17 @@ describe('AuthController', () => {
   });
 
   describe('refresh', () => {
-    it('should call service and return access token', async () => {
+    it('should call service and return refreshed tokens', async () => {
       authService.refreshTokens.mockResolvedValue({
         accessToken: 'new.access',
+        refreshToken: 'new.refresh',
       });
       const result = await controller.refresh('refresh.token');
       expect(authService.refreshTokens).toHaveBeenCalledWith('refresh.token');
-      expect(result).toEqual({ accessToken: 'new.access' });
+      expect(result).toEqual({
+        accessToken: 'new.access',
+        refreshToken: 'new.refresh',
+      });
     });
   });
 });
