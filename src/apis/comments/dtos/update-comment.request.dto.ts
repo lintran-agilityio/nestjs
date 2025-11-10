@@ -18,8 +18,4 @@ export class UpdateCommentRequestDto {
     message: 'Comment content must not exceed 2000 characters',
   })
   content: string;
-
-  constructor(partial: Partial<UpdateCommentRequestDto>) {
-    Object.assign(this, partial);
-  }
 }

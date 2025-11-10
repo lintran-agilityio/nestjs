@@ -47,3 +47,13 @@ export const chunkArray = <T>(array: T[], chunkSize: number): T[][] => {
   }
   return chunks;
 };
+
+/**
+ * Type guard to ensure value is a plain object
+ */
+export const isPlainObject = (
+  candidate: unknown,
+): candidate is Record<string, unknown> =>
+  candidate !== null &&
+  typeof candidate === 'object' &&
+  !Array.isArray(candidate);

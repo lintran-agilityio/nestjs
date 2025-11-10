@@ -7,6 +7,7 @@ import {
   NotFoundException,
   ForbiddenException,
 } from '@nestjs/common';
+import { instanceToPlain, plainToInstance } from 'class-transformer';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 
@@ -43,10 +44,31 @@ export class UserService {
   private readonly logger: LoggerService;
 
   // Validate cached shapes before use
-  private isValidUser(candidate: unknown): candidate is User {
+  private isValidUser(
+    candidate: unknown,
+  ): candidate is Record<string, unknown> {
     if (!candidate || typeof candidate !== 'object') return false;
     const obj = candidate as Record<string, unknown>;
     return typeof obj.id === 'string' && typeof obj.email === 'string';
+  }
+
+  private async cacheUser(
+    cacheKey: string,
+    user: User,
+    ttl: number,
+  ): Promise<void> {
+    const plainUser = instanceToPlain(user);
+    await this.cacheService.setKey(cacheKey, plainUser, ttl);
+  }
+
+  private isValidUserListResponse(
+    candidate: unknown,
+  ): candidate is UserResponseDto {
+    if (!candidate || typeof candidate !== 'object') {
+      return false;
+    }
+    const obj = candidate as Record<string, unknown>;
+    return Array.isArray(obj.data) && typeof obj.meta === 'object';
   }
 
   constructor(
@@ -79,6 +101,18 @@ export class UserService {
     try {
       this.logger.log(`Query get all users: ${JSON.stringify(queryUrl)}`);
 
+      const cacheKey = `${REDIS_CACHE_KEYS.USERS.LIST}:${JSON.stringify(
+        queryUrl ?? {},
+      )}`;
+      const cached = await this.cacheService.getKey<UserResponseDto>(cacheKey);
+      if (cached && this.isValidUserListResponse(cached)) {
+        this.logger.log('Users list served from cache');
+        return cached;
+      }
+      if (cached) {
+        await this.cacheService.deleteKey(cacheKey);
+      }
+
       const { search } = queryUrl;
 
       // Get select fields for allowed sorting
@@ -104,6 +138,8 @@ export class UserService {
         logger: this.logger,
         entity: 'user',
       });
+
+      await this.cacheService.setKey(cacheKey, result, TTL_CACHE.USERS_LIST);
 
       return result;
     } catch (error) {
@@ -141,11 +177,12 @@ export class UserService {
 
     // Get data from Redis cache
     const cacheKey = `${REDIS_CACHE_KEYS.USERS.BY_EMAIL}:${email}`;
-    const cached = await this.cacheService.getKey<User>(cacheKey);
+    const cached =
+      await this.cacheService.getKey<Record<string, unknown>>(cacheKey);
     if (cached) {
       if (this.isValidUser(cached)) {
         this.logger.log('User by email served from cache');
-        return cached;
+        return plainToInstance(User, cached);
       }
       await this.cacheService.deleteKey(cacheKey);
     }
@@ -162,7 +199,7 @@ export class UserService {
     }
 
     // Cache data into Redis cache
-    await this.cacheService.setKey(cacheKey, user, TTL_CACHE.USER_BY_EMAIL);
+    await this.cacheUser(cacheKey, user, TTL_CACHE.USER_BY_EMAIL);
 
     return user;
   }
@@ -177,11 +214,12 @@ export class UserService {
 
     // Get data from Redis cache
     const cacheKey = `${REDIS_CACHE_KEYS.USERS.BY_ID}:${id}`;
-    const cached = await this.cacheService.getKey<User>(cacheKey);
+    const cached =
+      await this.cacheService.getKey<Record<string, unknown>>(cacheKey);
     if (cached) {
       if (this.isValidUser(cached)) {
         this.logger.log('User by id served from cache');
-        return cached;
+        return plainToInstance(User, cached);
       }
       await this.cacheService.deleteKey(cacheKey);
     }
@@ -192,7 +230,7 @@ export class UserService {
 
     if (user) {
       // Cache data into Redis cache
-      await this.cacheService.setKey(cacheKey, user, TTL_CACHE.USER_BY_ID);
+      await this.cacheUser(cacheKey, user, TTL_CACHE.USER_BY_ID);
     }
 
     return user;
@@ -209,12 +247,13 @@ export class UserService {
 
     // Get data from Redis cache
     const cacheKey = `${REDIS_CACHE_KEYS.USERS.BY_ID}:${id}`;
-    const cached = await this.cacheService.getKey<User>(cacheKey);
-    console.log('cached==========>', cached)
+    const cached =
+      await this.cacheService.getKey<Record<string, unknown>>(cacheKey);
+
     if (cached) {
       if (this.isValidUser(cached)) {
         this.logger.log('User by id served from cache');
-        return cached;
+        return plainToInstance(User, cached);
       }
       await this.cacheService.deleteKey(cacheKey);
     }
@@ -231,9 +270,9 @@ export class UserService {
     }
 
     if (user) {
-      console.log('user', cacheKey, user)
+      console.log('user', cacheKey, user);
       // Cache data into Redis cache
-      await this.cacheService.setKey(cacheKey, user, TTL_CACHE.USER_BY_ID);
+      await this.cacheUser(cacheKey, user, TTL_CACHE.USER_BY_ID);
     }
 
     return user;
@@ -348,7 +387,7 @@ export class UserService {
               `${REDIS_CACHE_KEYS.USERS.BY_EMAIL}:${user.email}`,
             );
           }
-          await this.cacheService.setKey(
+          await this.cacheUser(
             `${REDIS_CACHE_KEYS.USERS.BY_ID}:${user.id}`,
             user,
             TTL_CACHE.USER_BY_ID,
@@ -392,21 +431,21 @@ export class UserService {
     this.logger.log('Updated user by ID...');
 
     const existedUser = await this.getById(id);
+    const previousEmail = existedUser.email;
 
     try {
       const hashedPassword = password
         ? await this.hashingService.hash(updateUserDto.password)
         : existedUser.password;
 
-      const email = updateUserDto.email || existedUser.email;
-
       this.logger.log(
         `Update user by id: ${id} and use update ${JSON.stringify(updateUserDto)}`,
       );
-      const updatedUser = await this.usersRepo.update(id, {
+      const userToSave = this.usersRepo.merge(existedUser, {
         ...updateUserDto,
         password: hashedPassword,
       });
+      const savedUser = await this.usersRepo.save(userToSave);
 
       // Invalidate caches
       await this.cacheService.deleteKey(
@@ -417,28 +456,38 @@ export class UserService {
       );
       // Invalidate email cache (old and possibly new email)
       try {
-        await this.cacheService.deleteKey(
-          `${REDIS_CACHE_KEYS.USERS.BY_EMAIL}:${email}`,
-        );
+        if (previousEmail) {
+          await this.cacheService.deleteKey(
+            `${REDIS_CACHE_KEYS.USERS.BY_EMAIL}:${previousEmail}`,
+          );
+        }
+        if (savedUser.email && savedUser.email !== previousEmail) {
+          await this.cacheService.deleteKey(
+            `${REDIS_CACHE_KEYS.USERS.BY_EMAIL}:${savedUser.email}`,
+          );
+        }
       } catch (cacheErr) {
         this.logger.error(
           `[Cache] - Failed to invalidate email cache in updateById: ${JSON.stringify(cacheErr)}`,
         );
       }
       // Refresh item cache
-      await this.cacheService.setKey(
+      await this.cacheUser(
         `${REDIS_CACHE_KEYS.USERS.BY_ID}:${id}`,
-        updatedUser,
+        savedUser,
         TTL_CACHE.USER_BY_ID,
       );
+      if (savedUser.email) {
+        await this.cacheUser(
+          `${REDIS_CACHE_KEYS.USERS.BY_EMAIL}:${savedUser.email}`,
+          savedUser,
+          TTL_CACHE.USER_BY_EMAIL,
+        );
+      }
 
-      delete existedUser.password;
+      delete savedUser.password;
 
-      return {
-        ...existedUser,
-        ...updateUserDto,
-        id,
-      };
+      return savedUser;
     } catch (error) {
       this.logger.error(`[Error] - update user error ${JSON.stringify(error)}`);
       handleErrorException({
