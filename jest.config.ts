@@ -26,6 +26,7 @@ const config: JestConfigWithTsJest = {
     '!src/modules/**/config/*',
     '!src/scripts/**/*',
     '!src/shared/constants/config.constant.ts',
+    '!src/shared/interfaces/*',
   ],
   coveragePathIgnorePatterns: ['<rootDir>/test/'],
   moduleNameMapper: {
