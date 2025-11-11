@@ -51,14 +51,14 @@ describe('Posts - Modules (e2e)', () => {
   const POSTS_PATH = PATHS.POSTS;
 
   const mockPostService: {
-    getAll: jest.MockedFunction<PostService['getAll']>;
+    getPostsRecently: jest.MockedFunction<PostService['getPostsRecently']>;
     getById: jest.MockedFunction<PostService['getById']>;
     create: jest.MockedFunction<PostService['create']>;
     updateById: jest.MockedFunction<PostService['updateById']>;
     deleteById: jest.MockedFunction<PostService['deleteById']>;
     delete: jest.MockedFunction<PostService['delete']>;
   } = {
-    getAll: jest.fn<
+    getPostsRecently: jest.fn<
       Promise<PostPaginationResponseDto>,
       [QueryPaginationParamDto]
     >(),
@@ -111,7 +111,7 @@ describe('Posts - Modules (e2e)', () => {
 
   describe('GET /api/v1/posts', () => {
     it('should return 200 with paginated posts', async () => {
-      mockPostService.getAll.mockResolvedValueOnce(mockPagination);
+      mockPostService.getPostsRecently.mockResolvedValueOnce(mockPagination);
       const queryParam = {
         page: 1,
         limit: 10,
@@ -131,7 +131,7 @@ describe('Posts - Modules (e2e)', () => {
       expect(body.meta).toBeDefined();
       expect(body.data.length).toBe(1);
       expect(body.meta).toEqual(mockingMetadata);
-      expect(mockPostService.getAll).toHaveBeenCalledWith(
+      expect(mockPostService.getPostsRecently).toHaveBeenCalledWith(
         expect.objectContaining(queryParam),
       );
     });
@@ -142,7 +142,7 @@ describe('Posts - Modules (e2e)', () => {
         .query({ page: 'zero', limit: -1 })
         .expect(HttpStatus.BAD_REQUEST);
 
-      expect(mockPostService.getAll).not.toHaveBeenCalled();
+      expect(mockPostService.getPostsRecently).not.toHaveBeenCalled();
     });
 
     it('should return 400 when query has extra properties', async () => {
@@ -151,7 +151,7 @@ describe('Posts - Modules (e2e)', () => {
         .query({ page: 1, limit: 10, extra: 'x' })
         .expect(HttpStatus.BAD_REQUEST);
 
-      expect(mockPostService.getAll).not.toHaveBeenCalled();
+      expect(mockPostService.getPostsRecently).not.toHaveBeenCalled();
     });
   });
 

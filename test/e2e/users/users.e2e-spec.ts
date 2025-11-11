@@ -51,7 +51,7 @@ describe('Users - Modules (e2e)', () => {
   const USERS_PATH = PATHS.USERS;
 
   const mockUserService: {
-    getAll: jest.MockedFunction<UserService['getAll']>;
+    getUsersRecently: jest.MockedFunction<UserService['getUsersRecently']>;
     getById: jest.MockedFunction<UserService['getById']>;
     getByEmail: jest.MockedFunction<UserService['getByEmail']>;
     getByIdOrEmail: jest.MockedFunction<UserService['getByIdOrEmail']>;
@@ -61,7 +61,7 @@ describe('Users - Modules (e2e)', () => {
     deleteById: jest.MockedFunction<UserService['deleteById']>;
     deletePostById: jest.MockedFunction<UserService['deletePostById']>;
   } = {
-    getAll: jest.fn<Promise<UserResponseDto>, [QueryPaginationParamDto]>(),
+    getUsersRecently: jest.fn<Promise<UserResponseDto>, [QueryPaginationParamDto]>(),
     getById: jest.fn(),
     getByEmail: jest.fn(),
     getByIdOrEmail: jest.fn(),
@@ -76,10 +76,10 @@ describe('Users - Modules (e2e)', () => {
 
   const mockMeta: MetadataResponseDto = mockingMetadata;
 
-  const mockResponse: UserResponseDto = new UserResponseDto({
+  const mockResponse: UserResponseDto = {
     data: mockUsers,
     meta: mockMeta,
-  });
+  };
 
   beforeAll(async () => {
     const moduleRef = await Test.createTestingModule({
@@ -110,7 +110,7 @@ describe('Users - Modules (e2e)', () => {
 
   describe('GET /api/v1/users', () => {
     it('should return 200 with paginated users', async () => {
-      mockUserService.getAll.mockResolvedValueOnce(mockResponse);
+      mockUserService.getUsersRecently.mockResolvedValueOnce(mockResponse);
       const queryParam = {
         page: 1,
         limit: 10,
@@ -130,8 +130,8 @@ describe('Users - Modules (e2e)', () => {
       expect(body.meta).toBeDefined();
       expect(body.data.length).toBe(1);
       expect(body.meta).toEqual(mockMeta);
-      expect(mockUserService.getAll).toHaveBeenCalledTimes(1);
-      expect(mockUserService.getAll).toHaveBeenCalledWith(
+      expect(mockUserService.getUsersRecently).toHaveBeenCalledTimes(1);
+      expect(mockUserService.getUsersRecently).toHaveBeenCalledWith(
         expect.objectContaining(queryParam),
       );
     });
@@ -142,7 +142,7 @@ describe('Users - Modules (e2e)', () => {
         .query({ page: 'zero', limit: -1 })
         .expect(HttpStatus.BAD_REQUEST);
 
-      expect(mockUserService.getAll).not.toHaveBeenCalled();
+      expect(mockUserService.getUsersRecently).not.toHaveBeenCalled();
     });
 
     it('should return 400 when query has extra properties', async () => {
@@ -151,7 +151,7 @@ describe('Users - Modules (e2e)', () => {
         .query({ page: 1, limit: 10, extra: 'not-allowed' })
         .expect(HttpStatus.BAD_REQUEST);
 
-      expect(mockUserService.getAll).not.toHaveBeenCalled();
+      expect(mockUserService.getUsersRecently).not.toHaveBeenCalled();
     });
   });
 

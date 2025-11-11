@@ -47,7 +47,9 @@ describe('Comments - Modules (e2e)', () => {
   const COMMENTS_PATH = PATHS.COMMENTS;
 
   const mockCommentService: {
-    getComments: jest.MockedFunction<CommentService['getComments']>;
+    getCommentsRecently: jest.MockedFunction<
+      CommentService['getCommentsRecently']
+    >;
     getCommentsByPostId: jest.MockedFunction<
       CommentService['getCommentsByPostId']
     >;
@@ -57,7 +59,7 @@ describe('Comments - Modules (e2e)', () => {
     deleteCommentById: jest.MockedFunction<CommentService['deleteCommentById']>;
     deleteComments: jest.MockedFunction<CommentService['deleteComments']>;
   } = {
-    getComments: jest.fn<
+    getCommentsRecently: jest.fn<
       Promise<CommentPaginationResponseDto>,
       [QueryCommentParamDto]
     >(),
@@ -107,7 +109,9 @@ describe('Comments - Modules (e2e)', () => {
 
   describe('GET /api/v1/comments', () => {
     it('should return 200 with paginated comments', async () => {
-      mockCommentService.getComments.mockResolvedValueOnce(mockPagination);
+      mockCommentService.getCommentsRecently.mockResolvedValueOnce(
+        mockPagination,
+      );
       const query = {
         page: 1,
         limit: 10,
@@ -126,7 +130,7 @@ describe('Comments - Modules (e2e)', () => {
       expect(body.meta).toBeDefined();
       expect(body.data.length).toBe(1);
       expect(body.meta).toEqual(mockingMetadata);
-      expect(mockCommentService.getComments).toHaveBeenCalledWith(
+      expect(mockCommentService.getCommentsRecently).toHaveBeenCalledWith(
         expect.objectContaining(query),
       );
     });
@@ -137,7 +141,7 @@ describe('Comments - Modules (e2e)', () => {
         .query({ page: 'zero', limit: -1 })
         .expect(HttpStatus.BAD_REQUEST);
 
-      expect(mockCommentService.getComments).not.toHaveBeenCalled();
+      expect(mockCommentService.getCommentsRecently).not.toHaveBeenCalled();
     });
 
     it('should return 400 when extra field present', async () => {
@@ -146,7 +150,7 @@ describe('Comments - Modules (e2e)', () => {
         .query({ page: 1, limit: 10, extra: 'x' })
         .expect(HttpStatus.BAD_REQUEST);
 
-      expect(mockCommentService.getComments).not.toHaveBeenCalled();
+      expect(mockCommentService.getCommentsRecently).not.toHaveBeenCalled();
     });
   });
 
