@@ -455,7 +455,7 @@ describe('CommentService', () => {
       };
       cacheService.getKey.mockResolvedValue(cachedResult);
 
-      const result = await service.getComments({});
+      const result = await service.getCommentsRecently({});
 
       expect(result).toEqual(cachedResult);
       expect(queryBuilder.select).not.toHaveBeenCalled();
@@ -479,7 +479,7 @@ describe('CommentService', () => {
         meta: mockingMetadata,
       });
 
-      const result = await service.getComments({});
+      const result = await service.getCommentsRecently({});
 
       expect(queryBuilder.leftJoinAndSelect).toHaveBeenCalled();
       expect(queryBuilder.select).toHaveBeenCalled();
@@ -498,7 +498,7 @@ describe('CommentService', () => {
         meta: mockingMetadata,
       });
 
-      await service.getComments({ postId: mockingPostUuid });
+      await service.getCommentsRecently({ postId: mockingPostUuid });
 
       expect(queryBuilder.andWhere).toHaveBeenCalledWith(
         'comment.postId = :postId',
@@ -518,7 +518,7 @@ describe('CommentService', () => {
         meta: mockingMetadata,
       });
 
-      await service.getComments({ search: 'test' });
+      await service.getCommentsRecently({ search: 'test' });
 
       expect(queryBuilder.andWhere).toHaveBeenCalledWith(
         'comment.content ILIKE :search',
@@ -538,7 +538,7 @@ describe('CommentService', () => {
         meta: mockingMetadata,
       });
 
-      await service.getComments({
+      await service.getCommentsRecently({
         postId: mockingPostUuid,
         search: 'test',
       });
@@ -554,7 +554,7 @@ describe('CommentService', () => {
       const getDataPaginationSpy = jest.spyOn(utils, 'getDataPagination');
       getDataPaginationSpy.mockRejectedValue(new Error('query-fail'));
 
-      await expect(service.getComments({})).rejects.toThrow();
+      await expect(service.getCommentsRecently({})).rejects.toThrow();
 
       getDataPaginationSpy.mockRestore();
     });
@@ -709,7 +709,7 @@ describe('CommentService', () => {
         id: mockingPostUuid,
       } as Partial<Post>);
       postService.getById.mockResolvedValue(mockPost);
-      jest.spyOn(service, 'getComments').mockResolvedValue({
+      jest.spyOn(service, 'getCommentsRecently').mockResolvedValue({
         data: [mockComment],
         meta: mockingMetadata,
       });
@@ -717,18 +717,18 @@ describe('CommentService', () => {
       const result = await service.getCommentsByPostId(mockingPostUuid, {});
 
       expect(postService.getById).toHaveBeenCalledWith(mockingPostUuid);
-      expect(service.getComments).toHaveBeenCalledWith({
+      expect(service.getCommentsRecently).toHaveBeenCalledWith({
         postId: mockingPostUuid,
       });
       expect(result.data).toEqual([mockComment]);
     });
 
-    it('passes query params to getComments', async () => {
+    it('passes query params to getCommentsRecently', async () => {
       const mockPost: Post = Object.assign(new Post(), {
         id: mockingPostUuid,
       } as Partial<Post>);
       postService.getById.mockResolvedValue(mockPost);
-      jest.spyOn(service, 'getComments').mockResolvedValue({
+      jest.spyOn(service, 'getCommentsRecently').mockResolvedValue({
         data: [mockComment],
         meta: mockingMetadata,
       });
@@ -736,7 +736,7 @@ describe('CommentService', () => {
       const queryParams = { page: 2, limit: 20 };
       await service.getCommentsByPostId(mockingPostUuid, queryParams);
 
-      expect(service.getComments).toHaveBeenCalledWith({
+      expect(service.getCommentsRecently).toHaveBeenCalledWith({
         ...queryParams,
         postId: mockingPostUuid,
       });
@@ -746,7 +746,7 @@ describe('CommentService', () => {
       postService.getById.mockRejectedValue(
         new NotFoundException(MESSAGES.POST_NOT_FOUND),
       );
-      const getCommentsSpy = jest.spyOn(service, 'getComments');
+      const getCommentsSpy = jest.spyOn(service, 'getCommentsRecently');
 
       await expect(
         service.getCommentsByPostId(mockingPostUuid, {}),

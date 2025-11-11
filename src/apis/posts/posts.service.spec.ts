@@ -2,6 +2,7 @@
 import { Test, TestingModule } from '@nestjs/testing';
 import { getRepositoryToken } from '@nestjs/typeorm';
 import { NotFoundException, BadRequestException } from '@nestjs/common';
+import { Brackets } from 'typeorm';
 
 // Apis
 import { UserService } from '@app/apis/users/users.service';
@@ -93,7 +94,9 @@ describe('PostService', () => {
     };
 
     // Reset all mocks
-    (utils.getSelectFields as jest.Mock) = jest.fn().mockReturnValue(['id', 'title', 'contents', 'slug']);
+    (utils.getSelectFields as jest.Mock) = jest
+      .fn()
+      .mockReturnValue(['id', 'title', 'contents', 'slug']);
     (utils.validateOwnerRole as jest.Mock) = jest.fn();
 
     const module: TestingModule = await Test.createTestingModule({
@@ -304,13 +307,21 @@ describe('PostService', () => {
         slug: 'old-slug',
       };
 
-      const result = await service.updateById(mockUser, mockingPostUuid, updateDto);
+      const result = await service.updateById(
+        mockUser,
+        mockingPostUuid,
+        updateDto,
+      );
 
-      expect(utils.validateOwnerRole).toHaveBeenCalledWith(mockUser, existed, 'authorId');
+      expect(utils.validateOwnerRole).toHaveBeenCalledWith(
+        mockUser,
+        existed,
+        'authorId',
+      );
       expect(postsRepo.save).toHaveBeenCalled();
       expect(result.title).toBe('new');
       expect(result.contents).toBe('new');
-      expect(cacheService.deleteKey).toHaveBeenCalledTimes(2);
+      expect(cacheService.deleteKey).toHaveBeenCalledTimes(3);
       expect(cacheService.deleteByPattern).toHaveBeenCalledWith(
         `${REDIS_CACHE_KEYS.POSTS.LIST}:*`,
       );
@@ -363,7 +374,11 @@ describe('PostService', () => {
 
       const result = await service.deleteById(mockingPostUuid, mockUser);
 
-      expect(utils.validateOwnerRole).toHaveBeenCalledWith(mockUser, existed, 'authorId');
+      expect(utils.validateOwnerRole).toHaveBeenCalledWith(
+        mockUser,
+        existed,
+        'authorId',
+      );
       expect(postsRepo.remove).toHaveBeenCalledWith(existed);
       expect(result).toEqual({ message: MESSAGES.POST_DELETE_SUCCESS });
       expect(cacheService.deleteKey).toHaveBeenCalledTimes(2);
@@ -379,7 +394,9 @@ describe('PostService', () => {
       jest.spyOn(service, 'getById').mockResolvedValue(existed);
       postsRepo.remove.mockRejectedValue(new Error('remove-fail'));
 
-      await expect(service.deleteById(mockingPostUuid, mockUser)).rejects.toThrow();
+      await expect(
+        service.deleteById(mockingPostUuid, mockUser),
+      ).rejects.toThrow();
     });
   });
 
@@ -441,7 +458,7 @@ describe('PostService', () => {
     });
   });
 
-  describe('getAll', () => {
+  describe('getPostsRecently', () => {
     it('returns cached posts when available', async () => {
       const cachedResult = {
         data: [],
@@ -449,7 +466,7 @@ describe('PostService', () => {
       };
       cacheService.getKey.mockResolvedValue(cachedResult);
 
-      const result = await service.getAll({});
+      const result = await service.getPostsRecently({});
 
       expect(result).toBe(cachedResult);
       expect(queryBuilder.select).not.toHaveBeenCalled();
@@ -467,7 +484,7 @@ describe('PostService', () => {
         meta: mockingMetadata,
       });
 
-      const result = await service.getAll({});
+      const result = await service.getPostsRecently({});
 
       expect(queryBuilder.select).toHaveBeenCalled();
       expect(result.data).toEqual([mockPost]);
@@ -487,19 +504,37 @@ describe('PostService', () => {
         meta: mockingMetadata,
       });
 
-      await service.getAll({ search: 'test' });
+      await service.getPostsRecently({ search: 'test' });
 
-      expect(queryBuilder.andWhere).toHaveBeenCalledWith(
-        '(post.title ILIKE :search OR post.contents ILIKE :search)',
+      expect(queryBuilder.andWhere).toHaveBeenCalledTimes(1);
+
+      const [bracketsArg] = queryBuilder.andWhere.mock.calls[0];
+      expect(bracketsArg).toBeInstanceOf(Brackets);
+
+      const whereSpy = jest.fn().mockReturnThis();
+      const orWhereSpy = jest.fn().mockReturnThis();
+
+      (bracketsArg as Brackets).whereFactory({
+        where: whereSpy,
+        orWhere: orWhereSpy,
+      } as any);
+
+      expect(whereSpy).toHaveBeenCalledWith('LOWER(post.title) LIKE :search', {
+        search: '%test%',
+      });
+      expect(orWhereSpy).toHaveBeenCalledWith(
+        'LOWER(post.contents) LIKE :search',
         { search: '%test%' },
       );
     });
 
     it('handles errors when query fails', async () => {
       cacheService.getKey.mockResolvedValue(null);
-      (utils.getDataPagination as jest.Mock).mockRejectedValue(new Error('query-fail'));
+      (utils.getDataPagination as jest.Mock).mockRejectedValue(
+        new Error('query-fail'),
+      );
 
-      await expect(service.getAll({})).rejects.toThrow();
+      await expect(service.getPostsRecently({})).rejects.toThrow();
     });
   });
 
@@ -583,7 +618,7 @@ describe('PostService', () => {
     });
   });
 
-  describe('getAllPostOfUser', () => {
+  describe('getPostsRecentlyPostOfUser', () => {
     it('returns cached posts when available', async () => {
       const cachedResult = {
         data: [],
@@ -623,9 +658,12 @@ describe('PostService', () => {
       const result = await service.getAllPostOfUser(mockUuidUser);
 
       expect(userService.getById).toHaveBeenCalledWith(mockUuidUser);
-      expect(queryBuilder.where).toHaveBeenCalledWith('post.authorId = :userId', {
-        userId: mockUuidUser,
-      });
+      expect(queryBuilder.where).toHaveBeenCalledWith(
+        'post.authorId = :userId',
+        {
+          userId: mockUuidUser,
+        },
+      );
       expect(result.data).toEqual([mockPost]);
       expect(cacheService.setKey).toHaveBeenCalled();
     });
@@ -636,7 +674,9 @@ describe('PostService', () => {
         id: mockUuidUser,
       } as Partial<User>);
       userService.getById.mockResolvedValue(mockUserEntity);
-      (utils.getDataPagination as jest.Mock).mockRejectedValue(new Error('query-fail'));
+      (utils.getDataPagination as jest.Mock).mockRejectedValue(
+        new Error('query-fail'),
+      );
 
       await expect(service.getAllPostOfUser(mockUuidUser)).rejects.toThrow();
     });

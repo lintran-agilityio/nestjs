@@ -65,10 +65,10 @@ export class PostController {
       'Retrieve paginated list of posts with optional search and filtering',
     type: PostPaginationResponseDto,
   })
-  async getAll(
+  async getPostsRecently(
     @Query() paramQueryDto: QueryPaginationParamDto,
   ): Promise<PostPaginationResponseDto> {
-    return await this.postService.getAll(paramQueryDto);
+    return await this.postService.getPostsRecently(paramQueryDto);
   }
 
   /**

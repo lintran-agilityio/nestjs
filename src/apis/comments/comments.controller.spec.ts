@@ -25,7 +25,7 @@ import {
 describe('CommentController', () => {
   let controller: CommentController;
   let commentService: {
-    getComments: jest.Mock<
+    getCommentsRecently: jest.Mock<
       Promise<CommentPaginationResponseDto>,
       [QueryCommentParamDto]
     >;
@@ -63,7 +63,7 @@ describe('CommentController', () => {
 
   beforeEach(async () => {
     commentService = {
-      getComments: jest.fn<
+      getCommentsRecently: jest.fn<
         Promise<CommentPaginationResponseDto>,
         [QueryCommentParamDto]
       >(),
@@ -102,7 +102,7 @@ describe('CommentController', () => {
     expect(controller).toBeDefined();
   });
 
-  it('getComments should delegate', async () => {
+  it('getCommentsRecently should delegate', async () => {
     const mockResponse: CommentPaginationResponseDto = {
       data: [],
       meta: {
@@ -112,11 +112,10 @@ describe('CommentController', () => {
         limit: 10,
       },
     };
-    commentService.getComments.mockResolvedValue(mockResponse);
-    const result: CommentPaginationResponseDto = await controller.getComments(
-      {},
-    );
-    expect(commentService.getComments).toHaveBeenCalled();
+    commentService.getCommentsRecently.mockResolvedValue(mockResponse);
+    const result: CommentPaginationResponseDto =
+      await controller.getCommentsRecently({});
+    expect(commentService.getCommentsRecently).toHaveBeenCalled();
     expect(result).toEqual(mockResponse);
   });
 
@@ -219,10 +218,10 @@ describe('CommentController', () => {
   });
 
   describe('Error handling', () => {
-    it('getComments should propagate service errors', async () => {
+    it('getCommentsRecently should propagate service errors', async () => {
       const error = new BadRequestException('Service error');
-      commentService.getComments.mockRejectedValue(error);
-      await expect(controller.getComments({})).rejects.toThrow(error);
+      commentService.getCommentsRecently.mockRejectedValue(error);
+      await expect(controller.getCommentsRecently({})).rejects.toThrow(error);
     });
 
     it('getCommentsByPostId should propagate service errors', async () => {
@@ -290,12 +289,12 @@ describe('CommentController', () => {
           limit: 10,
         },
       };
-      commentService.getComments.mockResolvedValue(mockResponse);
-      const result = await controller.getComments({});
+      commentService.getCommentsRecently.mockResolvedValue(mockResponse);
+      const result = await controller.getCommentsRecently({});
       expect(result).toEqual(mockResponse);
     });
 
-    it('getComments should handle query params with pagination', async () => {
+    it('getCommentsRecently should handle query params with pagination', async () => {
       const mockResponse: CommentPaginationResponseDto = {
         data: [],
         meta: {
@@ -305,9 +304,9 @@ describe('CommentController', () => {
           limit: 20,
         },
       };
-      commentService.getComments.mockResolvedValue(mockResponse);
-      const result = await controller.getComments({ page: 2, limit: 20 });
-      expect(commentService.getComments).toHaveBeenCalledWith({
+      commentService.getCommentsRecently.mockResolvedValue(mockResponse);
+      const result = await controller.getCommentsRecently({ page: 2, limit: 20 });
+      expect(commentService.getCommentsRecently).toHaveBeenCalledWith({
         page: 2,
         limit: 20,
       });

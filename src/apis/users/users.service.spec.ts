@@ -34,7 +34,10 @@ import { UpdateAllUsersDto } from './dtos';
 describe('UserService', () => {
   let service: UserService;
   let usersRepo: jest.Mocked<Repository<User>>;
-  let postService: { deletePostById: jest.Mock; getAllPostOfUser: jest.Mock };
+  let postService: {
+    deletePostById: jest.Mock;
+    getAllPostOfUser: jest.Mock;
+  };
   let hashing: { hash: jest.Mock; compare: jest.Mock };
   let cacheService: CacheServiceMock;
   let queryBuilder: {
@@ -115,7 +118,7 @@ describe('UserService', () => {
     expect(service).toBeDefined();
   });
 
-  describe('getAll', () => {
+  describe('getUsersRecently', () => {
     it('returns paginated users without search', async () => {
       const mockUser: User = Object.assign(new User(), {
         id: mockUuidUser,
@@ -123,7 +126,7 @@ describe('UserService', () => {
       } as Partial<User>);
       queryBuilder.getManyAndCount.mockResolvedValue([[mockUser], 1]);
 
-      const result = await service.getAll({});
+      const result = await service.getUsersRecently({});
 
       expect(queryBuilder.select).toHaveBeenCalled();
       expect(result.data).toEqual([mockUser]);
@@ -139,7 +142,7 @@ describe('UserService', () => {
       };
       cacheService.getKey.mockResolvedValue(cachedResult);
 
-      const result = await service.getAll({});
+      const result = await service.getUsersRecently({});
 
       expect(result).toEqual(cachedResult);
       expect(queryBuilder.select).not.toHaveBeenCalled();
@@ -152,7 +155,7 @@ describe('UserService', () => {
       } as Partial<User>);
       queryBuilder.getManyAndCount.mockResolvedValue([[mockUser], 1]);
 
-      await service.getAll({ search: 'test' });
+      await service.getUsersRecently({ search: 'test' });
 
       expect(queryBuilder.andWhere).toHaveBeenCalledWith(
         '(user.email ILIKE :search OR user.firstName ILIKE :search OR user.lastName ILIKE :search)',
@@ -163,7 +166,7 @@ describe('UserService', () => {
     it('handles errors when query fails', async () => {
       queryBuilder.getManyAndCount.mockRejectedValue(new Error('query-fail'));
 
-      await expect(service.getAll({})).rejects.toThrow();
+      await expect(service.getUsersRecently({})).rejects.toThrow();
     });
   });
 
@@ -577,7 +580,9 @@ describe('UserService', () => {
 
       const result = await service.getAllPostOfUser(mockUuidUser);
 
-      expect(postService.getAllPostOfUser).toHaveBeenCalledWith(mockUuidUser);
+      expect(postService.getAllPostOfUser).toHaveBeenCalledWith(
+        mockUuidUser,
+      );
       expect(result).toEqual(mockPostResponse);
     });
   });

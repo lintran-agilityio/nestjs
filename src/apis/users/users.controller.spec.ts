@@ -17,7 +17,7 @@ describe('UserController', () => {
 
   beforeEach(async () => {
     userService = {
-      getAll: jest.fn(),
+      getUsersRecently: jest.fn(),
       getByIdOrEmail: jest.fn(),
       updateById: jest.fn(),
       updateAll: jest.fn(),
@@ -44,10 +44,10 @@ describe('UserController', () => {
     expect(controller).toBeDefined();
   });
 
-  it('getUsers should delegate', async () => {
-    userService.getAll.mockResolvedValue({ data: [], total: 0 });
-    const result = await controller.getUsers({});
-    expect(userService.getAll).toHaveBeenCalled();
+  it('getUsersRecently should delegate', async () => {
+    userService.getUsersRecently.mockResolvedValue({ data: [], total: 0 });
+    const result = await controller.getUsersRecently({});
+    expect(userService.getUsersRecently).toHaveBeenCalled();
     expect(result).toEqual({ data: [], total: 0 });
   });
 
@@ -127,7 +127,10 @@ describe('UserController', () => {
 
   it('deletePostById should delegate', async () => {
     userService.deletePostById.mockResolvedValue(undefined);
-    const result = await controller.deletePostById(mockUuidUser, mockingPostUuid);
+    const result = await controller.deletePostById(
+      mockUuidUser,
+      mockingPostUuid,
+    );
     expect(userService.deletePostById).toHaveBeenCalledWith(
       mockUuidUser,
       mockingPostUuid,

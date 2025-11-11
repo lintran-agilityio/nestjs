@@ -18,7 +18,7 @@ import { Post as PostEntities } from './entities';
 describe('PostController', () => {
   let controller: PostController;
   let postService: {
-    getAll: jest.Mock;
+    getPostsRecently: jest.Mock;
     getById: jest.Mock;
     create: jest.Mock;
     updateById: jest.Mock;
@@ -37,7 +37,7 @@ describe('PostController', () => {
 
   beforeEach(async () => {
     postService = {
-      getAll: jest.fn(),
+      getPostsRecently: jest.fn(),
       getById: jest.fn(),
       create: jest.fn(),
       updateById: jest.fn(),
@@ -57,7 +57,7 @@ describe('PostController', () => {
     expect(controller).toBeDefined();
   });
 
-  it('getAll should delegate to service', async () => {
+  it('getPostsRecently should delegate to service', async () => {
     const mockResponse: PostPaginationResponseDto = {
       data: [],
       meta: {
@@ -67,9 +67,9 @@ describe('PostController', () => {
         page: 1,
       },
     };
-    postService.getAll.mockResolvedValue(mockResponse);
-    const result = await controller.getAll({});
-    expect(postService.getAll).toHaveBeenCalledWith({});
+    postService.getPostsRecently.mockResolvedValue(mockResponse);
+    const result = await controller.getPostsRecently({});
+    expect(postService.getPostsRecently).toHaveBeenCalledWith({});
     expect(result).toEqual(mockResponse);
   });
 
