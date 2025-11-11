@@ -8,7 +8,7 @@ import {
   NotFoundException,
 } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
-import { Repository } from 'typeorm';
+import { Brackets, Repository } from 'typeorm';
 
 // App sources
 import { MESSAGES, REDIS_CACHE_KEYS, TTL_CACHE } from '@app/shared/constants';
@@ -61,14 +61,14 @@ export class PostService {
    * @returns Paginated list of posts with metadata
    * @throws InternalServerErrorException on server error
    */
-  async getAll(
+  async getPostsRecently(
     queryUrl: QueryPaginationParamDto,
   ): Promise<PostPaginationResponseDto> {
-    this.logger.log('Get all posts...');
+    this.logger.log(
+      `Get latest posts follow pagination: ${JSON.stringify(queryUrl)}`,
+    );
 
     try {
-      this.logger.log(`Query get all posts: ${JSON.stringify(queryUrl)}`);
-
       // Try cache first using query as part of the key
       const listCacheKey = `${REDIS_CACHE_KEYS.POSTS.LIST}:${JSON.stringify(queryUrl)}`;
       const cached =
@@ -88,10 +88,21 @@ export class PostService {
         .select(selectFields.map((field) => `post.${field}`));
 
       // Search by (title | contents)
-      if (search) {
+      const searchValue = typeof search === 'string' ? search.trim() : '';
+
+      if (searchValue.length > 0) {
+        const normalizedSearch = `%${searchValue.toLowerCase()}%`;
+
         queryBuilder = queryBuilder.andWhere(
-          '(post.title ILIKE :search OR post.contents ILIKE :search)',
-          { search: `%${search}%` },
+          new Brackets((qb) =>
+            qb
+              .where('LOWER(post.title) LIKE :search', {
+                search: normalizedSearch,
+              })
+              .orWhere('LOWER(post.contents) LIKE :search', {
+                search: normalizedSearch,
+              }),
+          ),
         );
       }
 

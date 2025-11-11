@@ -25,6 +25,7 @@ export const processPaginationParams = (
     defaultLimit = 10,
     defaultPage = 1,
     defaultSortField = 'createdAt',
+    defaultOrderBy = OrderBy.ASC,
     allowedSortFields = [],
   } = config;
 
@@ -42,10 +43,12 @@ export const processPaginationParams = (
 
   // Normalize orderBy
   // Typescript now knows 'orderBy' is string | undefined
-  const normalizedOrderBy =
-    typeof orderBy === 'string' && orderBy.toUpperCase() === 'DESC'
-      ? OrderBy.DESC
-      : OrderBy.ASC;
+  let normalizedOrderBy = defaultOrderBy;
+
+  if (typeof orderBy === 'string') {
+    const upperOrderBy = orderBy.toUpperCase();
+    normalizedOrderBy = upperOrderBy === 'DESC' ? OrderBy.DESC : OrderBy.ASC;
+  }
 
   // Validate and set sort field
   let normalizedSortField = defaultSortField;
@@ -146,11 +149,11 @@ export const getDataPagination = async <T>({
     defaultLimit: 10,
     defaultPage: 1,
     defaultSortField: 'createdAt',
+    defaultOrderBy: OrderBy.DESC,
     allowedSortFields: selectFields,
   });
 
   logger.log(`Pagination params: ${JSON.stringify(paginationParams)}`);
-
   // Apply sorting and pagination
   const queryBuilderPagination = applyPaginationToQueryBuilder(
     queryBuilder,

@@ -67,10 +67,10 @@ export class CommentController {
     description: 'Get all comments with pagination and filtering',
     type: CommentPaginationResponseDto,
   })
-  async getComments(
+  async getCommentsRecently(
     @Query() paramQueryDto: QueryCommentParamDto,
   ): Promise<CommentPaginationResponseDto> {
-    return await this.commentService.getComments(paramQueryDto);
+    return await this.commentService.getCommentsRecently(paramQueryDto);
   }
 
   /**

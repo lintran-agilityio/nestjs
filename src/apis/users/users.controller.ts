@@ -62,10 +62,10 @@ export class UserController {
     description: 'Get all users successful',
     type: UserResponseDto,
   })
-  async getUsers(
+  async getUsersRecently(
     @Query() paramQueryDto: QueryPaginationParamDto,
   ): Promise<UserResponseDto> {
-    return await this.userService.getAll(paramQueryDto);
+    return await this.userService.getUsersRecently(paramQueryDto);
   }
 
   /**

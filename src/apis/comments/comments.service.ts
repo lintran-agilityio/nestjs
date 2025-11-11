@@ -68,7 +68,7 @@ export class CommentService {
    * Get all comments with pagination and filtering
    * Supports filtering by postId
    */
-  async getComments(
+  async getCommentsRecently(
     queryUrl: QueryCommentParamDto,
   ): Promise<CommentPaginationResponseDto> {
     this.logger.log('Get all comments...');
@@ -109,10 +109,17 @@ export class CommentService {
       }
 
       // Search by content
-      if (search) {
-        queryBuilder = queryBuilder.andWhere('comment.content ILIKE :search', {
-          search: `%${search}%`,
-        });
+      const searchValue = search?.trim();
+
+      if (searchValue) {
+        const normalizedSearch = `%${searchValue}%`;
+
+        queryBuilder = queryBuilder.andWhere(
+          'comment.content ILIKE :search',
+          {
+            search: normalizedSearch,
+          },
+        );
       }
 
       const result = await getDataPagination<Comment>({
@@ -457,6 +464,6 @@ export class CommentService {
     // Validate post exists
     await this.postService.getById(postId);
 
-    return this.getComments({ ...queryUrl, postId });
+    return this.getCommentsRecently({ ...queryUrl, postId });
   }
 }

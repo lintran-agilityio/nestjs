@@ -95,7 +95,9 @@ export class UserService {
    * @returns Paginated list of users with metadata
    * @throws InternalServerErrorException on server error
    */
-  async getAll(queryUrl: QueryPaginationParamDto): Promise<UserResponseDto> {
+  async getUsersRecently(
+    queryUrl: QueryPaginationParamDto,
+  ): Promise<UserResponseDto> {
     this.logger.log('Get all users...');
 
     try {
@@ -124,10 +126,13 @@ export class UserService {
         .select(selectFields.map((field) => `user.${field}`));
 
       // Search by (email | firstName | lastName)
-      if (search) {
+      const searchValue = search?.trim();
+      if (searchValue) {
+        const normalizedSearch = `%${searchValue}%`;
+
         queryBuilder = queryBuilder.andWhere(
           '(user.email ILIKE :search OR user.firstName ILIKE :search OR user.lastName ILIKE :search)',
-          { search: `%${search}%` },
+          { search: normalizedSearch },
         );
       }
 
