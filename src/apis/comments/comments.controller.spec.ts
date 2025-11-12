@@ -305,7 +305,10 @@ describe('CommentController', () => {
         },
       };
       commentService.getCommentsRecently.mockResolvedValue(mockResponse);
-      const result = await controller.getCommentsRecently({ page: 2, limit: 20 });
+      const result = await controller.getCommentsRecently({
+        page: 2,
+        limit: 20,
+      });
       expect(commentService.getCommentsRecently).toHaveBeenCalledWith({
         page: 2,
         limit: 20,

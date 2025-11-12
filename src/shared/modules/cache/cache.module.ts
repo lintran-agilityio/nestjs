@@ -1,5 +1,10 @@
 // libs
-import { DynamicModule, Module, Provider } from '@nestjs/common';
+import {
+  DynamicModule,
+  Module,
+  ModuleMetadata,
+  Provider,
+} from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { AppLoggerService } from '../logger/logger.service';
 import Redis from 'ioredis';
@@ -16,13 +21,15 @@ export class CacheModule {
     provider: CacheProvider.REDIS | CacheProvider.MEMORY = CacheProvider.REDIS,
   ): DynamicModule {
     const providers: Provider[] = [];
-    const exports: any[] = [CacheAbstractService];
+    const exportsProviders: ModuleMetadata['exports'] = [CacheAbstractService];
 
     const envProvider = (process.env.CACHE_PROVIDER ?? '').toLowerCase();
     const cacheProviders = Object.values(CacheProvider) as string[];
     const normalizedEnvProvider = cacheProviders.find(
       (value) => value === envProvider,
     ) as CacheProvider;
+
+    // Determine final cache provider considering load test mode
     const isLoadTestMode = process.env.LOAD_TEST_MODE === 'true';
 
     const selectedProvider = isLoadTestMode
@@ -57,7 +64,7 @@ export class CacheModule {
           useExisting: RedisService,
         },
       );
-      exports.push(RedisService);
+      exportsProviders.push(RedisService);
     } else {
       // No-op cache service when Redis is disabled
       providers.push({
@@ -69,9 +76,9 @@ export class CacheModule {
     // TODO:Cache with Memory
 
     return {
-      providers,
       module: CacheModule,
-      exports,
+      providers,
+      exports: exportsProviders,
     };
   }
 }

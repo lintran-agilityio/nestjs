@@ -38,7 +38,9 @@ export default class MainSeeder implements Seeder {
     }
 
     // Create test user for load tests with fixed credentials (or use existing)
-    let testUser = await userRepo.findOne({ where: { email: 'lin+01@gmail.com' } });
+    let testUser = await userRepo.findOne({
+      where: { email: 'lin+01@gmail.com' },
+    });
     if (!testUser) {
       testUser = new User();
       testUser.firstName = 'Test';

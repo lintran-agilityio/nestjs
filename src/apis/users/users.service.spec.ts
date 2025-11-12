@@ -111,7 +111,7 @@ describe('UserService', () => {
     usersRepo = module.get(getRepositoryToken(User));
     postService = module.get(PostService);
     hashing = module.get(CUSTOM_PROVIDER_TOKENS.PASSWORD_HASHING_SERVICE);
-    cacheService = module.get(CacheAbstractService) as CacheServiceMock;
+    cacheService = module.get(CacheAbstractService);
   });
 
   it('should be defined', () => {
@@ -580,9 +580,7 @@ describe('UserService', () => {
 
       const result = await service.getAllPostOfUser(mockUuidUser);
 
-      expect(postService.getAllPostOfUser).toHaveBeenCalledWith(
-        mockUuidUser,
-      );
+      expect(postService.getAllPostOfUser).toHaveBeenCalledWith(mockUuidUser);
       expect(result).toEqual(mockPostResponse);
     });
   });

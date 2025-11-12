@@ -204,6 +204,7 @@ export class AuthService {
         TTL_CACHE.REFRESH_TOKEN,
       );
       await this.userService.updateRefreshToken(id, hashedRefreshToken);
+      this.logger.log(`User Login success with: ${email}`);
 
       return {
         accessToken,
@@ -229,6 +230,8 @@ export class AuthService {
   async refreshTokens(
     refreshToken: string,
   ): Promise<{ accessToken: string; refreshToken: string }> {
+    this.logger.warn(`Refresh token request received`);
+
     // Normalize potential line breaks/spaces from transport
     const token = (refreshToken ?? '').toString().replace(/\s+/g, '');
     try {
@@ -262,6 +265,9 @@ export class AuthService {
           });
         }
       } else {
+        this.logger.warn(
+          `No cached refresh token found for user ID: ${payload.id}`,
+        );
         // Fallback to DB stored refresh token if cache is missing
         const user = await this.userService.getUserById(payload.id);
 
@@ -296,6 +302,7 @@ export class AuthService {
         ...sanitizedPayload
       } = payload as Record<string, any>;
 
+      // Generate and hash new tokens
       const newAccessToken = await this.jwtService.signAsync(
         sanitizedPayload as IJwtAuthPayload,
         {
@@ -338,6 +345,7 @@ export class AuthService {
         newHashedRefreshToken,
       );
 
+      this.logger.log(`Refresh token successful for user ID: ${payload.id}`);
       return { accessToken: newAccessToken, refreshToken: newRefreshToken };
     } catch (error) {
       this.logger.error(

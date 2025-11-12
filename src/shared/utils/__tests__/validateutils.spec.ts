@@ -1,7 +1,12 @@
 import { ForbiddenException } from '@nestjs/common';
-import { validateOwnerRole } from '../validateRole.utils';
+import {
+  validateOwnerRole,
+  isValidUser,
+  isValidUserResponse,
+} from '../validate.utils';
 import { IUserInfo, UserRole, UserStatus } from '@app/shared/types';
 import { MESSAGES } from '@app/shared/constants';
+import { UserResponseDto } from '@app/apis/users/dtos';
 
 describe('validateOwnerRole', () => {
   const makeUser = (overrides: Partial<IUserInfo> = {}): IUserInfo => {
@@ -56,5 +61,67 @@ describe('validateOwnerRole', () => {
 
     const result = validateOwnerRole(user, existedPost, 'authorId');
     expect(result).toBe(true);
+  });
+});
+
+describe('isValidUser', () => {
+  const baseUser: IUserInfo = {
+    id: 'user-1',
+    email: 'user@example.com',
+    firstName: 'First',
+    lastName: 'Last',
+    role: UserRole.USER,
+    status: UserStatus.ACTIVE,
+  };
+
+  it('returns true for a well-formed IUserInfo object', () => {
+    expect(isValidUser(baseUser)).toBe(true);
+  });
+
+  it('returns false when required identifiers are missing', () => {
+    expect(
+      isValidUser({
+        ...baseUser,
+        // @ts-expect-error simulate missing email
+        email: undefined,
+      }),
+    ).toBe(false);
+  });
+
+  it('returns false for null or non-object values', () => {
+    expect(isValidUser(null)).toBe(false);
+    expect(isValidUser('not-user' as unknown as IUserInfo)).toBe(false);
+  });
+});
+
+describe('isValidUserResponse', () => {
+  const makeResponse = (overrides: Partial<UserResponseDto> = {}) =>
+    ({
+      data: [],
+      meta: {},
+      ...overrides,
+    }) as unknown as UserResponseDto;
+
+  it('returns true for object containing data array and meta object', () => {
+    expect(isValidUserResponse(makeResponse())).toBe(true);
+  });
+
+  it('returns false when data is not an array', () => {
+    expect(
+      isValidUserResponse(
+        makeResponse({ data: 'invalid' as unknown as any[] }),
+      ),
+    ).toBe(false);
+  });
+
+  it('returns false when meta is not an object', () => {
+    expect(
+      isValidUserResponse(makeResponse({ meta: null as unknown as any })),
+    ).toBe(false);
+  });
+
+  it('returns false for null and primitive values', () => {
+    expect(isValidUserResponse(null)).toBe(false);
+    expect(isValidUserResponse('not-response')).toBe(false);
   });
 });

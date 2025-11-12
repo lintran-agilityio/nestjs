@@ -7,15 +7,15 @@ export const generateDeleteMessage = (
   deletedCount: number,
   notFoundCount: number,
 ): string => {
-  if (deletedCount === 0 && notFoundCount > 0) {
+  if (deletedCount === 0 && notFoundCount) {
     return `No ${entity} were deleted as none were found`;
   }
 
-  if (deletedCount > 0 && notFoundCount === 0) {
+  if (deletedCount && notFoundCount === 0) {
     return `Successfully deleted ${deletedCount} ${entity}${deletedCount === 1 ? '' : 's'}`;
   }
 
-  if (deletedCount > 0 && notFoundCount > 0) {
+  if (deletedCount && notFoundCount) {
     return `Deleted ${deletedCount} ${entity}${deletedCount === 1 ? '' : 's'}, ${notFoundCount} ${entity}${notFoundCount === 1 ? ' was' : 's were'} not found`;
   }
 

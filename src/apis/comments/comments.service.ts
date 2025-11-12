@@ -114,12 +114,9 @@ export class CommentService {
       if (searchValue) {
         const normalizedSearch = `%${searchValue}%`;
 
-        queryBuilder = queryBuilder.andWhere(
-          'comment.content ILIKE :search',
-          {
-            search: normalizedSearch,
-          },
-        );
+        queryBuilder = queryBuilder.andWhere('comment.content ILIKE :search', {
+          search: normalizedSearch,
+        });
       }
 
       const result = await getDataPagination<Comment>({

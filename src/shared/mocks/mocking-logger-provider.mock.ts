@@ -8,7 +8,7 @@ import { AppLoggerService } from '@app/shared/modules/logger/logger.service';
 
 type PartialRepo<T> = Partial<Record<keyof Repository<T> | string, jest.Mock>>;
 
-export function createMockLoggerProvider(): Provider {
+export const createMockLoggerProvider = (): Provider => {
   return {
     provide: AppLoggerService,
     useValue: {
@@ -19,12 +19,12 @@ export function createMockLoggerProvider(): Provider {
       }),
     },
   } satisfies Provider;
-}
+};
 
-export function createRepositoryProvider<T>(
+export const createRepositoryProvider = <T>(
   entity: new () => T,
   overrides?: PartialRepo<T>,
-): Provider {
+): Provider => {
   const defaultRepo: PartialRepo<T> = {
     findOne: jest.fn(),
     find: jest.fn(),
@@ -40,4 +40,4 @@ export function createRepositoryProvider<T>(
     provide: getRepositoryToken(entity),
     useValue: { ...defaultRepo, ...(overrides ?? {}) },
   };
-}
+};

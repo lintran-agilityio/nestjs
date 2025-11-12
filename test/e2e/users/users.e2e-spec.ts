@@ -61,7 +61,10 @@ describe('Users - Modules (e2e)', () => {
     deleteById: jest.MockedFunction<UserService['deleteById']>;
     deletePostById: jest.MockedFunction<UserService['deletePostById']>;
   } = {
-    getUsersRecently: jest.fn<Promise<UserResponseDto>, [QueryPaginationParamDto]>(),
+    getUsersRecently: jest.fn<
+      Promise<UserResponseDto>,
+      [QueryPaginationParamDto]
+    >(),
     getById: jest.fn(),
     getByEmail: jest.fn(),
     getByIdOrEmail: jest.fn(),

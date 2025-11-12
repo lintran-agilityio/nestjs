@@ -1,5 +1,6 @@
 /**
- * Type-safe method to get field value from request body
+ * Safely extracts a field value from a request body while normalising scalars.
+ * Ensures the returned value is a string when possible to simplify downstream validation.
  */
 export const getBodyFieldValue = (
   body: Record<string, unknown>,
@@ -49,7 +50,7 @@ export const chunkArray = <T>(array: T[], chunkSize: number): T[][] => {
 };
 
 /**
- * Type guard to ensure value is a plain object
+ * Type guard to ensure value is a plain object (non-null object literal).
  */
 export const isPlainObject = (
   candidate: unknown,
@@ -57,3 +58,27 @@ export const isPlainObject = (
   candidate !== null &&
   typeof candidate === 'object' &&
   !Array.isArray(candidate);
+
+/**
+ * Mutates a target object with provided partial updates.
+ * Only keys with defined values are applied, preserving falsy values such as `0` or `''`.
+ */
+export const updateObjectFields = <
+  TTarget extends object,
+  TUpdates extends Partial<TTarget>,
+>(
+  existedData: TTarget,
+  paramUpdate: TUpdates,
+): TTarget => {
+  (
+    Object.entries(paramUpdate) as [
+      keyof TTarget,
+      TTarget[keyof TTarget] | undefined,
+    ][]
+  ).forEach(([key, value]) => {
+    if (value !== undefined) {
+      existedData[key] = value;
+    }
+  });
+  return existedData;
+};

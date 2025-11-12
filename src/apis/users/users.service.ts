@@ -25,6 +25,8 @@ import {
   getSelectFields,
   getDataPagination,
   handleErrorException,
+  isValidUserResponse,
+  isValidUser,
 } from '@app/shared/utils';
 import { HashingAbstractService } from '@app/shared/modules/hashing/hashing.abstract.service';
 import { AppLoggerService } from '@app/shared/modules/logger/logger.service';
@@ -43,15 +45,6 @@ import { PostPaginationResponseDto } from '../posts/dtos';
 export class UserService {
   private readonly logger: LoggerService;
 
-  // Validate cached shapes before use
-  private isValidUser(
-    candidate: unknown,
-  ): candidate is Record<string, unknown> {
-    if (!candidate || typeof candidate !== 'object') return false;
-    const obj = candidate as Record<string, unknown>;
-    return typeof obj.id === 'string' && typeof obj.email === 'string';
-  }
-
   private async cacheUser(
     cacheKey: string,
     user: User,
@@ -59,16 +52,6 @@ export class UserService {
   ): Promise<void> {
     const plainUser = instanceToPlain(user);
     await this.cacheService.setKey(cacheKey, plainUser, ttl);
-  }
-
-  private isValidUserListResponse(
-    candidate: unknown,
-  ): candidate is UserResponseDto {
-    if (!candidate || typeof candidate !== 'object') {
-      return false;
-    }
-    const obj = candidate as Record<string, unknown>;
-    return Array.isArray(obj.data) && typeof obj.meta === 'object';
   }
 
   constructor(
@@ -107,7 +90,7 @@ export class UserService {
         queryUrl ?? {},
       )}`;
       const cached = await this.cacheService.getKey<UserResponseDto>(cacheKey);
-      if (cached && this.isValidUserListResponse(cached)) {
+      if (cached && isValidUserResponse(cached)) {
         this.logger.log('Users list served from cache');
         return cached;
       }
@@ -184,8 +167,9 @@ export class UserService {
     const cacheKey = `${REDIS_CACHE_KEYS.USERS.BY_EMAIL}:${email}`;
     const cached =
       await this.cacheService.getKey<Record<string, unknown>>(cacheKey);
+
     if (cached) {
-      if (this.isValidUser(cached)) {
+      if (isValidUser(cached)) {
         this.logger.log('User by email served from cache');
         return plainToInstance(User, cached);
       }
@@ -206,6 +190,7 @@ export class UserService {
     // Cache data into Redis cache
     await this.cacheUser(cacheKey, user, TTL_CACHE.USER_BY_EMAIL);
 
+    this.logger.log(`User fetched by email: ${email}`);
     return user;
   }
 
@@ -222,7 +207,7 @@ export class UserService {
     const cached =
       await this.cacheService.getKey<Record<string, unknown>>(cacheKey);
     if (cached) {
-      if (this.isValidUser(cached)) {
+      if (isValidUser(cached)) {
         this.logger.log('User by id served from cache');
         return plainToInstance(User, cached);
       }
@@ -238,6 +223,7 @@ export class UserService {
       await this.cacheUser(cacheKey, user, TTL_CACHE.USER_BY_ID);
     }
 
+    this.logger.log(`User fetched by id: ${id}`);
     return user;
   }
 
@@ -256,7 +242,7 @@ export class UserService {
       await this.cacheService.getKey<Record<string, unknown>>(cacheKey);
 
     if (cached) {
-      if (this.isValidUser(cached)) {
+      if (isValidUser(cached)) {
         this.logger.log('User by id served from cache');
         return plainToInstance(User, cached);
       }
@@ -279,6 +265,7 @@ export class UserService {
       await this.cacheUser(cacheKey, user, TTL_CACHE.USER_BY_ID);
     }
 
+    this.logger.log(`User fetched by id: ${id}`);
     return user;
   }
 

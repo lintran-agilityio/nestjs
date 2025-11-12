@@ -14,5 +14,3 @@ export class HealthController {
     return { status: 'ok' };
   }
 }
-
-

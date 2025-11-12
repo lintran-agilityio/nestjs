@@ -408,10 +408,7 @@ describe('CommentService', () => {
         lastName: mockingUserResponse.lastName,
       };
 
-      const result = await service.deleteCommentById(
-        mockingCommentUuid,
-        user,
-      );
+      const result = await service.deleteCommentById(mockingCommentUuid, user);
 
       expect(commentsRepo.remove).toHaveBeenCalledWith(existed);
       expect(result).toEqual({ message: MESSAGES.COMMENT_DELETE_SUCCESS });

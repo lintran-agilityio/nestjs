@@ -7,20 +7,21 @@ import {
 } from '@nestjs/common';
 import { Reflector } from '@nestjs/core';
 import { Observable } from 'rxjs';
+import type { Request } from 'express';
 import { UserRole } from '../types';
 import { MESSAGES } from '../constants';
 import { handleErrorException } from '../utils/error.utils';
 
-interface AuthenticatedRequest extends Request {
+type AuthenticatedRequest = Request<
+  Record<string, string | undefined>,
+  unknown,
+  Record<string, unknown>
+> & {
   user?: {
     id: string;
     role: UserRole;
   };
-  params: {
-    id: string;
-  };
-  body: any;
-}
+};
 
 @Injectable()
 export class OwnUserGuard implements CanActivate {
@@ -30,7 +31,7 @@ export class OwnUserGuard implements CanActivate {
     context: ExecutionContext,
   ): boolean | Promise<boolean> | Observable<boolean> {
     const request = context.switchToHttp().getRequest<AuthenticatedRequest>();
-    const user = request.user;
+    const { user, body, params } = request;
 
     if (!user) {
       handleErrorException({
@@ -50,19 +51,33 @@ export class OwnUserGuard implements CanActivate {
       [context.getHandler(), context.getClass()],
     );
 
-    let targetId: string;
+    let targetId: string | undefined;
 
     if (ownershipField) {
       // Check ownership field in request body (for POST/PUT requests)
-      targetId = request.body?.[ownershipField];
+      const ownershipBodyField = body?.[ownershipField];
+      if (typeof ownershipBodyField === 'string') {
+        targetId = ownershipBodyField;
+      }
 
       // If not found in body, check URL params (for GET/DELETE requests)
       if (!targetId) {
-        targetId = request.params?.[ownershipField] || request.params?.id;
+        const ownershipParamField = params?.[ownershipField];
+        if (typeof ownershipParamField === 'string') {
+          targetId = ownershipParamField;
+        } else {
+          const paramId = params?.id;
+          if (typeof paramId === 'string') {
+            targetId = paramId;
+          }
+        }
       }
     } else {
       // Default behavior: check URL params id
-      targetId = request.params?.id;
+      const paramId = params?.id;
+      if (typeof paramId === 'string') {
+        targetId = paramId;
+      }
     }
 
     if (!targetId) {

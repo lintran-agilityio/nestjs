@@ -21,6 +21,7 @@ import {
   getDataPagination,
   handleErrorException,
   validateOwnerRole,
+  updateObjectFields,
 } from '@app/shared/utils';
 import { AppLoggerService } from '@app/shared/modules/logger/logger.service';
 import { CacheAbstractService } from '@app/shared/modules/cache/cache.abstract.service';
@@ -90,7 +91,7 @@ export class PostService {
       // Search by (title | contents)
       const searchValue = typeof search === 'string' ? search.trim() : '';
 
-      if (searchValue.length > 0) {
+      if (searchValue.length) {
         const normalizedSearch = `%${searchValue.toLowerCase()}%`;
 
         queryBuilder = queryBuilder.andWhere(
@@ -142,6 +143,7 @@ export class PostService {
    */
   async getBySlug(slug: string): Promise<Post | null> {
     this.logger.log(`Get post by Id - ${slug}...`);
+
     // Try cache first
     const slugCacheKey = `${REDIS_CACHE_KEYS.POSTS.BY_SLUG}:${slug}`;
     const cached = await this.cacheService.getKey<Post>(slugCacheKey);
@@ -162,6 +164,7 @@ export class PostService {
       );
     }
 
+    this.logger.log(`Post fetched by slug: ${slug}`);
     return post;
   }
 
@@ -198,6 +201,7 @@ export class PostService {
       await this.cacheService.setKey(idCacheKey, post, TTL_CACHE.POST_BY_ID);
     }
 
+    this.logger.log(`Post fetched by id: ${id}`);
     return post;
   }
 
@@ -231,6 +235,7 @@ export class PostService {
         ...postDto,
         authorId,
       });
+
       // Invalidate list caches and set item caches
       await this.cacheService.deleteByPattern(
         `${REDIS_CACHE_KEYS.POSTS.LIST}:*`,
@@ -245,6 +250,8 @@ export class PostService {
         newPost,
         TTL_CACHE.POST_BY_SLUG,
       );
+
+      this.logger.log(`Post created successfully: ${newPost.id}`);
       return newPost;
     } catch (error) {
       this.logger.error(`
@@ -305,19 +312,10 @@ export class PostService {
 
     if (existedPost) {
       try {
-        if (title) {
-          existedPost.title = title;
-        }
+        // Merge only defined fields from the request into the existing entity instance
+        const postUpdating = updateObjectFields(existedPost, updateDto);
 
-        if (contents) {
-          existedPost.contents = contents;
-        }
-
-        if (slug) {
-          existedPost.slug = slug;
-        }
-
-        const saved = await this.postsRepo.save(existedPost);
+        const saved = await this.postsRepo.save(postUpdating);
 
         this.logger.log(`Post id - ${id} have update by ${user.role}`);
 
@@ -604,6 +602,7 @@ export class PostService {
       // Cache the result
       await this.cacheService.setKey(cacheKey, result, TTL_CACHE.POSTS_LIST);
 
+      this.logger.log(`Fetched all posts of user ${userId} successfully`);
       return result;
     } catch (error) {
       this.logger.error(

@@ -70,6 +70,7 @@ export class RedisService extends CacheAbstractService {
   }
 
   async deleteAll(): Promise<void> {
+    this.log(`Delete all cache`);
     await this.client.flushall();
   }
 }
