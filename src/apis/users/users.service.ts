@@ -27,6 +27,8 @@ import {
   handleErrorException,
   isValidUserResponse,
   isValidUser,
+  validOwnerShip,
+  updateObjectFields,
 } from '@app/shared/utils';
 import { HashingAbstractService } from '@app/shared/modules/hashing/hashing.abstract.service';
 import { AppLoggerService } from '@app/shared/modules/logger/logger.service';
@@ -285,37 +287,23 @@ export class UserService {
 
     // Check if identifier is a UUID
     if (REGEX.UUID_ANY.test(identifier)) {
-      // For UUID, check ownership if current user is provided
-      if (currentUser && currentUser.role !== UserRole.ADMIN) {
-        // Non-admin users can only access their own profile
-        if (currentUser.id !== identifier) {
-          this.logger.error(
-            `User ${currentUser.id} attempted to access UUID ${identifier}`,
-          );
-          handleErrorException({
-            defaultMessage: MESSAGES.NO_PERMISSION,
-            ExceptionClass: ForbiddenException,
-          });
-        }
-      }
+      validOwnerShip({
+        currentUser,
+        value: identifier,
+        field: 'id',
+        logger: this.logger,
+      });
       return this.getById(identifier);
     }
 
     // Check if identifier is an email
     if (REGEX.EMAIL.test(identifier)) {
-      // For email, check ownership manually
-      if (currentUser && currentUser.role !== UserRole.ADMIN) {
-        // Non-admin users can only access their own email
-        if (currentUser.email !== identifier) {
-          this.logger.error(
-            `User ${currentUser.id} attempted to access email ${identifier}`,
-          );
-          handleErrorException({
-            defaultMessage: MESSAGES.NO_PERMISSION,
-            ExceptionClass: ForbiddenException,
-          });
-        }
-      }
+      validOwnerShip({
+        currentUser,
+        value: identifier,
+        field: 'email',
+        logger: this.logger,
+      });
       return this.getByEmail(identifier);
     }
 
@@ -363,7 +351,7 @@ export class UserService {
           payload.password = await this.hashingService.hash(password);
         }
 
-        const userUpdating = this.usersRepo.merge(existingUser, payload);
+        const userUpdating = updateObjectFields(existingUser, payload);
         const userUpdated = await this.usersRepo.save(userUpdating);
         updatedUsers.push(userUpdated);
       }
@@ -438,12 +426,13 @@ export class UserService {
       this.logger.log(
         `Update user by id: ${id} and use update ${JSON.stringify(updateUserDto)}`,
       );
-      const userToSave = this.usersRepo.merge(existedUser, {
+
+      const userUpdating = updateObjectFields(existedUser, {
         ...updateUserDto,
         password: hashedPassword,
       });
-      const savedUser = await this.usersRepo.save(userToSave);
-
+      const savedUser = await this.usersRepo.save(userUpdating);
+      const { email } = savedUser;
       // Invalidate caches
       await this.cacheService.deleteKey(
         `${REDIS_CACHE_KEYS.USERS.BY_ID}:${id}`,
@@ -451,6 +440,7 @@ export class UserService {
       await this.cacheService.deleteByPattern(
         `${REDIS_CACHE_KEYS.USERS.LIST}:*`,
       );
+
       // Invalidate email cache (old and possibly new email)
       try {
         if (previousEmail) {
@@ -458,9 +448,9 @@ export class UserService {
             `${REDIS_CACHE_KEYS.USERS.BY_EMAIL}:${previousEmail}`,
           );
         }
-        if (savedUser.email && savedUser.email !== previousEmail) {
+        if (email && email !== previousEmail) {
           await this.cacheService.deleteKey(
-            `${REDIS_CACHE_KEYS.USERS.BY_EMAIL}:${savedUser.email}`,
+            `${REDIS_CACHE_KEYS.USERS.BY_EMAIL}:${email}`,
           );
         }
       } catch (cacheErr) {
@@ -474,9 +464,9 @@ export class UserService {
         savedUser,
         TTL_CACHE.USER_BY_ID,
       );
-      if (savedUser.email) {
+      if (email) {
         await this.cacheUser(
-          `${REDIS_CACHE_KEYS.USERS.BY_EMAIL}:${savedUser.email}`,
+          `${REDIS_CACHE_KEYS.USERS.BY_EMAIL}:${email}`,
           savedUser,
           TTL_CACHE.USER_BY_EMAIL,
         );

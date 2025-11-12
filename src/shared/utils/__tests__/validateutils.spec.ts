@@ -3,6 +3,7 @@ import {
   validateOwnerRole,
   isValidUser,
   isValidUserResponse,
+  validOwnerShip,
 } from '../validate.utils';
 import { IUserInfo, UserRole, UserStatus } from '@app/shared/types';
 import { MESSAGES } from '@app/shared/constants';
@@ -82,8 +83,7 @@ describe('isValidUser', () => {
     expect(
       isValidUser({
         ...baseUser,
-        // @ts-expect-error simulate missing email
-        email: undefined,
+        email: undefined as unknown as string,
       }),
     ).toBe(false);
   });
@@ -123,5 +123,81 @@ describe('isValidUserResponse', () => {
   it('returns false for null and primitive values', () => {
     expect(isValidUserResponse(null)).toBe(false);
     expect(isValidUserResponse('not-response')).toBe(false);
+  });
+});
+
+describe('validOwnerShip', () => {
+  const baseUser: IUserInfo = {
+    id: 'user-123',
+    email: 'user@example.com',
+    firstName: 'First',
+    lastName: 'Last',
+    role: UserRole.USER,
+    status: UserStatus.ACTIVE,
+  };
+
+  const makeLogger = () => ({ error: jest.fn() });
+
+  it('returns early when no current user is provided', () => {
+    const logger = makeLogger();
+
+    expect(() =>
+      validOwnerShip({
+        currentUser: undefined,
+        value: 'user-123',
+        field: 'id',
+        logger,
+      }),
+    ).not.toThrow();
+
+    expect(logger.error).not.toHaveBeenCalled();
+  });
+
+  it('allows admins to proceed without logging', () => {
+    const logger = makeLogger();
+    const adminUser = { ...baseUser, role: UserRole.ADMIN };
+
+    expect(() =>
+      validOwnerShip({
+        currentUser: adminUser,
+        value: 'any-id',
+        field: 'id',
+        logger,
+      }),
+    ).not.toThrow();
+
+    expect(logger.error).not.toHaveBeenCalled();
+  });
+
+  it('throws ForbiddenException and logs when user does not own the resource', () => {
+    const logger = makeLogger();
+
+    expect(() =>
+      validOwnerShip({
+        currentUser: baseUser,
+        value: 'different-user',
+        field: 'id',
+        logger,
+      }),
+    ).toThrow(ForbiddenException);
+
+    expect(logger.error).toHaveBeenCalledWith(
+      'User user-123 attempted to access id different-user',
+    );
+  });
+
+  it('does not error when user owns the resource via email', () => {
+    const logger = makeLogger();
+
+    expect(() =>
+      validOwnerShip({
+        currentUser: baseUser,
+        value: baseUser.email,
+        field: 'email',
+        logger,
+      }),
+    ).not.toThrow();
+
+    expect(logger.error).not.toHaveBeenCalled();
   });
 });

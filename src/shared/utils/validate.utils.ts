@@ -1,7 +1,7 @@
 // Libs
 import { ForbiddenException } from '@nestjs/common';
 
-import { IUserInfo, UserRole } from '../types';
+import { IUserInfo, UserRole, ValidOwnerShipParamsType } from '../types';
 import { handleErrorException } from './error.utils';
 import { MESSAGES } from '../constants';
 import { UserResponseDto } from '@app/apis/users/dtos';
@@ -42,7 +42,35 @@ export const isValidUserResponse = (data: unknown): data is UserResponseDto => {
     return false;
   }
   const obj = data as Record<string, unknown>;
-  return Array.isArray(obj.data) && typeof obj.meta === 'object';
+  const meta = obj.meta;
+  return Array.isArray(obj.data) && typeof meta === 'object' && meta !== null;
 };
 
+/**
+ * Ensures the authenticated user owns the requested resource or has admin privileges.
+ * Logs the unauthorized attempt before delegating to `handleErrorException` to raise a 403.
+ *
+ * @throws ForbiddenException when a non-admin user attempts to access another user's resource.
+ */
+export const validOwnerShip = ({
+  currentUser,
+  value,
+  field,
+  logger,
+}: ValidOwnerShipParamsType) => {
+  if (!currentUser || currentUser.role === UserRole.ADMIN) return;
 
+  const ownsResource =
+    (field === 'id' && currentUser.id === value) ||
+    (field === 'email' && currentUser.email === value);
+
+  if (!ownsResource) {
+    logger.error(
+      `User ${currentUser.id} attempted to access ${field} ${value}`,
+    );
+    handleErrorException({
+      defaultMessage: MESSAGES.NO_PERMISSION,
+      ExceptionClass: ForbiddenException,
+    });
+  }
+};

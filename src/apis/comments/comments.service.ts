@@ -134,6 +134,7 @@ export class CommentService {
         TTL_CACHE.COMMENTS_LIST,
       );
 
+      this.logger.log('Fetched all comments successfully');
       return result;
     } catch (error) {
       this.logger.error(
@@ -195,6 +196,7 @@ export class CommentService {
       TTL_CACHE.COMMENT_BY_ID,
     );
 
+    this.logger.log(`Fetched comment ${id} successfully`);
     return comment;
   }
 
@@ -238,6 +240,7 @@ export class CommentService {
         TTL_CACHE.COMMENT_BY_ID,
       );
 
+      this.logger.log(`Comment ${savedComment.id} cached successfully`);
       return savedComment;
     } catch (error) {
       this.logger.error(
@@ -296,6 +299,8 @@ export class CommentService {
         TTL_CACHE.COMMENT_BY_ID,
       );
 
+      this.logger.log(`Comment ${id} cache updated successfully`);
+
       return updatedComment;
     } catch (error) {
       this.logger.error(
@@ -347,6 +352,7 @@ export class CommentService {
         `${REDIS_CACHE_KEYS.COMMENTS.LIST}:*`,
       );
 
+      this.logger.log(`Comment ${id} cache invalidated successfully`);
       return { message: MESSAGES.COMMENT_DELETE_SUCCESS };
     } catch (error) {
       this.logger.error(
@@ -438,6 +444,7 @@ export class CommentService {
    * Uses TypeScript generics for type safety
    */
   private async findCommentsByIds(commentIds: string[]): Promise<Comment[]> {
+    this.logger.log(`Finding comments by IDs: ${JSON.stringify(commentIds)}`);
     if (commentIds.length === 0) {
       return [];
     }
