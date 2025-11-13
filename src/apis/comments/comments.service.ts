@@ -89,7 +89,7 @@ export class CommentService {
         return cached;
       }
 
-      const { search, postId } = queryUrl;
+      const { search = '', postId } = queryUrl;
 
       // Get select fields from config
       const selectFields = getSelectFields(COMMENT_SELECT_FIELDS);
@@ -109,7 +109,7 @@ export class CommentService {
       }
 
       // Search by content
-      const searchValue = search?.trim();
+      const searchValue = search.trim();
 
       if (searchValue) {
         const normalizedSearch = `%${searchValue}%`;

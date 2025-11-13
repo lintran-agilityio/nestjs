@@ -1,6 +1,5 @@
 export const MESSAGES = {
   INVALID_CREDENTIALS: 'Invalid password!',
-  INVALID_REFRESH_TOKEN: 'Invalid refresh token',
   PERMISSION_DEFINED: 'Permission defined',
   SERVER_ERROR: 'Internal server error',
   BAD_REQUEST: 'Bad request on your params',

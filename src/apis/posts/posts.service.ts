@@ -38,6 +38,7 @@ import {
   UpdatePostRequestDto,
 } from './dtos';
 import { Post } from './entities';
+
 @Injectable()
 export class PostService {
   private readonly logger: LoggerService;
@@ -79,7 +80,7 @@ export class PostService {
         return cached;
       }
 
-      const { search } = queryUrl;
+      const { search = '' } = queryUrl;
 
       // Get select fields
       const selectFields = getSelectFields(POST_SELECT_FIELDS);
@@ -89,7 +90,7 @@ export class PostService {
         .select(selectFields.map((field) => `post.${field}`));
 
       // Search by (title | contents)
-      const searchValue = typeof search === 'string' ? search.trim() : '';
+      const searchValue = search.trim();
 
       if (searchValue.length) {
         const normalizedSearch = `%${searchValue.toLowerCase()}%`;
@@ -122,6 +123,7 @@ export class PostService {
         TTL_CACHE.POSTS_LIST,
       );
 
+      this.logger.log('Fetched posts list successfully');
       return result;
     } catch (error) {
       this.logger.error(
@@ -279,7 +281,7 @@ export class PostService {
     updateDto: UpdatePostRequestDto,
   ): Promise<Post> {
     const existedPost = await this.getById(id);
-    const { slug, title, contents } = updateDto || {};
+    const { slug } = updateDto || {};
     const previousSlug = existedPost?.slug;
 
     // Validate ownership role
@@ -290,7 +292,7 @@ export class PostService {
     );
 
     // Ensure there is at least one field to update
-    if (!updateDto || (!slug && !title && !contents)) {
+    if (!updateDto || !Object.keys(updateDto).length) {
       handleErrorException({
         defaultMessage: MESSAGES.INVALID_REQUEST_BODY,
         ExceptionClass: BadRequestException,

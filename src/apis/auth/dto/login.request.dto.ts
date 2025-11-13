@@ -1,19 +1,9 @@
 // Libs
 import { ApiProperty } from '@nestjs/swagger';
-import {
-  IsEmail,
-  IsNotEmpty,
-  IsString,
-  IsStrongPassword,
-  Matches,
-  MaxLength,
-  MinLength,
-} from 'class-validator';
+import { IsEmail, IsNotEmpty, IsString, Matches } from 'class-validator';
 
 // App sources
-import { REGEX, VALIDATION_RULES } from '@app/shared/constants';
-
-const { PASSWORD } = VALIDATION_RULES;
+import { REGEX } from '@app/shared/constants';
 
 /**
  * DTO for user login request

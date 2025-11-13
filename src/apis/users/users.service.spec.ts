@@ -456,13 +456,11 @@ describe('UserService', () => {
       const result = await service.updateById('u1', { password: 'new' });
 
       expect(hashing.hash).toHaveBeenCalledWith('new');
-      expect(usersRepo.merge).toHaveBeenCalledWith(
-        existingUser,
-        expect.objectContaining({ password: 'hashed' }),
-      );
-      expect(usersRepo.save).toHaveBeenCalledWith(
-        expect.objectContaining({ password: 'hashed' }),
-      );
+      const [savedArg] = (usersRepo.save as jest.Mock).mock.calls[0];
+      expect(savedArg).toBe(existingUser);
+      expect(savedArg).toMatchObject({
+        password: 'hashed',
+      });
       expect(result).toMatchObject({
         id: mockingUser.id,
         email: mockingUser.email,
