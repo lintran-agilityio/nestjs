@@ -32,7 +32,12 @@ import {
   RegisterRequestDto,
   RegisterResponseDto,
 } from './dto';
-import { handleErrorException } from '@app/shared/utils';
+import {
+  handleErrorException,
+  validHashingRefreshToken,
+} from '@app/shared/utils';
+
+const { USER_INVALID_REFRESH_TOKEN } = MESSAGES;
 
 @Injectable()
 export class AuthService {
@@ -251,48 +256,36 @@ export class AuthService {
 
       if (cachedHashedRefreshToken) {
         // Validate cache token
-        const isCachedValid = await this.hashingService.compare(
+        await validHashingRefreshToken({
           token,
-          cachedHashedRefreshToken,
-        );
-
-        if (!isCachedValid) {
-          this.logger.error(MESSAGES.INVALID_REFRESH_TOKEN);
-
-          handleErrorException({
-            defaultMessage: MESSAGES.USER_INVALID_REFRESH_TOKEN,
-            ExceptionClass: UnauthorizedException,
-          });
-        }
+          refreshToken: cachedHashedRefreshToken,
+          hashingService: this.hashingService,
+          logger: this.logger,
+        });
       } else {
         this.logger.warn(
           `No cached refresh token found for user ID: ${payload.id}`,
         );
         // Fallback to DB stored refresh token if cache is missing
         const user = await this.userService.getUserById(payload.id);
+        const { refreshToken } = user || {};
 
-        if (!user || !user.refreshToken) {
-          this.logger.error(MESSAGES.INVALID_REFRESH_TOKEN);
+        if (!user || !refreshToken) {
+          this.logger.error(USER_INVALID_REFRESH_TOKEN);
 
           handleErrorException({
-            defaultMessage: MESSAGES.USER_INVALID_REFRESH_TOKEN,
+            defaultMessage: USER_INVALID_REFRESH_TOKEN,
             ExceptionClass: UnauthorizedException,
           });
         }
 
-        const isValid = await this.hashingService.compare(
+        // Validate cache token
+        await validHashingRefreshToken({
           token,
-          user.refreshToken,
-        );
-
-        if (!isValid) {
-          this.logger.error(MESSAGES.INVALID_REFRESH_TOKEN);
-
-          handleErrorException({
-            defaultMessage: MESSAGES.USER_INVALID_REFRESH_TOKEN,
-            ExceptionClass: UnauthorizedException,
-          });
-        }
+          refreshToken: refreshToken,
+          hashingService: this.hashingService,
+          logger: this.logger,
+        });
       }
 
       // Strip time-based fields from incoming payload before re-signing
