@@ -397,7 +397,7 @@ export class CommentService {
       const deletedIds: string[] = [];
 
       // Delete comments in batches for better performance
-      if (existingComments.length > 0) {
+      if (existingComments.length) {
         const deleteResult = await deleteItemsInArray({
           items: existingComments,
           itemRepository: this.commentsRepo,
