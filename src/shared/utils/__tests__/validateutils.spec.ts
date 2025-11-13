@@ -1,12 +1,19 @@
-import { ForbiddenException } from '@nestjs/common';
+import type { LoggerService } from '@nestjs/common';
+import { ForbiddenException, UnauthorizedException } from '@nestjs/common';
 import {
   validateOwnerRole,
   isValidUser,
   isValidUserResponse,
   validOwnerShip,
+  validHashingRefreshToken,
+  isValidUserCache,
+  validateCacheEmail,
 } from '../validate.utils';
+import type { HashingAbstractService } from '@app/shared/modules/hashing/hashing.abstract.service';
+import type { CacheAbstractService } from '@app/shared/modules/cache/cache.abstract.service';
+import { User } from '@app/apis/users/entities';
 import { IUserInfo, UserRole, UserStatus } from '@app/shared/types';
-import { MESSAGES } from '@app/shared/constants';
+import { MESSAGES, REDIS_CACHE_KEYS } from '@app/shared/constants';
 import { UserResponseDto } from '@app/apis/users/dtos';
 
 describe('validateOwnerRole', () => {
@@ -199,5 +206,225 @@ describe('validOwnerShip', () => {
     ).not.toThrow();
 
     expect(logger.error).not.toHaveBeenCalled();
+  });
+});
+
+describe('isValidUserCache', () => {
+  const cacheKey = 'user-cache-key';
+
+  const makeDeps = () => {
+    const cacheService: jest.Mocked<
+      Pick<CacheAbstractService, 'getKey' | 'deleteKey'>
+    > = {
+      getKey: jest.fn(),
+      deleteKey: jest.fn(),
+    };
+
+    const logger: jest.Mocked<Pick<LoggerService, 'log' | 'error'>> = {
+      log: jest.fn(),
+      error: jest.fn(),
+    };
+
+    return { cacheService, logger };
+  };
+
+  it('returns user instance from cache when payload is valid', async () => {
+    const { cacheService, logger } = makeDeps();
+    const cachedPayload = { id: 'user-123', email: 'cached@example.com' };
+    cacheService.getKey.mockResolvedValue(cachedPayload);
+
+    const result = await isValidUserCache({
+      cacheKey,
+      cacheService,
+      logger,
+      identifier: 'email',
+      entity: User,
+      validator: isValidUser,
+    });
+
+    expect(result).toBeInstanceOf(User);
+    expect(result?.id).toBe('user-123');
+    expect(logger.log).toHaveBeenCalledWith('User by email served from cache');
+    expect(cacheService.deleteKey).not.toHaveBeenCalled();
+  });
+
+  it('evicts invalid cache entries and returns null', async () => {
+    const { cacheService, logger } = makeDeps();
+    cacheService.getKey.mockResolvedValue({ some: 'invalid' });
+
+    const result = await isValidUserCache({
+      cacheKey,
+      cacheService,
+      logger,
+      identifier: 'email',
+      entity: User,
+      validator: isValidUser,
+    });
+
+    expect(result).toBeNull();
+    expect(logger.error).toHaveBeenCalledWith(
+      `Cached user data for key ${cacheKey} is invalid. Clearing cache.`,
+    );
+    expect(cacheService.deleteKey).toHaveBeenCalledWith(cacheKey);
+  });
+
+  it('returns null without logging when cache is empty', async () => {
+    const { cacheService, logger } = makeDeps();
+    cacheService.getKey.mockResolvedValue(null);
+
+    const result = await isValidUserCache({
+      cacheKey,
+      cacheService,
+      logger,
+      entity: User,
+      validator: isValidUser,
+    });
+
+    expect(result).toBeNull();
+    expect(logger.log).not.toHaveBeenCalled();
+    expect(logger.error).not.toHaveBeenCalled();
+    expect(cacheService.deleteKey).not.toHaveBeenCalled();
+  });
+});
+
+describe('validateCacheEmail', () => {
+  const emailUpdated = 'new@example.com';
+  const prevEmail = 'old@example.com';
+
+  const makeDeps = () => {
+    const cacheService: jest.Mocked<Pick<CacheAbstractService, 'deleteKey'>> = {
+      deleteKey: jest.fn(),
+    };
+
+    const logger: jest.Mocked<Pick<LoggerService, 'error'>> = {
+      error: jest.fn(),
+    };
+
+    return { cacheService, logger };
+  };
+
+  it('clears both previous and updated email cache entries when email changes', async () => {
+    const { cacheService, logger } = makeDeps();
+
+    await validateCacheEmail({
+      emailUpdated,
+      prevEmail,
+      cacheService,
+      logger,
+    });
+
+    expect(cacheService.deleteKey).toHaveBeenNthCalledWith(
+      1,
+      `${REDIS_CACHE_KEYS.USERS.BY_EMAIL}:${prevEmail}`,
+    );
+    expect(cacheService.deleteKey).toHaveBeenNthCalledWith(
+      2,
+      `${REDIS_CACHE_KEYS.USERS.BY_EMAIL}:${emailUpdated}`,
+    );
+    expect(logger.error).not.toHaveBeenCalled();
+  });
+
+  it('skips deleting updated email when unchanged', async () => {
+    const { cacheService, logger } = makeDeps();
+
+    await validateCacheEmail({
+      emailUpdated: prevEmail,
+      prevEmail,
+      cacheService,
+      logger,
+    });
+
+    expect(cacheService.deleteKey).toHaveBeenCalledTimes(1);
+    expect(cacheService.deleteKey).toHaveBeenCalledWith(
+      `${REDIS_CACHE_KEYS.USERS.BY_EMAIL}:${prevEmail}`,
+    );
+    expect(logger.error).not.toHaveBeenCalled();
+  });
+
+  it('logs an error when cache deletion fails', async () => {
+    const { cacheService, logger } = makeDeps();
+    const failure = new Error('redis offline');
+    cacheService.deleteKey.mockRejectedValueOnce(failure);
+
+    await validateCacheEmail({
+      emailUpdated,
+      prevEmail,
+      cacheService,
+      logger,
+    });
+
+    expect(logger.error).toHaveBeenCalledWith(
+      `[Cache] - Failed to invalidate email cache in updateById: ${JSON.stringify(
+        failure,
+      )}`,
+    );
+  });
+});
+
+describe('validHashingRefreshToken', () => {
+  const makeDeps = () => {
+    const hashingService: jest.Mocked<Pick<HashingAbstractService, 'compare'>> =
+      {
+        compare: jest.fn<
+          ReturnType<HashingAbstractService['compare']>,
+          Parameters<HashingAbstractService['compare']>
+        >(),
+      };
+
+    const logger: jest.Mocked<Pick<LoggerService, 'error'>> = {
+      error: jest.fn(),
+    };
+
+    return { hashingService, logger };
+  };
+
+  it('does nothing when hashes match', async () => {
+    const { hashingService, logger } = makeDeps();
+    hashingService.compare.mockResolvedValue(true);
+
+    await expect(
+      validHashingRefreshToken({
+        token: 'raw-token',
+        refreshToken: 'hashed-token',
+        hashingService,
+        logger,
+      }),
+    ).resolves.toBeUndefined();
+
+    expect(hashingService.compare).toHaveBeenCalledWith(
+      'raw-token',
+      'hashed-token',
+    );
+    expect(logger.error).not.toHaveBeenCalled();
+  });
+
+  it('logs and throws UnauthorizedException when hashes do not match', async () => {
+    const { hashingService, logger } = makeDeps();
+    hashingService.compare.mockResolvedValue(false);
+
+    await expect(
+      validHashingRefreshToken({
+        token: 'raw-token',
+        refreshToken: 'invalid-hash',
+        hashingService,
+        logger,
+      }),
+    ).rejects.toBeInstanceOf(UnauthorizedException);
+
+    expect(logger.error).toHaveBeenCalledWith('Invalid refresh token attempt.');
+
+    try {
+      await validHashingRefreshToken({
+        token: 'raw-token',
+        refreshToken: 'invalid-hash',
+        hashingService,
+        logger,
+      });
+    } catch (err) {
+      expect(err).toBeInstanceOf(UnauthorizedException);
+      const response = (err as UnauthorizedException).getResponse() as any;
+      expect(response.message).toBe(MESSAGES.USER_INVALID_REFRESH_TOKEN);
+      expect(response.status).toBe(401);
+    }
   });
 });

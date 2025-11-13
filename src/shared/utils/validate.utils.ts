@@ -1,10 +1,18 @@
 // Libs
-import { ForbiddenException } from '@nestjs/common';
+import { ForbiddenException, UnauthorizedException } from '@nestjs/common';
 
-import { IUserInfo, UserRole, ValidOwnerShipParamsType } from '../types';
+import type {
+  IUserInfo,
+  ValidHashingRefreshTokenParamsType,
+  ValidOwnerShipParamsType,
+  ValidUserCacheParamsType,
+  ValidateCacheEmailParamsType,
+} from '../types';
+import { UserRole } from '../types';
 import { handleErrorException } from './error.utils';
-import { MESSAGES } from '../constants';
+import { MESSAGES, REDIS_CACHE_KEYS } from '../constants';
 import { UserResponseDto } from '@app/apis/users/dtos';
+import { plainToInstance } from 'class-transformer';
 
 // Overloads for typical resources: Post (authorId) and Comment (userId)
 export const validateOwnerRole = <T extends object, K extends keyof T & string>(
@@ -47,6 +55,36 @@ export const isValidUserResponse = (data: unknown): data is UserResponseDto => {
 };
 
 /**
+ * Validates that the cached payload for a given key represents a proper user shape.
+ * Returns the hydrated entity instance when the cache is trustworthy, otherwise evicts it.
+ */
+export const isValidUserCache = async <T extends object>({
+  cacheKey,
+  cacheService,
+  logger,
+  identifier = 'id',
+  entity,
+  validator,
+}: ValidUserCacheParamsType<T>): Promise<T | null> => {
+  const cached = await cacheService.getKey<Record<string, unknown>>(cacheKey);
+
+  if (!cached) {
+    return null;
+  }
+
+  if (validator(cached)) {
+    logger.log(`User by ${identifier} served from cache`);
+    return plainToInstance(entity, cached);
+  }
+
+  logger.error(
+    `Cached user data for key ${cacheKey} is invalid. Clearing cache.`,
+  );
+  await cacheService.deleteKey(cacheKey);
+  return null;
+};
+
+/**
  * Ensures the authenticated user owns the requested resource or has admin privileges.
  * Logs the unauthorized attempt before delegating to `handleErrorException` to raise a 403.
  *
@@ -72,5 +110,55 @@ export const validOwnerShip = ({
       defaultMessage: MESSAGES.NO_PERMISSION,
       ExceptionClass: ForbiddenException,
     });
+  }
+};
+
+/**
+ * Validates that the persisted hashed refresh token matches the raw token received.
+ * Logs the suspicious attempt and raises `UnauthorizedException` when the tokens diverge.
+ *
+ * @throws UnauthorizedException when hash comparison fails.
+ */
+export const validHashingRefreshToken = async ({
+  token,
+  refreshToken,
+  hashingService,
+  logger,
+}: ValidHashingRefreshTokenParamsType): Promise<void> => {
+  const isValid = await hashingService.compare(token, refreshToken);
+
+  if (!isValid) {
+    logger.error(`Invalid refresh token attempt.`);
+    handleErrorException({
+      defaultMessage: MESSAGES.USER_INVALID_REFRESH_TOKEN,
+      ExceptionClass: UnauthorizedException,
+    });
+  }
+};
+
+/**
+ * Removes stale user email cache entries for the previous and newly provided email.
+ * Ensures subsequent reads do not return outdated user profiles.
+ */
+export const validateCacheEmail = async ({
+  emailUpdated,
+  prevEmail,
+  cacheService,
+  logger,
+  cachedForFunctionName = 'updateById',
+}: ValidateCacheEmailParamsType): Promise<void> => {
+  const { BY_EMAIL } = REDIS_CACHE_KEYS.USERS;
+  try {
+    if (prevEmail) {
+      await cacheService.deleteKey(`${BY_EMAIL}:${prevEmail}`);
+    }
+
+    if (emailUpdated && emailUpdated !== prevEmail) {
+      await cacheService.deleteKey(`${BY_EMAIL}:${emailUpdated}`);
+    }
+  } catch (cacheErr) {
+    logger.error(
+      `[Cache] - Failed to invalidate email cache in ${cachedForFunctionName}: ${JSON.stringify(cacheErr)}`,
+    );
   }
 };
