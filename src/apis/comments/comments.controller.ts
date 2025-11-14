@@ -182,7 +182,8 @@ export class CommentController {
   })
   async deleteComments(
     @Body() commentIdsDto: DeleteCommentsRequestDto,
+    @GetCurrentUser() user: IUserInfo,
   ): Promise<IMessageAndCountResponse> {
-    return await this.commentService.deleteComments(commentIdsDto);
+    return await this.commentService.deleteComments(user.id, commentIdsDto);
   }
 }

@@ -25,6 +25,7 @@ import {
 } from '@app/shared/utils';
 import { AppLoggerService } from '@app/shared/modules/logger/logger.service';
 import { CacheAbstractService } from '@app/shared/modules/cache/cache.abstract.service';
+import { AuditLoggerService } from '@app/shared/modules/audit-logger/audit-logger.service';
 
 // Apis
 import { UserService } from '@app/apis/users/users.service';
@@ -52,6 +53,7 @@ export class PostService {
 
     private readonly appLoggerService: AppLoggerService,
     private readonly cacheService: CacheAbstractService,
+    private readonly auditLoggerService: AuditLoggerService,
   ) {
     // Create context name for logger
     this.logger = this.appLoggerService.getLoggerName(PostService.name);
@@ -238,6 +240,14 @@ export class PostService {
         authorId,
       });
 
+      // Use Audit Logger to log the post creation action
+      await this.auditLoggerService.logAction({
+        userId: authorId,
+        action: 'CREATE_POST',
+        entity: 'Post',
+        entityId: newPost.id,
+      });
+
       // Invalidate list caches and set item caches
       await this.cacheService.deleteByPattern(
         `${REDIS_CACHE_KEYS.POSTS.LIST}:*`,
@@ -319,6 +329,14 @@ export class PostService {
 
         const saved = await this.postsRepo.save(postUpdating);
 
+        await this.auditLoggerService.logAction({
+          userId: user.id,
+          action: 'UPDATE_POST',
+          entity: 'Post',
+          entityId: saved.id,
+          data: saved,
+        });
+
         this.logger.log(`Post id - ${id} have update by ${user.role}`);
 
         // Invalidate caches
@@ -384,6 +402,13 @@ export class PostService {
       try {
         await this.postsRepo.remove(existedPost);
 
+        await this.auditLoggerService.logAction({
+          userId: user.id,
+          action: 'DELETE_POST',
+          entity: 'Post',
+          entityId: id,
+        });
+
         this.logger.log(`User deleted Post id - ${id} successfully`);
 
         // Invalidate caches
@@ -420,6 +445,7 @@ export class PostService {
    * @throws InternalServerErrorException on server error
    */
   async delete(
+    userId: string,
     postIdsDto: DeletePostsRequestDto,
   ): Promise<IMessageAndCountResponse> {
     const { postIds } = postIdsDto;
@@ -442,7 +468,7 @@ export class PostService {
       const deletedIds: string[] = [];
 
       // Delete posts in batches for better performance
-      if (existingPosts.length > 0) {
+      if (existingPosts.length) {
         const deleteResult = await deleteItemsInArray({
           items: existingPosts,
           itemRepository: this.postsRepo,
@@ -450,6 +476,16 @@ export class PostService {
         });
         deletedCount = deleteResult.deletedCount;
         deletedIds.push(...deleteResult.deletedIds);
+
+        // Use Audit Logger to log the bulk post deletion action
+        for (const deletedId of deletedIds) {
+          await this.auditLoggerService.logAction({
+            userId,
+            action: 'DELETE_POST',
+            entity: 'Post',
+            entityId: deletedId,
+          });
+        }
 
         // Invalidate caches for deleted posts
         for (const post of existingPosts) {
@@ -533,6 +569,14 @@ export class PostService {
 
       // Delete the post
       await this.postsRepo.remove(post);
+
+      // Use Audit Logger to log the post deletion action
+      await this.auditLoggerService.logAction({
+        userId,
+        action: 'DELETE_POST',
+        entity: 'Post',
+        entityId: postId,
+      });
 
       this.logger.log(`Successfully deleted post ${postId} for user ${userId}`);
 

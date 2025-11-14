@@ -36,6 +36,7 @@ import {
   QueryCommentParamDto,
   DeleteCommentsRequestDto,
 } from './dtos';
+import { AuditLoggerService } from '@app/shared/modules/audit-logger/audit-logger.service';
 
 /**
  * Comment Service
@@ -59,6 +60,8 @@ export class CommentService {
     private readonly postService: PostService,
 
     private readonly cacheService: CacheAbstractService,
+
+    private readonly auditLoggerService: AuditLoggerService,
   ) {
     // Create context name for logger
     this.logger = this.appLoggerServices.getLoggerName(CommentService.name);
@@ -226,6 +229,14 @@ export class CommentService {
         postId,
       });
 
+      await this.auditLoggerService.logAction({
+        userId,
+        action: 'CREATE_COMMENT',
+        entity: 'Comment',
+        entityId: comment.id,
+        data: comment,
+      });
+
       const savedComment = await this.commentsRepo.save(comment);
 
       this.logger.log(`Comment created successfully: ${savedComment.id}`);
@@ -282,6 +293,14 @@ export class CommentService {
     try {
       comment.content = updateDto.content;
       const updatedComment = await this.commentsRepo.save(comment);
+
+      await this.auditLoggerService.logAction({
+        userId,
+        action: 'UPDATE_COMMENT',
+        entity: 'Comment',
+        entityId: updatedComment.id,
+        data: updatedComment,
+      });
 
       this.logger.log(`Comment ${id} updated successfully`);
 
@@ -342,6 +361,13 @@ export class CommentService {
     try {
       await this.commentsRepo.remove(comment);
 
+      await this.auditLoggerService.logAction({
+        userId,
+        action: 'DELETE_COMMENT',
+        entity: 'Comment',
+        entityId: id,
+      });
+
       this.logger.log(`Comment ${id} deleted successfully`);
 
       // Invalidate caches
@@ -371,6 +397,7 @@ export class CommentService {
    * Uses TypeScript generics and batch processing for performance
    */
   async deleteComments(
+    userId: string,
     commentIdsDto: DeleteCommentsRequestDto,
   ): Promise<IMessageAndCountResponse> {
     const { commentIds } = commentIdsDto;
@@ -405,6 +432,16 @@ export class CommentService {
         });
         deletedCount = deleteResult.deletedCount;
         deletedIds.push(...deleteResult.deletedIds);
+
+        // Use Audit Logger to log the bulk comment deletion action
+        for (const deletedId of deletedIds) {
+          await this.auditLoggerService.logAction({
+            userId,
+            action: 'DELETE_COMMENT',
+            entity: 'Comment',
+            entityId: deletedId,
+          });
+        }
 
         // Invalidate caches for deleted comments
         for (const comment of existingComments) {

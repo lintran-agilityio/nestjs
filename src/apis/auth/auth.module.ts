@@ -17,6 +17,7 @@ import { CacheProvider } from '@app/shared/types';
 import { AuthController } from './auth.controller';
 import { AuthService } from './auth.service';
 import { CacheModule } from '@app/shared/modules/cache/cache.module';
+import { AuditLoggerModule } from '@app/shared/modules/audit-logger/audit-logger.module';
 
 /**
  * Authentication module
@@ -39,6 +40,7 @@ import { CacheModule } from '@app/shared/modules/cache/cache.module';
     }),
     UserModule,
     CacheModule.register(CacheProvider.REDIS),
+    AuditLoggerModule,
   ],
   controllers: [AuthController],
   providers: [

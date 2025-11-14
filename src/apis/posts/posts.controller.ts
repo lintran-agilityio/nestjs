@@ -170,8 +170,9 @@ export class PostController {
     type: String,
   })
   async deleteUserPosts(
+    @GetCurrentUser() user: IUserInfo,
     @Body() postIdsDto: DeletePostsRequestDto,
   ): Promise<IMessageAndCountResponse> {
-    return await this.postService.delete(postIdsDto);
+    return await this.postService.delete(user.id, postIdsDto);
   }
 }

@@ -12,6 +12,7 @@ import { CacheProvider } from '@app/shared/types';
 
 // App source
 import { CacheModule } from '@app/shared/modules/cache/cache.module';
+import { AuditLoggerModule } from '@app/shared/modules/audit-logger/audit-logger.module';
 
 /**
  * Comment Module
@@ -24,6 +25,7 @@ import { CacheModule } from '@app/shared/modules/cache/cache.module';
     forwardRef(() => UserModule),
     forwardRef(() => PostModule),
     CacheModule.register(CacheProvider.REDIS),
+    AuditLoggerModule,
   ],
   controllers: [CommentController],
   providers: [CommentService],

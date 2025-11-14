@@ -19,6 +19,7 @@ import { AppLoggerService } from './shared/modules/logger/logger.service';
 import { CacheModule } from './shared/modules/cache/cache.module';
 import { CacheProvider } from './shared/types';
 import { HealthController } from './apis/health/health.controller';
+import { AuditLoggerModule } from './shared/modules/audit-logger/audit-logger.module';
 
 @Module({
   imports: [
@@ -33,6 +34,7 @@ import { HealthController } from './apis/health/health.controller';
     PostModule,
     CommentModule,
     CacheModule.register(CacheProvider.REDIS),
+    AuditLoggerModule,
   ],
   controllers: [HealthController],
   providers: [

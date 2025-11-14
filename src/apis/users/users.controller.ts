@@ -152,8 +152,10 @@ export class UserController {
     description: 'Deleted users successfully',
     type: String,
   })
-  async deleteAll(): Promise<IMessageAndCountResponse> {
-    return await this.userService.deleteAll();
+  async deleteAll(
+    @GetCurrentUser() user: IUserInfo,
+  ): Promise<IMessageAndCountResponse> {
+    return await this.userService.deleteAll(user.id);
   }
 
   /**

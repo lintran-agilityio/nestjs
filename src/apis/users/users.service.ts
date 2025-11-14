@@ -34,6 +34,7 @@ import {
 import { HashingAbstractService } from '@app/shared/modules/hashing/hashing.abstract.service';
 import { AppLoggerService } from '@app/shared/modules/logger/logger.service';
 import { CacheAbstractService } from '@app/shared/modules/cache/cache.abstract.service';
+import { AuditLoggerService } from '@app/shared/modules/audit-logger/audit-logger.service';
 
 // Apis
 import { PostService } from '@app/apis/posts/posts.service';
@@ -73,6 +74,8 @@ export class UserService {
     private readonly postService: PostService,
 
     private readonly cacheService: CacheAbstractService,
+
+    private readonly auditLogger: AuditLoggerService,
   ) {
     // Create context name for logger
     this.logger = this.appLoggerServices.getLoggerName(UserService.name);
@@ -131,6 +134,7 @@ export class UserService {
         entity: 'user',
       });
 
+      // Set into Cache
       await this.cacheService.setKey(cacheKey, result, TTL_CACHE.USERS_LIST);
       this.logger.log('Fetched users list successfully');
 
@@ -460,6 +464,15 @@ export class UserService {
 
       delete savedUser.password;
 
+      // Use Audit Logger to log the user update action
+      await this.auditLogger.logAction({
+        userId: id,
+        action: 'UPDATE_USER',
+        entity: 'User',
+        entityId: id,
+        data: savedUser,
+      });
+
       return savedUser;
     } catch (error) {
       this.logger.error(`[Error] - update user error ${JSON.stringify(error)}`);
@@ -476,7 +489,7 @@ export class UserService {
    * @throws NotFoundException if no users found
    * @throws InternalServerErrorException on server error
    */
-  async deleteAll(): Promise<IMessageAndCountResponse> {
+  async deleteAll(userId: string): Promise<IMessageAndCountResponse> {
     this.logger.log('Delete all users data');
     const users = await this.usersRepo.find();
     if (!users.length) {
@@ -492,6 +505,12 @@ export class UserService {
         .createQueryBuilder()
         .delete()
         .execute();
+
+      await this.auditLogger.logAction({
+        userId,
+        action: 'DELETE_ALL_USERS',
+        entity: 'User',
+      });
 
       this.logger.log(`All user deleted with ${JSON.stringify(affected)} item`);
 
@@ -537,6 +556,14 @@ export class UserService {
     try {
       await this.usersRepo.remove(existedUser);
       const { email } = existedUser;
+
+      // Use Audit Logger to log the user deletion action
+      await this.auditLogger.logAction({
+        userId: id,
+        action: 'DELETE_USER',
+        entity: 'User',
+        entityId: id,
+      });
 
       // Invalidate caches
       await this.cacheService.deleteKey(`${BY_ID}:${id}`);
