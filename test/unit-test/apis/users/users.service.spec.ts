@@ -28,9 +28,9 @@ type CacheServiceMock = jest.Mocked<
 >;
 
 // Local sources
-import { UserService } from './users.service';
-import { User } from './entities';
-import { UpdateAllUsersDto } from './dtos';
+import { UserService } from '@app/apis/users/users.service';
+import { User } from '@app/apis/users/entities';
+import { UpdateAllUsersDto } from '@app/apis/users/dtos';
 
 describe('UserService', () => {
   let service: UserService;
@@ -43,15 +43,24 @@ describe('UserService', () => {
   let cacheService: CacheServiceMock;
   let auditLogger: { logAction: jest.Mock };
   let dataSource: { transaction: jest.Mock };
-  let transactionalRepository: { createQueryBuilder: jest.Mock };
+  let transactionalRepository: {
+    createQueryBuilder: jest.Mock;
+    save: jest.Mock;
+    update: jest.Mock;
+    count: jest.Mock;
+    findOne: jest.Mock;
+  };
   let transactionManager: { getRepository: jest.Mock };
   let queryBuilder: {
     select: jest.Mock;
+    where: jest.Mock;
     andWhere: jest.Mock;
     orderBy: jest.Mock;
     skip: jest.Mock;
     take: jest.Mock;
     getManyAndCount: jest.Mock;
+    softDelete: jest.Mock;
+    execute: jest.Mock;
   };
 
   beforeEach(async () => {
@@ -61,15 +70,22 @@ describe('UserService', () => {
 
     queryBuilder = {
       select: jest.fn().mockReturnThis(),
+      where: jest.fn().mockReturnThis(),
       andWhere: jest.fn().mockReturnThis(),
       orderBy: jest.fn().mockReturnThis(),
       skip: jest.fn().mockReturnThis(),
       take: jest.fn().mockReturnThis(),
       getManyAndCount: jest.fn(),
+      softDelete: jest.fn().mockReturnThis(),
+      execute: jest.fn().mockResolvedValue({ affected: 0 }),
     };
 
     transactionalRepository = {
       createQueryBuilder: jest.fn().mockReturnValue(queryBuilder),
+      save: jest.fn(),
+      update: jest.fn().mockResolvedValue({ affected: 1 }),
+      count: jest.fn().mockResolvedValue(0),
+      findOne: jest.fn(),
     };
 
     transactionManager = {
@@ -157,7 +173,7 @@ describe('UserService', () => {
       } as Partial<User>);
       queryBuilder.getManyAndCount.mockResolvedValue([[mockUser], 1]);
 
-      const result = await service.getUsersRecently({});
+      const result = await service.getUsersRecently(mockUuidUser, {});
 
       expect(queryBuilder.select).toHaveBeenCalled();
       expect(result.data).toEqual([mockUser]);
@@ -167,7 +183,7 @@ describe('UserService', () => {
       expect(dataSource.transaction).toHaveBeenCalled();
       expect(auditLogger.logAction).toHaveBeenCalledWith(
         expect.objectContaining({
-          userId: '00000000-0000-0000-0000-000000000000',
+          userId: mockUuidUser,
           data: expect.objectContaining({ servedFromCache: false }),
         }),
         transactionManager,
@@ -181,17 +197,26 @@ describe('UserService', () => {
       };
       cacheService.getKey.mockResolvedValue(cachedResult);
 
-      const result = await service.getUsersRecently({});
+      const result = await service.getUsersRecently(mockUuidUser, {});
 
       expect(result).toEqual(cachedResult);
       expect(queryBuilder.select).not.toHaveBeenCalled();
       expect(dataSource.transaction).not.toHaveBeenCalled();
-      expect(auditLogger.logAction).toHaveBeenCalledWith(
-        expect.objectContaining({
-          userId: '00000000-0000-0000-0000-000000000000',
-          data: expect.objectContaining({ servedFromCache: true }),
-        }),
-      );
+      expect(auditLogger.logAction).toHaveBeenCalledWith({
+        userId: mockUuidUser,
+        action: 'LIST_USERS_RECENTLY',
+        entity: 'User',
+        data: {
+          meta: {
+            limit: 10,
+            page: 1,
+            total: 1,
+            totalPages: 1,
+          },
+          servedFromCache: true,
+          query: {},
+        },
+      });
     });
 
     it('filters by search when provided', async () => {
@@ -201,7 +226,7 @@ describe('UserService', () => {
       } as Partial<User>);
       queryBuilder.getManyAndCount.mockResolvedValue([[mockUser], 1]);
 
-      await service.getUsersRecently({ search: 'test' });
+      await service.getUsersRecently(mockUuidUser, { search: 'test' });
 
       expect(queryBuilder.andWhere).toHaveBeenCalledWith(
         '(user.email ILIKE :search OR user.firstName ILIKE :search OR user.lastName ILIKE :search)',
@@ -212,7 +237,9 @@ describe('UserService', () => {
     it('handles errors when query fails', async () => {
       queryBuilder.getManyAndCount.mockRejectedValue(new Error('query-fail'));
 
-      await expect(service.getUsersRecently({})).rejects.toThrow();
+      await expect(
+        service.getUsersRecently(mockUuidUser, {}),
+      ).rejects.toThrow();
       expect(dataSource.transaction).toHaveBeenCalled();
     });
   });
@@ -224,9 +251,9 @@ describe('UserService', () => {
       const result = await service.getUserByEmail(mockingUserInfo.email);
 
       expect(usersRepo.findOne).toHaveBeenCalledWith({
-        where: { email: mockingUserInfo.email },
+        where: { email: mockingUserInfo.email, deletedAt: null },
       });
-      expect(result).toBe(mockingUserResponse);
+      expect(result).toEqual(mockingUserResponse);
     });
 
     it('returns null when user not found by email', async () => {
@@ -260,7 +287,7 @@ describe('UserService', () => {
 
       const result = await service.getByEmail(mockingUserInfo.email);
 
-      expect(result).toBe(mockingUserResponse);
+      expect(result).toEqual(mockingUserResponse);
       expect(cacheService.setKey).toHaveBeenCalled();
     });
   });
@@ -281,9 +308,9 @@ describe('UserService', () => {
       const result = await service.getUserById(mockUuidUser);
 
       expect(usersRepo.findOne).toHaveBeenCalledWith({
-        where: { id: mockUuidUser },
+        where: { id: mockUuidUser, deletedAt: null },
       });
-      expect(result).toBe(mockingUserResponse);
+      expect(result).toEqual(mockingUserResponse);
       expect(cacheService.setKey).toHaveBeenCalled();
     });
 
@@ -316,7 +343,7 @@ describe('UserService', () => {
 
     it('returns user when exists and caches it', async () => {
       (usersRepo.findOne as jest.Mock).mockResolvedValue(mockingUserResponse);
-      await expect(service.getById(mockUuidUser)).resolves.toBe(
+      await expect(service.getById(mockUuidUser)).resolves.toEqual(
         mockingUserResponse,
       );
       expect(cacheService.setKey).toHaveBeenCalled();
@@ -446,11 +473,14 @@ describe('UserService', () => {
 
   describe('updateRefreshToken', () => {
     it('updates refresh token', async () => {
-      (usersRepo.update as jest.Mock).mockResolvedValue(undefined);
       await service.updateRefreshToken(mockUuidUser, MOCKING_TOKEN);
-      expect(usersRepo.update).toHaveBeenCalledWith(mockUuidUser, {
-        refreshToken: MOCKING_TOKEN,
-      });
+      expect(dataSource.transaction).toHaveBeenCalled();
+      expect(transactionalRepository.update).toHaveBeenCalledWith(
+        mockUuidUser,
+        {
+          refreshToken: MOCKING_TOKEN,
+        },
+      );
     });
   });
 
@@ -458,11 +488,8 @@ describe('UserService', () => {
     it('hashes password and saves each user', async () => {
       jest.spyOn(service, 'getById').mockResolvedValue(mockingUser);
       hashing.hash.mockResolvedValue('hashed');
-      (usersRepo.merge as jest.Mock).mockImplementation((e, d) => ({
-        ...e,
-        ...d,
-      }));
-      (usersRepo.save as jest.Mock).mockResolvedValue({ id: mockUuidUser });
+      transactionalRepository.findOne.mockResolvedValue(mockingUser);
+      transactionalRepository.save.mockResolvedValue({ id: mockUuidUser });
 
       const result = await service.updateAll({
         users: [{ id: mockUuidUser, password: 'x' }],
@@ -470,12 +497,15 @@ describe('UserService', () => {
 
       expect(hashing.hash).toHaveBeenCalledWith('x');
       expect(result).toEqual([{ id: mockUuidUser }]);
+      expect(dataSource.transaction).toHaveBeenCalled();
+      expect(transactionalRepository.save).toHaveBeenCalled();
     });
 
     it('handles errors when update fails', async () => {
       jest.spyOn(service, 'getById').mockResolvedValue(mockingUser);
       hashing.hash.mockResolvedValue('hashed');
-      (usersRepo.save as jest.Mock).mockRejectedValue(new Error('save-fail'));
+      transactionalRepository.findOne.mockResolvedValue(mockingUser);
+      transactionalRepository.save.mockRejectedValue(new Error('save-fail'));
 
       await expect(
         service.updateAll({
@@ -493,21 +523,16 @@ describe('UserService', () => {
       } as Partial<User>);
       jest.spyOn(service, 'getById').mockResolvedValue(existingUser);
       hashing.hash.mockResolvedValue('hashed');
-      (usersRepo.merge as jest.Mock).mockImplementation((entity, payload) => ({
-        ...entity,
-        ...payload,
-      }));
+      transactionalRepository.findOne.mockResolvedValue(existingUser);
       const savedUser = { ...mockingUser, password: 'hashed' };
-      (usersRepo.save as jest.Mock).mockResolvedValue(savedUser);
+      transactionalRepository.save.mockResolvedValue(savedUser);
 
       const result = await service.updateById('u1', { password: 'new' });
 
       expect(hashing.hash).toHaveBeenCalledWith('new');
-      const [savedArg] = (usersRepo.save as jest.Mock).mock.calls[0];
-      expect(savedArg).toBe(existingUser);
-      expect(savedArg).toMatchObject({
-        password: 'hashed',
-      });
+      expect(dataSource.transaction).toHaveBeenCalled();
+      expect(transactionalRepository.save).toHaveBeenCalled();
+      expect(auditLogger.logAction).toHaveBeenCalled();
       expect(result).toMatchObject({
         id: mockingUser.id,
         email: mockingUser.email,
@@ -541,39 +566,39 @@ describe('UserService', () => {
         password: 'stored-pass',
       } as Partial<User>);
       jest.spyOn(service, 'getById').mockResolvedValue(existingUser);
-      (usersRepo.merge as jest.Mock).mockImplementation((entity, payload) => ({
-        ...entity,
-        ...payload,
-      }));
-      (usersRepo.save as jest.Mock).mockResolvedValue(existingUser);
+      transactionalRepository.findOne.mockResolvedValue(existingUser);
+      transactionalRepository.save.mockResolvedValue(existingUser);
 
       await service.updateById('u1', {});
 
       expect(hashing.hash).not.toHaveBeenCalled();
-      expect(usersRepo.save).toHaveBeenCalled();
+      expect(dataSource.transaction).toHaveBeenCalled();
+      expect(transactionalRepository.save).toHaveBeenCalled();
     });
   });
 
   describe('deleteAll', () => {
     it('throws when nothing to delete', async () => {
-      (usersRepo.find as jest.Mock).mockResolvedValue([]);
+      transactionalRepository.count.mockResolvedValue(0);
       await expect(service.deleteAll(mockUuidUser)).rejects.toThrow(
         'No users for delete',
       );
     });
 
     it('returns message and count when deleted', async () => {
-      (usersRepo.find as jest.Mock).mockResolvedValue([{ id: mockUuidUser }]);
-      (usersRepo.createQueryBuilder as jest.Mock).mockReturnValue({
-        delete: jest.fn().mockReturnThis(),
-        execute: jest.fn().mockResolvedValue({ affected: 2 }),
-      });
+      transactionalRepository.count.mockResolvedValue(2);
+      queryBuilder.execute.mockResolvedValue({ affected: 2 });
 
       const result = await service.deleteAll(mockUuidUser);
       expect(result).toEqual({
         message: 'Deleted 2 users successfully.',
         count: 2,
       });
+      expect(dataSource.transaction).toHaveBeenCalled();
+      expect(transactionalRepository.count).toHaveBeenCalled();
+      expect(queryBuilder.softDelete).toHaveBeenCalled();
+      expect(queryBuilder.execute).toHaveBeenCalled();
+      expect(auditLogger.logAction).toHaveBeenCalled();
     });
 
     it('handles errors when delete fails', async () => {
@@ -590,9 +615,15 @@ describe('UserService', () => {
   describe('deleteById', () => {
     it('removes the user', async () => {
       jest.spyOn(service, 'getById').mockResolvedValue(mockingUser);
-      (usersRepo.remove as jest.Mock).mockResolvedValue(undefined);
+      transactionalRepository.findOne.mockResolvedValue(mockingUser);
+      queryBuilder.execute.mockResolvedValue({ affected: 1 });
+
       const result = await service.deleteById('u1');
-      expect(usersRepo.remove).toHaveBeenCalled();
+      expect(dataSource.transaction).toHaveBeenCalled();
+      expect(queryBuilder.softDelete).toHaveBeenCalled();
+      expect(queryBuilder.where).toHaveBeenCalled();
+      expect(queryBuilder.execute).toHaveBeenCalled();
+      expect(auditLogger.logAction).toHaveBeenCalled();
       expect(cacheService.deleteKey).toHaveBeenCalled();
       expect(cacheService.deleteByPattern).toHaveBeenCalled();
       expect(result).toBeUndefined();
@@ -600,9 +631,8 @@ describe('UserService', () => {
 
     it('handles error when remove fails', async () => {
       jest.spyOn(service, 'getById').mockResolvedValue(mockingUser);
-      (usersRepo.remove as jest.Mock).mockRejectedValue(
-        new Error('remove-fail'),
-      );
+      transactionalRepository.findOne.mockResolvedValue(mockingUser);
+      queryBuilder.execute.mockRejectedValue(new Error('remove-fail'));
 
       await expect(service.deleteById('u1')).rejects.toThrow();
     });

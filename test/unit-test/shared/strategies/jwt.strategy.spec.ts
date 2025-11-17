@@ -9,9 +9,9 @@ import { Repository } from 'typeorm';
 import { User } from '@app/apis/users/entities';
 
 // Local sources
-import { JwtStrategy } from './jwt.strategy';
-import { IJwtPayload, UserRole } from '../types';
-import { JWT_KEYS } from '../common';
+import { JwtStrategy } from '@app/shared/strategies/jwt.strategy';
+import { IJwtPayload, UserRole } from '@app/shared/types';
+import { JWT_KEYS } from '@app/shared/common';
 
 describe('JwtStrategy', () => {
   let strategy: JwtStrategy;

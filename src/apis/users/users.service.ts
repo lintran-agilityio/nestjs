@@ -6,7 +6,7 @@ import {
   LoggerService,
   NotFoundException,
 } from '@nestjs/common';
-import { instanceToPlain } from 'class-transformer';
+import { instanceToPlain, plainToClass } from 'class-transformer';
 import { InjectRepository } from '@nestjs/typeorm';
 import { DataSource, EntityManager, Repository } from 'typeorm';
 
@@ -244,9 +244,13 @@ export class UserService {
    */
   async getUserByEmail(email: string): Promise<User | null> {
     this.logger.log(`Query get user by email: ${email}`);
-    return await this.usersRepo.findOne({
+    const user = await this.usersRepo.findOne({
       where: { email, deletedAt: null },
     });
+
+    if (!user) return null;
+
+    return plainToClass(User, user);
   }
 
   /**
@@ -327,7 +331,7 @@ export class UserService {
     }
 
     this.logger.log(`User fetched by id: ${id}`);
-    return user;
+    return plainToClass(User, user);
   }
 
   /**

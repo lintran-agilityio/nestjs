@@ -1,4 +1,4 @@
-import { generateDeleteMessage } from '../generate-messages.utils';
+import { generateDeleteMessage } from '@app/shared/utils/generate-messages.utils';
 
 describe('Filter Utils', () => {
   describe('Function generateDeleteMessage', () => {

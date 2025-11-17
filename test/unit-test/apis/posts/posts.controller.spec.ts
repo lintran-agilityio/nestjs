@@ -6,14 +6,14 @@ import { IUserInfo, IMessageAndCountResponse } from '@app/shared/types';
 import { mockingUserResponse, mockUuidUser } from '@app/shared/mocks';
 
 // Local sources
-import { PostController } from './posts.controller';
-import { PostService } from './posts.service';
+import { PostController } from '@app/apis/posts/posts.controller';
+import { PostService } from '@app/apis/posts/posts.service';
 import {
   PostPaginationResponseDto,
   PostRequestDto,
   DeletePostsRequestDto,
-} from './dtos';
-import { Post as PostEntities } from './entities';
+} from '@app/apis/posts/dtos';
+import { Post as PostEntities } from '@app/apis/posts/entities';
 
 describe('PostController', () => {
   let controller: PostController;
@@ -68,8 +68,8 @@ describe('PostController', () => {
       },
     };
     postService.getPostsRecently.mockResolvedValue(mockResponse);
-    const result = await controller.getPostsRecently({});
-    expect(postService.getPostsRecently).toHaveBeenCalledWith({});
+    const result = await controller.getPostsRecently({}, mockUser);
+    expect(postService.getPostsRecently).toHaveBeenCalledWith(mockUuidUser, {});
     expect(result).toEqual(mockResponse);
   });
 
@@ -122,8 +122,8 @@ describe('PostController', () => {
       count: 1,
     };
     postService.delete.mockResolvedValue(mockResponse);
-    const result = await controller.deleteUserPosts(postIdsDto);
-    expect(postService.delete).toHaveBeenCalledWith(postIdsDto);
+    const result = await controller.deleteUserPosts(mockUser, postIdsDto);
+    expect(postService.delete).toHaveBeenCalledWith(mockUser.id, postIdsDto);
     expect(result).toEqual(mockResponse);
   });
 });

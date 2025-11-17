@@ -3,16 +3,16 @@ import { Test, TestingModule } from '@nestjs/testing';
 import { NotFoundException, BadRequestException } from '@nestjs/common';
 
 // Local sources
-import { CommentController } from './comments.controller';
-import { CommentService } from './comments.service';
-import { Comment } from './entities';
+import { CommentController } from '@app/apis/comments/comments.controller';
+import { CommentService } from '@app/apis/comments/comments.service';
+import { Comment } from '@app/apis/comments/entities';
 import {
   CreateCommentRequestDto,
   UpdateCommentRequestDto,
   DeleteCommentsRequestDto,
   CommentPaginationResponseDto,
   QueryCommentParamDto,
-} from './dtos';
+} from '@app/apis/comments/dtos';
 import { IUserInfo, IMessageAndCountResponse } from '@app/shared/types';
 import {
   mockingCommentInfo,
@@ -20,7 +20,7 @@ import {
   mockingPostUuid,
   mockingUserResponse,
   mockUuidUser,
-} from '../../shared/mocks';
+} from '@app/shared/mocks';
 
 describe('CommentController', () => {
   let controller: CommentController;
@@ -208,10 +208,13 @@ describe('CommentController', () => {
       message: successMessage,
       count: 1,
     });
-    const result: IMessageAndCountResponse = await controller.deleteComments({
-      commentIds: [mockingCommentUuid],
-    });
-    expect(commentService.deleteComments).toHaveBeenCalledWith({
+    const result: IMessageAndCountResponse = await controller.deleteComments(
+      {
+        commentIds: [mockingCommentUuid],
+      },
+      mockUser,
+    );
+    expect(commentService.deleteComments).toHaveBeenCalledWith(mockUser.id, {
       commentIds: [mockingCommentUuid],
     });
     expect(result).toEqual({ message: successMessage, count: 1 });
@@ -273,7 +276,10 @@ describe('CommentController', () => {
       const error = new BadRequestException('Invalid comment IDs');
       commentService.deleteComments.mockRejectedValue(error);
       await expect(
-        controller.deleteComments({ commentIds: [mockingCommentUuid] }),
+        controller.deleteComments(
+          { commentIds: [mockingCommentUuid] },
+          mockUser,
+        ),
       ).rejects.toThrow(error);
     });
   });
@@ -321,8 +327,11 @@ describe('CommentController', () => {
         message: successMessage,
         count: 0,
       });
-      const result = await controller.deleteComments({ commentIds: [] });
-      expect(commentService.deleteComments).toHaveBeenCalledWith({
+      const result = await controller.deleteComments(
+        { commentIds: [] },
+        mockUser,
+      );
+      expect(commentService.deleteComments).toHaveBeenCalledWith(mockUser.id, {
         commentIds: [],
       });
       expect(result.count).toBe(0);

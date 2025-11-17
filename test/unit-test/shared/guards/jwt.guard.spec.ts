@@ -2,12 +2,10 @@
 import { Test, TestingModule } from '@nestjs/testing';
 import { ExecutionContext } from '@nestjs/common';
 import { Reflector } from '@nestjs/core';
-import { AuthGuard } from '@nestjs/passport';
-import { firstValueFrom } from 'rxjs';
 
 // Local sources
-import { JwtAuthGuard } from './jwt.guard';
-import { IS_PUBLIC_KEY } from '../common';
+import { JwtAuthGuard } from '@app/shared/guards/jwt.guard';
+import { IS_PUBLIC_KEY } from '@app/shared/common';
 
 describe('JwtAuthGuard', () => {
   let guard: JwtAuthGuard;

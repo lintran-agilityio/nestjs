@@ -8,7 +8,7 @@ import {
   validHashingRefreshToken,
   isValidUserCache,
   validateCacheEmail,
-} from '../validate.utils';
+} from '@app/shared/utils/validate.utils';
 import type { HashingAbstractService } from '@app/shared/modules/hashing/hashing.abstract.service';
 import type { CacheAbstractService } from '@app/shared/modules/cache/cache.abstract.service';
 import { User } from '@app/apis/users/entities';

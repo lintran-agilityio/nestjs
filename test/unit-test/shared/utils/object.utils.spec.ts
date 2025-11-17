@@ -2,7 +2,7 @@ import {
   getBodyFieldValue,
   getSelectFields,
   chunkArray,
-} from '../objects.utils';
+} from '@app/shared/utils/objects.utils';
 
 describe('Objects Utils', () => {
   describe('getBodyFieldValue', () => {

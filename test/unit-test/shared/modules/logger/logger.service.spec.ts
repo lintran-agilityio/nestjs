@@ -3,7 +3,7 @@ import { Logger } from '@nestjs/common';
 import { Test, TestingModule } from '@nestjs/testing';
 
 // Local sources
-import { AppLoggerService } from './logger.service';
+import { AppLoggerService } from '@app/shared/modules/logger/logger.service';
 
 describe('AppLoggerService', () => {
   let service: AppLoggerService;

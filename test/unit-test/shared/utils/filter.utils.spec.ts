@@ -1,8 +1,8 @@
 import { LoggerService } from '@nestjs/common';
 import { Repository } from 'typeorm';
-import { deleteItemsInArray } from '../filter.utils';
-import { BATCH_SIZE } from '../../constants';
-import { EntityWithStringId } from '../../types';
+import { deleteItemsInArray } from '@app/shared/utils/filter.utils';
+import { BATCH_SIZE } from '@app/shared/constants';
+import { EntityWithStringId } from '@app/shared/types';
 
 describe('Filter Utils', () => {
   describe('deleteItemsInArray', () => {
@@ -11,13 +11,21 @@ describe('Filter Utils', () => {
       'log' | 'error' | 'warn' | 'debug' | 'verbose'
     >;
 
-    let repoImpl: { delete: jest.Mock<Promise<unknown>, [string[]]> };
+    let repoImpl: {
+      softRemove: jest.Mock<
+        Promise<EntityWithStringId[]>,
+        [EntityWithStringId[]]
+      >;
+    };
     let itemRepository: Repository<EntityWithStringId>;
     let mockLogger: jest.Mocked<MinimalLogger>;
 
     beforeEach(() => {
       repoImpl = {
-        delete: jest.fn<Promise<unknown>, [string[]]>(),
+        softRemove: jest.fn<
+          Promise<EntityWithStringId[]>,
+          [EntityWithStringId[]]
+        >(),
       };
       itemRepository = repoImpl as unknown as Repository<EntityWithStringId>;
 
@@ -36,9 +44,7 @@ describe('Filter Utils', () => {
     ];
     describe('successful deletion scenarios', () => {
       it('should delete items in a single batch', async () => {
-        repoImpl.delete.mockResolvedValue({
-          affected: 3,
-        } as unknown as Promise<unknown>);
+        repoImpl.softRemove.mockResolvedValue(items);
 
         const result = await deleteItemsInArray({
           items,
@@ -49,8 +55,8 @@ describe('Filter Utils', () => {
         expect(result.deletedCount).toBe(3);
         expect(result.deletedIds).toEqual(['1', '2', '3']);
         expect(result.failedIds).toEqual([]);
-        expect(repoImpl.delete).toHaveBeenCalledTimes(1);
-        expect(repoImpl.delete).toHaveBeenCalledWith(['1', '2', '3']);
+        expect(repoImpl.softRemove).toHaveBeenCalledTimes(1);
+        expect(repoImpl.softRemove).toHaveBeenCalledWith(items);
         expect(mockLogger.log).toHaveBeenCalledWith(
           'Successfully deleted batch of 3 items',
         );
@@ -62,9 +68,11 @@ describe('Filter Utils', () => {
           name: `Item ${i + 1}`,
         }));
 
-        repoImpl.delete.mockResolvedValue({
-          affected: 5,
-        } as unknown as Promise<unknown>);
+        repoImpl.softRemove.mockImplementation(
+          async (batch: EntityWithStringId[]) => {
+            return batch;
+          },
+        );
 
         const result = await deleteItemsInArray({
           items,
@@ -76,7 +84,7 @@ describe('Filter Utils', () => {
         expect(result.deletedCount).toBe(10);
         expect(result.deletedIds).toHaveLength(10);
         expect(result.failedIds).toEqual([]);
-        expect(repoImpl.delete).toHaveBeenCalledTimes(2);
+        expect(repoImpl.softRemove).toHaveBeenCalledTimes(2);
         expect(mockLogger.log).toHaveBeenCalledTimes(2);
       });
 
@@ -86,9 +94,11 @@ describe('Filter Utils', () => {
           name: `Item ${i + 1}`,
         }));
 
-        repoImpl.delete.mockResolvedValue({
-          affected: BATCH_SIZE,
-        } as unknown as Promise<unknown>);
+        repoImpl.softRemove.mockImplementation(
+          async (batch: EntityWithStringId[]) => {
+            return batch;
+          },
+        );
 
         const result = await deleteItemsInArray({
           items,
@@ -97,7 +107,7 @@ describe('Filter Utils', () => {
         });
 
         expect(result.deletedCount).toBe(items.length);
-        expect(repoImpl.delete).toHaveBeenCalledTimes(2); // Should create 2 batches
+        expect(repoImpl.softRemove).toHaveBeenCalledTimes(2); // Should create 2 batches
       });
 
       it('should handle empty array gracefully', async () => {
@@ -110,7 +120,7 @@ describe('Filter Utils', () => {
         expect(result.deletedCount).toBe(0);
         expect(result.deletedIds).toEqual([]);
         expect(result.failedIds).toEqual([]);
-        expect(repoImpl.delete).not.toHaveBeenCalled();
+        expect(repoImpl.softRemove).not.toHaveBeenCalled();
         expect(mockLogger.log).not.toHaveBeenCalled();
       });
     });
@@ -118,7 +128,7 @@ describe('Filter Utils', () => {
     describe('error handling scenarios', () => {
       it('should handle batch deletion failure and track failed IDs', async () => {
         const error = new Error('Database connection failed');
-        repoImpl.delete.mockRejectedValue(error);
+        repoImpl.softRemove.mockRejectedValue(error);
 
         const result = await deleteItemsInArray({
           items,
@@ -133,8 +143,8 @@ describe('Filter Utils', () => {
       });
 
       it('should handle partial batch failures', async () => {
-        repoImpl.delete
-          .mockResolvedValueOnce({ affected: 2 } as unknown as Promise<unknown>) // First batch succeeds
+        repoImpl.softRemove
+          .mockResolvedValueOnce([items[0], items[1]]) // First batch succeeds
           .mockRejectedValueOnce(new Error('Batch 2 failed')); // Second batch fails
 
         const result = await deleteItemsInArray({
@@ -156,7 +166,7 @@ describe('Filter Utils', () => {
       it('should log error details when batch fails', async () => {
         const error = { code: 'ERR001', message: 'Failed to delete' };
 
-        repoImpl.delete.mockRejectedValue(error);
+        repoImpl.softRemove.mockRejectedValue(error);
 
         await deleteItemsInArray({
           items: [items[0]],
@@ -172,9 +182,11 @@ describe('Filter Utils', () => {
 
     describe('different batch sizes', () => {
       it('should process with custom batch size of 1', async () => {
-        repoImpl.delete.mockResolvedValue({
-          affected: 1,
-        } as unknown as Promise<unknown>);
+        repoImpl.softRemove.mockImplementation(
+          async (batch: EntityWithStringId[]) => {
+            return batch;
+          },
+        );
 
         const result = await deleteItemsInArray({
           items,
@@ -184,7 +196,7 @@ describe('Filter Utils', () => {
         });
 
         expect(result.deletedCount).toBe(3);
-        expect(repoImpl.delete).toHaveBeenCalledTimes(3);
+        expect(repoImpl.softRemove).toHaveBeenCalledTimes(3);
       });
 
       it('should process with custom batch size of 10', async () => {
@@ -193,9 +205,11 @@ describe('Filter Utils', () => {
           name: `Item ${i + 1}`,
         }));
 
-        repoImpl.delete.mockResolvedValue({
-          affected: 10,
-        } as unknown as Promise<unknown>);
+        repoImpl.softRemove.mockImplementation(
+          async (batch: EntityWithStringId[]) => {
+            return batch;
+          },
+        );
 
         const result = await deleteItemsInArray({
           items,
@@ -205,7 +219,7 @@ describe('Filter Utils', () => {
         });
 
         expect(result.deletedCount).toBe(25);
-        expect(repoImpl.delete).toHaveBeenCalledTimes(3); // 3 batches of 10, 10, 5
+        expect(repoImpl.softRemove).toHaveBeenCalledTimes(3); // 3 batches of 10, 10, 5
       });
     });
 
@@ -216,9 +230,11 @@ describe('Filter Utils', () => {
           data: `Data ${i + 1}`,
         }));
 
-        repoImpl.delete.mockResolvedValue({
-          affected: BATCH_SIZE,
-        } as unknown as Promise<unknown>);
+        repoImpl.softRemove.mockImplementation(
+          async (batch: EntityWithStringId[]) => {
+            return batch;
+          },
+        );
 
         const result = await deleteItemsInArray({
           items,
@@ -230,7 +246,7 @@ describe('Filter Utils', () => {
         expect(result.deletedCount).toBe(150);
         expect(result.deletedIds).toHaveLength(150);
         expect(result.failedIds).toEqual([]);
-        expect(repoImpl.delete).toHaveBeenCalledTimes(3);
+        expect(repoImpl.softRemove).toHaveBeenCalledTimes(3);
       });
 
       it('should handle mixed success and failure batches', async () => {
@@ -239,13 +255,15 @@ describe('Filter Utils', () => {
         }));
 
         let callCount = 0;
-        repoImpl.delete.mockImplementation(() => {
-          callCount++;
-          if (callCount === 2) {
-            throw new Error('Network error');
-          }
-          return Promise.resolve({ affected: 2 });
-        });
+        repoImpl.softRemove.mockImplementation(
+          (batch: EntityWithStringId[]) => {
+            callCount++;
+            if (callCount === 2) {
+              throw new Error('Network error');
+            }
+            return Promise.resolve(batch);
+          },
+        );
 
         const result = await deleteItemsInArray({
           items,
@@ -285,9 +303,7 @@ describe('Filter Utils', () => {
           },
         ];
 
-        repoImpl.delete.mockResolvedValue({
-          affected: 2,
-        } as unknown as Promise<unknown>);
+        repoImpl.softRemove.mockResolvedValue(items);
 
         const result = await deleteItemsInArray({
           items,
@@ -297,10 +313,7 @@ describe('Filter Utils', () => {
 
         expect(result.deletedCount).toBe(2);
         expect(result.deletedIds).toEqual(['complex-1', 'complex-2']);
-        expect(repoImpl.delete).toHaveBeenCalledWith([
-          'complex-1',
-          'complex-2',
-        ]);
+        expect(repoImpl.softRemove).toHaveBeenCalledWith(items);
       });
     });
 
@@ -310,9 +323,11 @@ describe('Filter Utils', () => {
           id: `${i + 1}`,
         }));
 
-        repoImpl.delete.mockResolvedValue({
-          affected: 2,
-        } as unknown as Promise<unknown>);
+        repoImpl.softRemove.mockImplementation(
+          async (batch: EntityWithStringId[]) => {
+            return batch;
+          },
+        );
 
         await deleteItemsInArray({
           items,
@@ -335,7 +350,7 @@ describe('Filter Utils', () => {
       it('should log error messages with error details', async () => {
         const error = { message: 'Connection timeout', code: 'TIMEOUT' };
 
-        repoImpl.delete.mockRejectedValue(error);
+        repoImpl.softRemove.mockRejectedValue(error);
 
         await deleteItemsInArray({
           items: [items[0]],

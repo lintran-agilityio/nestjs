@@ -4,9 +4,9 @@ import { ExecutionContext, ForbiddenException } from '@nestjs/common';
 import { Reflector } from '@nestjs/core';
 
 // Local sources
-import { RolesGuard } from './roles-guard.guard';
-import { UserRole } from '../types';
-import { ROLES_KEY } from '../constants';
+import { RolesGuard } from '@app/shared/guards/roles-guard.guard';
+import { UserRole } from '@app/shared/types';
+import { ROLES_KEY } from '@app/shared/constants';
 
 describe('RolesGuard', () => {
   let guard: RolesGuard;

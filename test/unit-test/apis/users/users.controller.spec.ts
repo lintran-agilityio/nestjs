@@ -2,10 +2,11 @@
 import { Test, TestingModule } from '@nestjs/testing';
 
 // Local sources
-import { UserController } from './users.controller';
-import { UserService } from './users.service';
+import { UserController } from '@app/apis/users/users.controller';
+import { UserService } from '@app/apis/users/users.service';
 import {
   mockingPostUuid,
+  mockingUser,
   mockingUserInfo,
   mockUuidUser,
 } from '@app/shared/mocks';
@@ -46,7 +47,7 @@ describe('UserController', () => {
 
   it('getUsersRecently should delegate', async () => {
     userService.getUsersRecently.mockResolvedValue({ data: [], total: 0 });
-    const result = await controller.getUsersRecently({});
+    const result = await controller.getUsersRecently({}, mockingUser);
     expect(userService.getUsersRecently).toHaveBeenCalled();
     expect(result).toEqual({ data: [], total: 0 });
   });
@@ -113,7 +114,7 @@ describe('UserController', () => {
       message: messageSuccess,
       count: 0,
     });
-    const result = await controller.deleteAll();
+    const result = await controller.deleteAll(mockingUser);
     expect(userService.deleteAll).toHaveBeenCalled();
     expect(result).toEqual({ message: messageSuccess, count: 0 });
   });

@@ -4,8 +4,8 @@ import { ExecutionContext, ForbiddenException } from '@nestjs/common';
 import { Reflector } from '@nestjs/core';
 
 // Local sources
-import { OwnUserGuard } from './own-user.guard';
-import { UserRole } from '../types';
+import { OwnUserGuard } from '@app/shared/guards/own-user.guard';
+import { UserRole } from '@app/shared/types';
 
 describe('OwnUserGuard', () => {
   let guard: OwnUserGuard;

@@ -2,6 +2,7 @@
 import { Test, TestingModule } from '@nestjs/testing';
 import { getRepositoryToken } from '@nestjs/typeorm';
 import { NotFoundException, UnauthorizedException } from '@nestjs/common';
+import { DataSource, EntityManager, Repository } from 'typeorm';
 
 // Apis sources
 import { UserService } from '@app/apis/users/users.service';
@@ -22,12 +23,13 @@ import {
   mockingUserResponse,
 } from '@app/shared/mocks';
 import { CacheAbstractService } from '@app/shared/modules/cache/cache.abstract.service';
+import { AuditLoggerService } from '@app/shared/modules/audit-logger/audit-logger.service';
 import * as utils from '@app/shared/utils';
 import { UserRole } from '@app/shared/types';
 
 // Local sources
-import { CommentService } from './comments.service';
-import { Comment } from './entities';
+import { CommentService } from '@app/apis/comments/comments.service';
+import { Comment } from '@app/apis/comments/entities';
 
 jest.mock('@app/shared/utils', () => ({
   ...jest.requireActual('@app/shared/utils'),
@@ -51,6 +53,14 @@ describe('CommentService', () => {
     deleteKey: jest.Mock;
     deleteByPattern: jest.Mock;
   };
+  let auditLoggerService: {
+    logAction: jest.Mock<Promise<void>, [object, EntityManager?]>;
+  };
+  let dataSource: {
+    transaction: jest.Mock;
+  };
+  let transactionManager: jest.Mocked<EntityManager>;
+  let transactionalRepo: jest.Mocked<Repository<Comment>>;
   const mockComment: Comment = Object.assign(new Comment(), {
     ...mockingCommentInfo,
     id: mockingCommentUuid,
@@ -93,6 +103,28 @@ describe('CommentService', () => {
       deleteByPattern: jest.fn().mockResolvedValue(undefined),
     };
 
+    auditLoggerService = {
+      logAction: jest.fn().mockResolvedValue(undefined),
+    };
+
+    transactionalRepo = {
+      create: jest.fn(),
+      save: jest.fn(),
+      softRemove: jest.fn(),
+    } as unknown as jest.Mocked<Repository<Comment>>;
+
+    transactionManager = {
+      getRepository: jest.fn().mockReturnValue(transactionalRepo),
+    } as unknown as jest.Mocked<EntityManager>;
+
+    dataSource = {
+      transaction: jest.fn().mockImplementation(async <T>(
+        callback: (manager: EntityManager) => Promise<T>,
+      ): Promise<T> => {
+        return callback(transactionManager);
+      }),
+    } as unknown as { transaction: jest.Mock };
+
     const module: TestingModule = await Test.createTestingModule({
       providers: [
         CommentService,
@@ -106,6 +138,8 @@ describe('CommentService', () => {
         { provide: UserService, useValue: { getById: jest.fn() } },
         { provide: PostService, useValue: { getById: jest.fn() } },
         { provide: CacheAbstractService, useValue: cacheService },
+        { provide: AuditLoggerService, useValue: auditLoggerService },
+        { provide: DataSource, useValue: dataSource },
         createMockLoggerProvider(),
       ],
     }).compile();
@@ -188,12 +222,14 @@ describe('CommentService', () => {
       const createdComment: Comment = Object.assign(new Comment(), {
         content: mockingCommentInfo.content,
       } as Partial<Comment>);
-      commentsRepo.create.mockReturnValue(createdComment);
+      transactionalRepo.create.mockReturnValue(createdComment);
       const savedComment: Comment = Object.assign(new Comment(), {
         id: mockingCommentUuid,
         content: mockingCommentInfo.content,
+        userId: mockUuidUser,
+        postId: mockingPostUuid,
       } as Partial<Comment>);
-      commentsRepo.save.mockResolvedValue(savedComment);
+      transactionalRepo.save.mockResolvedValue(savedComment);
 
       const result = await service.createComment(mockUuidUser, {
         postId: mockingPostUuid,
@@ -202,12 +238,14 @@ describe('CommentService', () => {
 
       expect(userService.getById).toHaveBeenCalledWith(mockUuidUser);
       expect(postService.getById).toHaveBeenCalledWith(mockingPostUuid);
-      expect(commentsRepo.create).toHaveBeenCalledWith({
+      expect(transactionalRepo.create).toHaveBeenCalledWith({
         content: 'hi',
         userId: mockUuidUser,
         postId: mockingPostUuid,
       });
-      expect(commentsRepo.save).toHaveBeenCalled();
+      expect(transactionalRepo.save).toHaveBeenCalled();
+      expect(auditLoggerService.logAction).toHaveBeenCalled();
+      expect(dataSource.transaction).toHaveBeenCalled();
       expect(result).toEqual(savedComment);
       expect(cacheService.deleteByPattern).toHaveBeenCalledWith(
         `${REDIS_CACHE_KEYS.COMMENTS.LIST}:*`,
@@ -261,8 +299,8 @@ describe('CommentService', () => {
       const createdComment: Comment = Object.assign(new Comment(), {
         content: mockingCommentInfo.content,
       } as Partial<Comment>);
-      commentsRepo.create.mockReturnValue(createdComment);
-      commentsRepo.save.mockRejectedValue(new Error('save-fail'));
+      transactionalRepo.create.mockReturnValue(createdComment);
+      transactionalRepo.save.mockRejectedValue(new Error('save-fail'));
 
       await expect(
         service.createComment(mockUuidUser, {
@@ -295,7 +333,7 @@ describe('CommentService', () => {
         ...existed,
         content: 'new',
       } as Partial<Comment>);
-      commentsRepo.save.mockResolvedValue(updatedComment);
+      transactionalRepo.save.mockResolvedValue(updatedComment);
 
       const result = await service.updateCommentById(
         mockingCommentUuid,
@@ -305,7 +343,9 @@ describe('CommentService', () => {
         },
       );
 
-      expect(commentsRepo.save).toHaveBeenCalled();
+      expect(transactionalRepo.save).toHaveBeenCalled();
+      expect(auditLoggerService.logAction).toHaveBeenCalled();
+      expect(dataSource.transaction).toHaveBeenCalled();
       expect(result.content).toBe('new');
       expect(cacheService.deleteKey).toHaveBeenCalledWith(
         `${REDIS_CACHE_KEYS.COMMENTS.BY_ID}:${mockingCommentUuid}`,
@@ -328,7 +368,7 @@ describe('CommentService', () => {
         postId: mockingPostUuid,
       } as Partial<Comment>);
       jest.spyOn(service, 'getCommentById').mockResolvedValue(existed);
-      commentsRepo.save.mockRejectedValue(new Error('save-fail'));
+      transactionalRepo.save.mockRejectedValue(new Error('save-fail'));
 
       await expect(
         service.updateCommentById(mockingCommentUuid, mockUuidUser, {
@@ -365,7 +405,7 @@ describe('CommentService', () => {
         userId: differentUserId,
       } as Partial<Comment>);
       jest.spyOn(service, 'getCommentById').mockResolvedValue(comment);
-      commentsRepo.remove.mockResolvedValue(comment);
+      transactionalRepo.softRemove.mockResolvedValue(comment);
       const adminUser = {
         id: mockUuidUser,
         email: mockingUserResponse.email,
@@ -380,7 +420,9 @@ describe('CommentService', () => {
         adminUser,
       );
 
-      expect(commentsRepo.remove).toHaveBeenCalledWith(comment);
+      expect(transactionalRepo.softRemove).toHaveBeenCalledWith(comment);
+      expect(auditLoggerService.logAction).toHaveBeenCalled();
+      expect(dataSource.transaction).toHaveBeenCalled();
       expect(result).toEqual({ message: MESSAGES.COMMENT_DELETE_SUCCESS });
       expect(cacheService.deleteKey).toHaveBeenCalledWith(
         `${REDIS_CACHE_KEYS.COMMENTS.BY_ID}:${mockingCommentUuid}`,
@@ -398,7 +440,7 @@ describe('CommentService', () => {
         postId: mockingPostUuid,
       } as Partial<Comment>);
       jest.spyOn(service, 'getCommentById').mockResolvedValue(existed);
-      commentsRepo.remove.mockResolvedValue(existed);
+      transactionalRepo.softRemove.mockResolvedValue(existed);
       const user = {
         id: mockUuidUser,
         email: mockingUserResponse.email,
@@ -410,7 +452,9 @@ describe('CommentService', () => {
 
       const result = await service.deleteCommentById(mockingCommentUuid, user);
 
-      expect(commentsRepo.remove).toHaveBeenCalledWith(existed);
+      expect(transactionalRepo.softRemove).toHaveBeenCalledWith(existed);
+      expect(auditLoggerService.logAction).toHaveBeenCalled();
+      expect(dataSource.transaction).toHaveBeenCalled();
       expect(result).toEqual({ message: MESSAGES.COMMENT_DELETE_SUCCESS });
       expect(cacheService.deleteKey).toHaveBeenCalledWith(
         `${REDIS_CACHE_KEYS.COMMENTS.BY_ID}:${mockingCommentUuid}`,
@@ -428,7 +472,7 @@ describe('CommentService', () => {
         postId: mockingPostUuid,
       } as Partial<Comment>);
       jest.spyOn(service, 'getCommentById').mockResolvedValue(existed);
-      commentsRepo.remove.mockRejectedValue(new Error('remove-fail'));
+      transactionalRepo.softRemove.mockRejectedValue(new Error('remove-fail'));
       const user = {
         id: mockUuidUser,
         email: mockingUserResponse.email,
@@ -476,7 +520,7 @@ describe('CommentService', () => {
         meta: mockingMetadata,
       });
 
-      const result = await service.getCommentsRecently({});
+      await service.getCommentsRecently({});
 
       expect(queryBuilder.leftJoinAndSelect).toHaveBeenCalled();
       expect(queryBuilder.select).toHaveBeenCalled();
@@ -557,24 +601,6 @@ describe('CommentService', () => {
     });
   });
 
-  describe('updateCommentById', () => {
-    it('handles error when save fails', async () => {
-      const existed = Object.assign(new Comment(), {
-        id: mockingCommentUuid,
-        userId: mockUuidUser,
-        content: 'old',
-        postId: mockingPostUuid,
-      } as Partial<Comment>);
-      jest.spyOn(service, 'getCommentById').mockResolvedValue(existed);
-      commentsRepo.save.mockRejectedValue(new Error('save-fail'));
-
-      await expect(
-        service.updateCommentById(mockingCommentUuid, mockUuidUser, {
-          content: 'new',
-        }),
-      ).rejects.toThrow();
-    });
-  });
 
   describe('deleteComments', () => {
     it('deletes comments by ids successfully', async () => {
@@ -596,10 +622,12 @@ describe('CommentService', () => {
         deletedIds: [mockingCommentUuid, differentUserId],
       });
 
-      const result = await service.deleteComments({
+      const result = await service.deleteComments(mockUuidUser, {
         commentIds: [mockingCommentUuid, differentUserId],
       });
 
+      expect(dataSource.transaction).toHaveBeenCalled();
+      expect(auditLoggerService.logAction).toHaveBeenCalledTimes(2);
       expect(result.count).toBe(2);
       expect(result.message).toBeDefined();
       expect(cacheService.deleteKey).toHaveBeenCalledTimes(2);
@@ -618,7 +646,7 @@ describe('CommentService', () => {
         deletedIds: [],
       });
 
-      const result = await service.deleteComments({
+      const result = await service.deleteComments(mockUuidUser, {
         commentIds: ['non-existent-id'],
       });
 
@@ -635,7 +663,9 @@ describe('CommentService', () => {
         deletedIds: [],
       });
 
-      const result = await service.deleteComments({ commentIds: [] });
+      const result = await service.deleteComments(mockUuidUser, {
+        commentIds: [],
+      });
 
       expect(result.count).toBe(0);
       expect(result.message).toBeDefined();
@@ -661,7 +691,7 @@ describe('CommentService', () => {
         deletedIds: [mockingCommentUuid],
       });
 
-      const result = await service.deleteComments({
+      const result = await service.deleteComments(mockUuidUser, {
         commentIds: [mockingCommentUuid, nonExistentId],
       });
 
@@ -676,7 +706,9 @@ describe('CommentService', () => {
       queryBuilder.where.mockReturnThis();
 
       await expect(
-        service.deleteComments({ commentIds: [mockingCommentUuid] }),
+        service.deleteComments(mockUuidUser, {
+          commentIds: [mockingCommentUuid],
+        }),
       ).rejects.toThrow();
     });
 
@@ -695,7 +727,9 @@ describe('CommentService', () => {
       );
 
       await expect(
-        service.deleteComments({ commentIds: [mockingCommentUuid] }),
+        service.deleteComments(mockUuidUser, {
+          commentIds: [mockingCommentUuid],
+        }),
       ).rejects.toThrow();
     });
   });

@@ -7,11 +7,11 @@ import {
   createPaginationResponse,
   getDataPagination,
   processPaginationParams,
-} from '../pagination.utils';
-import { OrderBy } from '../../types';
+} from '@app/shared/utils/pagination.utils';
+import { OrderBy } from '@app/shared/types';
 
-import { QueryPaginationParamDto } from '../../dtos';
-import { IQueryPagination } from '../../interfaces';
+import { QueryPaginationParamDto } from '@app/shared/dtos';
+import { IQueryPagination } from '@app/shared/interfaces';
 
 describe('Pagination Utils', () => {
   describe('processPaginationParams', () => {

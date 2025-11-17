@@ -5,9 +5,9 @@ import { Test, TestingModule } from '@nestjs/testing';
 import { UserRole, UserStatus } from '@app/shared/types';
 
 // Local sources
-import { AuthController } from './auth.controller';
-import { AuthService } from './auth.service';
-import { LoginRequestDto, RegisterRequestDto } from './dto';
+import { AuthController } from '@app/apis/auth/auth.controller';
+import { AuthService } from '@app/apis/auth/auth.service';
+import { LoginRequestDto, RegisterRequestDto } from '@app/apis/auth/dto';
 import {
   mockingUserLogin,
   mockingUserRegister,

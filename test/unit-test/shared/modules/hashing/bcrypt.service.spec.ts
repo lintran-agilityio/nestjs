@@ -2,7 +2,7 @@
 import { Test, TestingModule } from '@nestjs/testing';
 
 // Local sources
-import { BcryptService } from './bcrypt.service';
+import { BcryptService } from '@app/shared/modules/hashing/bcrypt.service';
 import * as bcrypt from 'bcryptjs';
 
 jest.mock('bcryptjs');

@@ -1,4 +1,4 @@
-import { NoOpCacheService } from './noop-cache.service';
+import { NoOpCacheService } from '@app/shared/modules/cache/noop-cache.service';
 
 describe('NoOpCacheService', () => {
   let service: NoOpCacheService;

@@ -3,12 +3,12 @@ import { Test, TestingModule } from '@nestjs/testing';
 import Redis from 'ioredis';
 
 // App sources
-import { AppLoggerService } from '../../logger/logger.service';
+import { AppLoggerService } from '@app/shared/modules/logger/logger.service';
 import { createMockLoggerProvider } from '@app/shared/mocks';
 import { getErrorMessage } from '@app/shared/utils/error.utils';
 
 // Local sources
-import { RedisService } from './redis.service';
+import { RedisService } from '@app/shared/modules/cache/redis/redis.service';
 
 describe('RedisService', () => {
   let service: RedisService;

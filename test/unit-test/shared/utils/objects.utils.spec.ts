@@ -4,7 +4,7 @@ import {
   chunkArray,
   isPlainObject,
   updateObjectFields,
-} from '../objects.utils';
+} from '@app/shared/utils/objects.utils';
 
 describe('getBodyFieldValue', () => {
   it('returns string values unchanged', () => {

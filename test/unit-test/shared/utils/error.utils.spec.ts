@@ -6,9 +6,12 @@ import {
   NotFoundException,
   UnauthorizedException,
 } from '@nestjs/common';
-import { MESSAGES } from '../../constants/messages.constant';
-import { IErrorResponse } from '../../interfaces';
-import { handleErrorException, getErrorMessage } from '../error.utils';
+import { MESSAGES } from '@app/shared/constants/messages.constant';
+import { IErrorResponse } from '@app/shared/interfaces';
+import {
+  handleErrorException,
+  getErrorMessage,
+} from '@app/shared/utils/error.utils';
 
 describe('Error Utils', () => {
   describe('handleErrorException', () => {
