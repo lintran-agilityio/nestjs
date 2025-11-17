@@ -1,7 +1,7 @@
 import { Injectable } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { AuditLog } from './entities';
-import { Repository } from 'typeorm';
+import { EntityManager, Repository } from 'typeorm';
 
 @Injectable()
 export class AuditLoggerService {
@@ -10,20 +10,27 @@ export class AuditLoggerService {
     private readonly auditLogRepository: Repository<AuditLog>,
   ) {}
 
-  async logAction({
-    userId,
-    action,
-    entity,
-    entityId,
-    data,
-  }: {
-    userId: string;
-    action: string;
-    entity?: string;
-    entityId?: string;
-    data?: any;
-  }): Promise<AuditLog> {
-    const auditLog = this.auditLogRepository.create({
+  async logAction(
+    {
+      userId,
+      action,
+      entity = '',
+      entityId = null,
+      data,
+    }: {
+      userId: string;
+      action: string;
+      entity?: string;
+      entityId?: string;
+      data?: any;
+    },
+    manager?: EntityManager,
+  ): Promise<AuditLog> {
+    const targetRepo = manager
+      ? manager.getRepository(AuditLog)
+      : this.auditLogRepository;
+
+    const auditLog = targetRepo.create({
       userId,
       action,
       entity,
@@ -31,6 +38,6 @@ export class AuditLoggerService {
       data,
     });
 
-    return this.auditLogRepository.save(auditLog);
+    return targetRepo.save(auditLog);
   }
 }

@@ -64,8 +64,9 @@ export class UserController {
   })
   async getUsersRecently(
     @Query() paramQueryDto: QueryPaginationParamDto,
+    @GetCurrentUser() user: IUserInfo,
   ): Promise<UserResponseDto> {
-    return await this.userService.getUsersRecently(paramQueryDto);
+    return await this.userService.getUsersRecently(user?.id, paramQueryDto);
   }
 
   /**
@@ -90,8 +91,7 @@ export class UserController {
   })
   async getByIdOrEmail(
     @Param('identifier') identifier: string,
-    @GetCurrentUser()
-    currentUser: IUserInfo,
+    @GetCurrentUser() currentUser: IUserInfo,
   ): Promise<User> {
     return this.userService.getByIdOrEmail(identifier, currentUser);
   }

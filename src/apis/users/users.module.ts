@@ -7,6 +7,7 @@ import { CUSTOM_PROVIDER_TOKENS } from '@app/shared/common';
 import { BcryptService } from '@app/shared/modules/hashing/bcrypt.service';
 import { PostModule } from '@app/apis/posts/posts.module';
 import { CacheModule } from '@app/shared/modules/cache/cache.module';
+import { AuditLoggerModule } from '@app/shared/modules/audit-logger/audit-logger.module';
 
 // Local sources
 import { UserController } from './users.controller';
@@ -19,6 +20,7 @@ import { CacheProvider } from '@app/shared/types';
     TypeOrmModule.forFeature([User]),
     forwardRef(() => PostModule),
     CacheModule.register(CacheProvider.REDIS),
+    AuditLoggerModule,
   ],
   controllers: [UserController],
   providers: [

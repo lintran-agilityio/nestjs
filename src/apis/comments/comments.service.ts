@@ -8,7 +8,7 @@ import {
   UnauthorizedException,
 } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
-import { Repository } from 'typeorm';
+import { DataSource, EntityManager, Repository } from 'typeorm';
 
 import { MESSAGES, REDIS_CACHE_KEYS, TTL_CACHE } from '@app/shared/constants';
 import {
@@ -62,6 +62,7 @@ export class CommentService {
     private readonly cacheService: CacheAbstractService,
 
     private readonly auditLoggerService: AuditLoggerService,
+    private readonly dataSource: DataSource,
   ) {
     // Create context name for logger
     this.logger = this.appLoggerServices.getLoggerName(CommentService.name);
@@ -223,33 +224,51 @@ export class CommentService {
     await this.postService.getById(postId);
 
     try {
-      const comment = this.commentsRepo.create({
-        content,
-        userId,
-        postId,
-      });
+      const savedComment = await this.dataSource.transaction<Comment>(
+        async (manager: EntityManager) => {
+          const transactionalRepo = manager.getRepository(Comment);
 
-      await this.auditLoggerService.logAction({
-        userId,
-        action: 'CREATE_COMMENT',
-        entity: 'Comment',
-        entityId: comment.id,
-        data: comment,
-      });
+          const comment = transactionalRepo.create({
+            content,
+            userId,
+            postId,
+          });
 
-      const savedComment = await this.commentsRepo.save(comment);
+          const saved = await transactionalRepo.save(comment);
+
+          // Log audit action within transaction after comment is saved
+          await this.auditLoggerService.logAction(
+            {
+              userId,
+              action: 'CREATE_COMMENT',
+              entity: 'Comment',
+              entityId: saved.id,
+              data: saved,
+            },
+            manager,
+          );
+
+          return saved;
+        },
+      );
 
       this.logger.log(`Comment created successfully: ${savedComment.id}`);
 
-      // Invalidate list caches and set item cache
-      await this.cacheService.deleteByPattern(
-        `${REDIS_CACHE_KEYS.COMMENTS.LIST}:*`,
-      );
-      await this.cacheService.setKey(
-        `${REDIS_CACHE_KEYS.COMMENTS.BY_ID}:${savedComment.id}`,
-        savedComment,
-        TTL_CACHE.COMMENT_BY_ID,
-      );
+      // Invalidate list caches and set item cache (outside transaction - non-critical)
+      try {
+        await this.cacheService.deleteByPattern(
+          `${REDIS_CACHE_KEYS.COMMENTS.LIST}:*`,
+        );
+        await this.cacheService.setKey(
+          `${REDIS_CACHE_KEYS.COMMENTS.BY_ID}:${savedComment.id}`,
+          savedComment,
+          TTL_CACHE.COMMENT_BY_ID,
+        );
+      } catch (cacheError) {
+        this.logger.error(
+          `[Cache] - Failed cache operations after creating comment ${savedComment.id}: ${JSON.stringify(cacheError)}`,
+        );
+      }
 
       this.logger.log(`Comment ${savedComment.id} cached successfully`);
       return savedComment;
@@ -291,32 +310,50 @@ export class CommentService {
     }
 
     try {
-      comment.content = updateDto.content;
-      const updatedComment = await this.commentsRepo.save(comment);
+      const updatedComment = await this.dataSource.transaction<Comment>(
+        async (manager: EntityManager) => {
+          const transactionalRepo = manager.getRepository(Comment);
 
-      await this.auditLoggerService.logAction({
-        userId,
-        action: 'UPDATE_COMMENT',
-        entity: 'Comment',
-        entityId: updatedComment.id,
-        data: updatedComment,
-      });
+          comment.content = updateDto.content;
+          const saved = await transactionalRepo.save(comment);
+
+          // Log audit action within transaction
+          await this.auditLoggerService.logAction(
+            {
+              userId,
+              action: 'UPDATE_COMMENT',
+              entity: 'Comment',
+              entityId: saved.id,
+              data: saved,
+            },
+            manager,
+          );
+
+          return saved;
+        },
+      );
 
       this.logger.log(`Comment ${id} updated successfully`);
 
-      // Invalidate caches
-      await this.cacheService.deleteKey(
-        `${REDIS_CACHE_KEYS.COMMENTS.BY_ID}:${id}`,
-      );
-      await this.cacheService.deleteByPattern(
-        `${REDIS_CACHE_KEYS.COMMENTS.LIST}:*`,
-      );
-      // Refresh item cache
-      await this.cacheService.setKey(
-        `${REDIS_CACHE_KEYS.COMMENTS.BY_ID}:${updatedComment.id}`,
-        updatedComment,
-        TTL_CACHE.COMMENT_BY_ID,
-      );
+      // Invalidate caches (outside transaction - non-critical)
+      try {
+        await this.cacheService.deleteKey(
+          `${REDIS_CACHE_KEYS.COMMENTS.BY_ID}:${id}`,
+        );
+        await this.cacheService.deleteByPattern(
+          `${REDIS_CACHE_KEYS.COMMENTS.LIST}:*`,
+        );
+        // Refresh item cache
+        await this.cacheService.setKey(
+          `${REDIS_CACHE_KEYS.COMMENTS.BY_ID}:${updatedComment.id}`,
+          updatedComment,
+          TTL_CACHE.COMMENT_BY_ID,
+        );
+      } catch (cacheError) {
+        this.logger.error(
+          `[Cache] - Failed cache operations after updating comment ${id}: ${JSON.stringify(cacheError)}`,
+        );
+      }
 
       this.logger.log(`Comment ${id} cache updated successfully`);
 
@@ -359,24 +396,38 @@ export class CommentService {
     }
 
     try {
-      await this.commentsRepo.remove(comment);
+      await this.dataSource.transaction(async (manager: EntityManager) => {
+        const transactionalRepo = manager.getRepository(Comment);
 
-      await this.auditLoggerService.logAction({
-        userId,
-        action: 'DELETE_COMMENT',
-        entity: 'Comment',
-        entityId: id,
+        await transactionalRepo.remove(comment);
+
+        // Log audit action within transaction
+        await this.auditLoggerService.logAction(
+          {
+            userId,
+            action: 'DELETE_COMMENT',
+            entity: 'Comment',
+            entityId: id,
+          },
+          manager,
+        );
       });
 
       this.logger.log(`Comment ${id} deleted successfully`);
 
-      // Invalidate caches
-      await this.cacheService.deleteKey(
-        `${REDIS_CACHE_KEYS.COMMENTS.BY_ID}:${id}`,
-      );
-      await this.cacheService.deleteByPattern(
-        `${REDIS_CACHE_KEYS.COMMENTS.LIST}:*`,
-      );
+      // Invalidate caches (outside transaction - non-critical)
+      try {
+        await this.cacheService.deleteKey(
+          `${REDIS_CACHE_KEYS.COMMENTS.BY_ID}:${id}`,
+        );
+        await this.cacheService.deleteByPattern(
+          `${REDIS_CACHE_KEYS.COMMENTS.LIST}:*`,
+        );
+      } catch (cacheError) {
+        this.logger.error(
+          `[Cache] - Failed to invalidate cache after deleting comment ${id}: ${JSON.stringify(cacheError)}`,
+        );
+      }
 
       this.logger.log(`Comment ${id} cache invalidated successfully`);
       return { message: MESSAGES.COMMENT_DELETE_SUCCESS };
@@ -423,35 +474,49 @@ export class CommentService {
       let deletedCount = 0;
       const deletedIds: string[] = [];
 
-      // Delete comments in batches for better performance
+      // Delete comments in batches for better performance within transaction
       if (existingComments.length) {
-        const deleteResult = await deleteItemsInArray({
-          items: existingComments,
-          itemRepository: this.commentsRepo,
-          logger: this.logger,
-        });
-        deletedCount = deleteResult.deletedCount;
-        deletedIds.push(...deleteResult.deletedIds);
+        await this.dataSource.transaction(async (manager: EntityManager) => {
+          const transactionalRepo = manager.getRepository(Comment);
 
-        // Use Audit Logger to log the bulk comment deletion action
-        for (const deletedId of deletedIds) {
-          await this.auditLoggerService.logAction({
-            userId,
-            action: 'DELETE_COMMENT',
-            entity: 'Comment',
-            entityId: deletedId,
+          // Delete comments using transactional repository
+          const deleteResult = await deleteItemsInArray({
+            items: existingComments,
+            itemRepository: transactionalRepo,
+            logger: this.logger,
           });
-        }
+          deletedCount = deleteResult.deletedCount;
+          deletedIds.push(...deleteResult.deletedIds);
 
-        // Invalidate caches for deleted comments
-        for (const comment of existingComments) {
-          await this.cacheService.deleteKey(
-            `${REDIS_CACHE_KEYS.COMMENTS.BY_ID}:${comment.id}`,
+          // Use Audit Logger to log the bulk comment deletion action within transaction
+          for (const deletedId of deletedIds) {
+            await this.auditLoggerService.logAction(
+              {
+                userId,
+                action: 'DELETE_COMMENT',
+                entity: 'Comment',
+                entityId: deletedId,
+              },
+              manager,
+            );
+          }
+        });
+
+        // Invalidate caches for deleted comments (outside transaction - non-critical)
+        try {
+          for (const comment of existingComments) {
+            await this.cacheService.deleteKey(
+              `${REDIS_CACHE_KEYS.COMMENTS.BY_ID}:${comment.id}`,
+            );
+          }
+          await this.cacheService.deleteByPattern(
+            `${REDIS_CACHE_KEYS.COMMENTS.LIST}:*`,
+          );
+        } catch (cacheError) {
+          this.logger.error(
+            `[Cache] - Failed to invalidate cache after bulk delete: ${JSON.stringify(cacheError)}`,
           );
         }
-        await this.cacheService.deleteByPattern(
-          `${REDIS_CACHE_KEYS.COMMENTS.LIST}:*`,
-        );
       }
 
       this.logger.log('Comments deleted successfully');

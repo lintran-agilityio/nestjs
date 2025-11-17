@@ -8,7 +8,7 @@ import {
 } from '@nestjs/common';
 import { instanceToPlain } from 'class-transformer';
 import { InjectRepository } from '@nestjs/typeorm';
-import { Repository } from 'typeorm';
+import { DataSource, EntityManager, Repository } from 'typeorm';
 
 // App sources
 import { CUSTOM_PROVIDER_TOKENS } from '@app/shared/common';
@@ -76,6 +76,8 @@ export class UserService {
     private readonly cacheService: CacheAbstractService,
 
     private readonly auditLogger: AuditLoggerService,
+
+    private readonly dataSource: DataSource,
   ) {
     // Create context name for logger
     this.logger = this.appLoggerServices.getLoggerName(UserService.name);
@@ -83,11 +85,13 @@ export class UserService {
 
   /**
    * Get all users with pagination
+   * @param userId - Optional user ID for audit logging (may be undefined for public endpoints)
    * @param queryUrl - Query parameters for pagination, sorting, and filtering
    * @returns Paginated list of users with metadata
    * @throws InternalServerErrorException on server error
    */
   async getUsersRecently(
+    userId: string | undefined,
     queryUrl: QueryPaginationParamDto,
   ): Promise<UserResponseDto> {
     this.logger.log('Get all users...');
@@ -99,6 +103,21 @@ export class UserService {
       const cached = await this.cacheService.getKey<UserResponseDto>(cacheKey);
       if (cached && isValidUserResponse(cached)) {
         this.logger.log('Users list served from cache');
+
+        // Only log audit action if userId is provided
+        if (userId) {
+          await this.auditLogger.logAction({
+            userId,
+            action: 'LIST_USERS_RECENTLY',
+            entity: 'User',
+            data: {
+              query: queryUrl,
+              meta: cached.meta,
+              servedFromCache: true,
+            },
+          });
+        }
+
         return cached;
       }
       if (cached) {
@@ -110,35 +129,84 @@ export class UserService {
       // Get select fields for allowed sorting
       const selectFields = getSelectFields(USER_SELECT_FIELDS);
 
-      // Build query
-      let queryBuilder = this.usersRepo
-        .createQueryBuilder('user')
-        .select(selectFields.map((field) => `user.${field}`));
-
-      // Search by (email | firstName | lastName)
       const searchValue = search.trim();
-      if (searchValue) {
-        const normalizedSearch = `%${searchValue}%`;
+      let cacheUpdated = false;
 
-        queryBuilder = queryBuilder.andWhere(
-          '(user.email ILIKE :search OR user.firstName ILIKE :search OR user.lastName ILIKE :search)',
-          { search: normalizedSearch },
+      try {
+        const result = await this.dataSource.transaction<UserResponseDto>(
+          async (manager) => {
+            const transactionalRepo = manager.getRepository(User);
+
+            // Build query inside transaction
+            let queryBuilder = transactionalRepo
+              .createQueryBuilder('user')
+              .select(selectFields.map((field) => `user.${field}`));
+
+            // Search by (email | firstName | lastName)
+            if (searchValue) {
+              const normalizedSearch = `%${searchValue}%`;
+
+              queryBuilder = queryBuilder.andWhere(
+                '(user.email ILIKE :search OR user.firstName ILIKE :search OR user.lastName ILIKE :search)',
+                { search: normalizedSearch },
+              );
+            }
+
+            const paginatedResult = await getDataPagination<User>({
+              selectFields,
+              queryUrl,
+              queryBuilder,
+              logger: this.logger,
+              entity: 'user',
+            });
+
+            // Set into Cache before committing so failures trigger rollback
+            await this.cacheService.setKey(
+              cacheKey,
+              paginatedResult,
+              TTL_CACHE.USERS_LIST,
+            );
+            cacheUpdated = true;
+
+            // Only log audit action if userId is provided
+            if (userId) {
+              await this.auditLogger.logAction(
+                {
+                  userId,
+                  action: 'LIST_USERS_RECENTLY',
+                  entity: 'User',
+                  data: {
+                    query: queryUrl,
+                    meta: paginatedResult.meta,
+                    servedFromCache: false,
+                  },
+                },
+                manager,
+              );
+            }
+
+            return paginatedResult;
+          },
         );
+
+        this.logger.log('Fetched users list successfully');
+        return result;
+      } catch (transactionError) {
+        if (cacheUpdated) {
+          try {
+            await this.cacheService.deleteKey(cacheKey);
+          } catch (cacheCleanupError) {
+            this.logger.error(
+              `[Cache] - Failed to rollback cache for key ${cacheKey}: ${JSON.stringify(cacheCleanupError)}`,
+            );
+          }
+        }
+
+        this.logger.error(
+          `[Transaction] - Failed to get users list: ${JSON.stringify(transactionError)}`,
+        );
+        throw transactionError;
       }
-
-      const result = await getDataPagination<User>({
-        selectFields,
-        queryUrl,
-        queryBuilder,
-        logger: this.logger,
-        entity: 'user',
-      });
-
-      // Set into Cache
-      await this.cacheService.setKey(cacheKey, result, TTL_CACHE.USERS_LIST);
-      this.logger.log('Fetched users list successfully');
-
-      return result;
     } catch (error) {
       this.logger.error(
         `[Error] - Get error when get all user: ${JSON.stringify(error)}`,
@@ -210,30 +278,34 @@ export class UserService {
    * @param id - User ID
    * @returns User or null if not found
    */
-  async getUserById(id: string): Promise<User | null> {
+  async getUserById(id: string, manager?: EntityManager): Promise<User | null> {
     this.logger.log(`Query get user by id: ${id}`);
 
-    // Get data from Redis cache
-    const cacheKey = `${BY_ID}:${id}`;
-    const cachedUser = await isValidUserCache<User>({
-      cacheKey,
-      cacheService: this.cacheService,
-      logger: this.logger,
-      entity: User,
-      validator: isValidUser,
-    });
+    if (!manager) {
+      // Get data from Redis cache
+      const cacheKey = `${BY_ID}:${id}`;
+      const cachedUser = await isValidUserCache<User>({
+        cacheKey,
+        cacheService: this.cacheService,
+        logger: this.logger,
+        entity: User,
+        validator: isValidUser,
+      });
 
-    if (cachedUser) {
-      return cachedUser;
+      if (cachedUser) {
+        return cachedUser;
+      }
     }
 
-    const user = await this.usersRepo.findOne({
+    const repository = manager ? manager.getRepository(User) : this.usersRepo;
+
+    const user = await repository.findOne({
       where: { id },
     });
 
-    if (user) {
+    if (!manager && user) {
       // Cache data into Redis cache
-      await this.cacheUser(cacheKey, user, TTL_CACHE.USER_BY_ID);
+      await this.cacheUser(`${BY_ID}:${id}`, user, TTL_CACHE.USER_BY_ID);
     }
 
     this.logger.log(`User fetched by id: ${id}`);
@@ -246,8 +318,22 @@ export class UserService {
    * @returns User details
    * @throws NotFoundException if user not found
    */
-  async getById(id: string): Promise<User> {
+  async getById(id: string, manager?: EntityManager): Promise<User> {
     this.logger.log(`Get user by id - ${id}`);
+
+    if (manager) {
+      const transactionalUser = await this.getUserById(id, manager);
+
+      if (!transactionalUser) {
+        this.logger.log(`User not found by: ${id}`);
+        handleErrorException({
+          defaultMessage: MESSAGES.USER_NOT_FOUND,
+          ExceptionClass: NotFoundException,
+        });
+      }
+
+      return transactionalUser;
+    }
 
     // Get data from Redis cache
     const cacheKey = `${BY_ID}:${id}`;
@@ -272,11 +358,6 @@ export class UserService {
         defaultMessage: MESSAGES.USER_NOT_FOUND,
         ExceptionClass: NotFoundException,
       });
-    }
-
-    if (user) {
-      // Cache data into Redis cache
-      await this.cacheUser(cacheKey, user, TTL_CACHE.USER_BY_ID);
     }
 
     this.logger.log(`User fetched by id: ${id}`);
@@ -336,7 +417,9 @@ export class UserService {
     this.logger.log(
       `Update refresh token when token is expire with user id - ${id}`,
     );
-    await this.usersRepo.update(id, { refreshToken });
+    await this.dataSource.transaction(async (manager) => {
+      await manager.getRepository(User).update(id, { refreshToken });
+    });
   }
 
   /**
@@ -350,23 +433,31 @@ export class UserService {
       `Update all user' information have  ${JSON.stringify(updateUsersDto)}`,
     );
     const users = updateUsersDto.users || [];
-    const updatedUsers: User[] = [];
 
     try {
-      for (const userDto of users) {
-        const { id } = userDto;
-        const existingUser = await this.getById(id);
-        const payload: Partial<User> = { ...userDto };
-        const { password } = payload;
+      const updatedUsers = await this.dataSource.transaction<User[]>(
+        async (manager) => {
+          const transactionalRepo = manager.getRepository(User);
+          const transactionalUpdatedUsers: User[] = [];
 
-        if (password) {
-          payload.password = await this.hashingService.hash(password);
-        }
+          for (const userDto of users) {
+            const { id } = userDto;
+            const existingUser = await this.getById(id, manager);
+            const payload: Partial<User> = { ...userDto };
+            const { password } = payload;
 
-        const userUpdating = updateObjectFields(existingUser, payload);
-        const userUpdated = await this.usersRepo.save(userUpdating);
-        updatedUsers.push(userUpdated);
-      }
+            if (password) {
+              payload.password = await this.hashingService.hash(password);
+            }
+
+            const userUpdating = updateObjectFields(existingUser, payload);
+            const userUpdated = await transactionalRepo.save(userUpdating);
+            transactionalUpdatedUsers.push(userUpdated);
+          }
+
+          return transactionalUpdatedUsers;
+        },
+      );
 
       // Invalidate related caches
       try {
@@ -418,26 +509,43 @@ export class UserService {
     id: string,
     updateUserDto: UpdateUserByIdDto,
   ): Promise<User> {
-    const { password } = updateUserDto;
     this.logger.log('Updated user by ID...');
 
-    const existedUser = await this.getById(id);
-    const previousEmail = existedUser.email;
-
     try {
-      const hashedPassword = password
-        ? await this.hashingService.hash(updateUserDto.password)
-        : existedUser.password;
+      const { savedUser, previousEmail } = await this.dataSource.transaction<{
+        savedUser: User;
+        previousEmail: string | null;
+      }>(async (manager) => {
+        const transactionalRepo = manager.getRepository(User);
+        const existedUser = await this.getById(id, manager);
+        const hashedPassword = updateUserDto.password
+          ? await this.hashingService.hash(updateUserDto.password)
+          : existedUser.password;
 
-      this.logger.log(
-        `Update user by id: ${id} and use update ${JSON.stringify(updateUserDto)}`,
-      );
+        this.logger.log(
+          `Update user by id: ${id} and use update ${JSON.stringify(updateUserDto)}`,
+        );
 
-      const userUpdating = updateObjectFields(existedUser, {
-        ...updateUserDto,
-        password: hashedPassword,
+        const userUpdating = updateObjectFields(existedUser, {
+          ...updateUserDto,
+          password: hashedPassword,
+        });
+        const updatedUser = await transactionalRepo.save(userUpdating);
+
+        await this.auditLogger.logAction(
+          {
+            userId: id,
+            action: 'UPDATE_USER',
+            entity: 'User',
+            entityId: id,
+            data: updatedUser,
+          },
+          manager,
+        );
+
+        return { savedUser: updatedUser, previousEmail: existedUser.email };
       });
-      const savedUser = await this.usersRepo.save(userUpdating);
+
       const { email } = savedUser;
 
       // Invalidate caches
@@ -447,7 +555,7 @@ export class UserService {
       // Invalidate email cache (old and possibly new email)
       await validateCacheEmail({
         emailUpdated: email,
-        prevEmail: previousEmail,
+        prevEmail: previousEmail || undefined,
         cacheService: this.cacheService,
         logger: this.logger,
       });
@@ -463,15 +571,6 @@ export class UserService {
       }
 
       delete savedUser.password;
-
-      // Use Audit Logger to log the user update action
-      await this.auditLogger.logAction({
-        userId: id,
-        action: 'UPDATE_USER',
-        entity: 'User',
-        entityId: id,
-        data: savedUser,
-      });
 
       return savedUser;
     } catch (error) {
@@ -491,26 +590,37 @@ export class UserService {
    */
   async deleteAll(userId: string): Promise<IMessageAndCountResponse> {
     this.logger.log('Delete all users data');
-    const users = await this.usersRepo.find();
-    if (!users.length) {
-      this.logger.error('[Error] - No users for delete');
-      handleErrorException({
-        defaultMessage: 'No users for delete',
-        ExceptionClass: NotFoundException,
-      });
-    }
-
     try {
-      const { affected } = await this.usersRepo
-        .createQueryBuilder()
-        .delete()
-        .execute();
+      const affected = await this.dataSource.transaction<number>(
+        async (manager) => {
+          const transactionalRepo = manager.getRepository(User);
+          const usersCount = await transactionalRepo.count();
 
-      await this.auditLogger.logAction({
-        userId,
-        action: 'DELETE_ALL_USERS',
-        entity: 'User',
-      });
+          if (!usersCount) {
+            this.logger.error('[Error] - No users for delete');
+            handleErrorException({
+              defaultMessage: 'No users for delete',
+              ExceptionClass: NotFoundException,
+            });
+          }
+
+          const deleteResult = await transactionalRepo
+            .createQueryBuilder()
+            .delete()
+            .execute();
+
+          await this.auditLogger.logAction(
+            {
+              userId,
+              action: 'DELETE_ALL_USERS',
+              entity: 'User',
+            },
+            manager,
+          );
+
+          return deleteResult.affected || 0;
+        },
+      );
 
       this.logger.log(`All user deleted with ${JSON.stringify(affected)} item`);
 
@@ -527,7 +637,7 @@ export class UserService {
 
       return {
         message: `Deleted ${affected} users successfully.`,
-        count: affected || 0,
+        count: affected,
       };
     } catch (error) {
       this.logger.error(
@@ -551,19 +661,29 @@ export class UserService {
   async deleteById(id: string): Promise<void> {
     this.logger.log(`Delete user by ${id}`);
 
-    const existedUser = await this.getById(id);
-
     try {
-      await this.usersRepo.remove(existedUser);
-      const { email } = existedUser;
+      const deletedUser = await this.dataSource.transaction<User>(
+        async (manager) => {
+          const transactionalRepo = manager.getRepository(User);
+          const existedUser = await this.getById(id, manager);
+          await transactionalRepo.remove(existedUser);
 
-      // Use Audit Logger to log the user deletion action
-      await this.auditLogger.logAction({
-        userId: id,
-        action: 'DELETE_USER',
-        entity: 'User',
-        entityId: id,
-      });
+          // Use Audit Logger to log the user deletion action
+          await this.auditLogger.logAction(
+            {
+              userId: id,
+              action: 'DELETE_USER',
+              entity: 'User',
+              entityId: id,
+            },
+            manager,
+          );
+
+          return existedUser;
+        },
+      );
+
+      const { email } = deletedUser;
 
       // Invalidate caches
       await this.cacheService.deleteKey(`${BY_ID}:${id}`);

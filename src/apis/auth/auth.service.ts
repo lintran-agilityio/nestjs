@@ -11,7 +11,7 @@ import { ConfigService } from '@nestjs/config';
 import { JwtService } from '@nestjs/jwt';
 import type { JwtSignOptions } from '@nestjs/jwt';
 import { InjectRepository } from '@nestjs/typeorm';
-import { DeepPartial, Repository } from 'typeorm';
+import { DataSource, DeepPartial, EntityManager, Repository } from 'typeorm';
 
 // Apis
 import { User } from '@app/apis/users/entities';
@@ -24,6 +24,7 @@ import { MESSAGES, REDIS_CACHE_KEYS, TTL_CACHE } from '@app/shared/constants';
 import { IJwtAuthPayload, UserRole, UserStatus } from '@app/shared/types';
 import { HashingAbstractService } from '@app/shared/modules/hashing/hashing.abstract.service';
 import { CacheAbstractService } from '@app/shared/modules/cache/cache.abstract.service';
+import { AuditLoggerService } from '@app/shared/modules/audit-logger/audit-logger.service';
 
 // Local sources
 import {
@@ -53,6 +54,8 @@ export class AuthService {
     private readonly userService: UserService,
     private readonly appLoggerService: AppLoggerService,
     private readonly cacheService: CacheAbstractService,
+    private readonly auditLoggerService: AuditLoggerService,
+    private readonly dataSource: DataSource,
   ) {
     this.logger = this.appLoggerService.getLoggerName(AuthService.name);
   }
@@ -89,16 +92,41 @@ export class AuthService {
     const hashedPassword = await this.hashingService.hash(password);
 
     try {
-      const newUser = this.usersRepo.create({
-        email,
-        password: hashedPassword,
-        firstName,
-        lastName,
-        status: UserStatus.ACTIVE,
-      } as DeepPartial<User>);
+      const savedUser = await this.dataSource.transaction<User>(
+        async (manager: EntityManager) => {
+          const transactionalRepo = manager.getRepository(User);
 
-      const savedUser = await this.usersRepo.save(newUser);
+          const newUser = transactionalRepo.create({
+            email,
+            password: hashedPassword,
+            firstName,
+            lastName,
+            status: UserStatus.ACTIVE,
+          } as DeepPartial<User>);
 
+          const userSaved = await transactionalRepo.save(newUser);
+
+          // Log audit action for user registration within transaction
+          await this.auditLoggerService.logAction(
+            {
+              userId: userSaved.id,
+              action: 'REGISTER_USER',
+              entity: 'User',
+              entityId: userSaved.id,
+              data: {
+                email: userSaved.email,
+                role: UserRole.USER,
+                status: userSaved.status,
+              },
+            },
+            manager,
+          );
+
+          return userSaved;
+        },
+      );
+
+      // Cache operations outside transaction (non-critical)
       try {
         await this.cacheService.deleteByPattern(
           `${REDIS_CACHE_KEYS.USERS.LIST}:*`,
@@ -202,13 +230,43 @@ export class AuthService {
 
       const hashedRefreshToken = await this.hashingService.hash(refreshToken);
 
-      // Add refresh token into Redis cache
-      await this.cacheService.setKey(
-        `${REDIS_CACHE_KEYS.REFRESH_TOKEN}:${id}`,
-        hashedRefreshToken,
-        TTL_CACHE.REFRESH_TOKEN,
-      );
-      await this.userService.updateRefreshToken(id, hashedRefreshToken);
+      // Update refresh token and log audit within transaction
+      await this.dataSource.transaction(async (manager: EntityManager) => {
+        // Update refresh token in database within transaction
+        await manager.getRepository(User).update(id, {
+          refreshToken: hashedRefreshToken,
+        });
+
+        // Log audit action for user login within transaction
+        await this.auditLoggerService.logAction(
+          {
+            userId: id,
+            action: 'LOGIN_USER',
+            entity: 'User',
+            entityId: id,
+            data: {
+              email,
+              role,
+              status,
+            },
+          },
+          manager,
+        );
+      });
+
+      // Add refresh token into Redis cache (outside transaction)
+      try {
+        await this.cacheService.setKey(
+          `${REDIS_CACHE_KEYS.REFRESH_TOKEN}:${id}`,
+          hashedRefreshToken,
+          TTL_CACHE.REFRESH_TOKEN,
+        );
+      } catch (cacheError) {
+        this.logger.error(
+          `[Cache] - Failed to cache refresh token: ${JSON.stringify(cacheError)}`,
+        );
+      }
+
       this.logger.log(`User Login success with: ${email}`);
 
       return {
@@ -323,20 +381,45 @@ export class AuthService {
       const newHashedRefreshToken =
         await this.hashingService.hash(newRefreshToken);
 
-      // Invalidate caches
-      await this.cacheService.deleteKey(
-        `${REDIS_CACHE_KEYS.REFRESH_TOKEN}:${payload.id}`,
-      );
+      // Update refresh token and log audit within transaction
+      await this.dataSource.transaction(async (manager: EntityManager) => {
+        // Update refresh token in database within transaction
+        await manager.getRepository(User).update(payload.id, {
+          refreshToken: newHashedRefreshToken,
+        });
 
-      await this.cacheService.setKey(
-        `${REDIS_CACHE_KEYS.REFRESH_TOKEN}:${payload.id}`,
-        newHashedRefreshToken,
-        TTL_CACHE.REFRESH_TOKEN,
-      );
-      await this.userService.updateRefreshToken(
-        payload.id,
-        newHashedRefreshToken,
-      );
+        // Log audit action for token refresh within transaction
+        await this.auditLoggerService.logAction(
+          {
+            userId: payload.id,
+            action: 'REFRESH_TOKEN',
+            entity: 'User',
+            entityId: payload.id,
+            data: {
+              email: payload.email,
+              role: payload.role,
+              status: payload.status,
+            },
+          },
+          manager,
+        );
+      });
+
+      // Cache operations outside transaction (non-critical)
+      try {
+        await this.cacheService.deleteKey(
+          `${REDIS_CACHE_KEYS.REFRESH_TOKEN}:${payload.id}`,
+        );
+        await this.cacheService.setKey(
+          `${REDIS_CACHE_KEYS.REFRESH_TOKEN}:${payload.id}`,
+          newHashedRefreshToken,
+          TTL_CACHE.REFRESH_TOKEN,
+        );
+      } catch (cacheError) {
+        this.logger.error(
+          `[Cache] - Failed to update refresh token cache: ${JSON.stringify(cacheError)}`,
+        );
+      }
 
       this.logger.log(`Refresh token successful for user ID: ${payload.id}`);
       return { accessToken: newAccessToken, refreshToken: newRefreshToken };

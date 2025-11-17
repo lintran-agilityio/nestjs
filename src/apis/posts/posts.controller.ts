@@ -67,8 +67,9 @@ export class PostController {
   })
   async getPostsRecently(
     @Query() paramQueryDto: QueryPaginationParamDto,
+    @GetCurrentUser() user: IUserInfo,
   ): Promise<PostPaginationResponseDto> {
-    return await this.postService.getPostsRecently(paramQueryDto);
+    return await this.postService.getPostsRecently(user?.id, paramQueryDto);
   }
 
   /**
@@ -109,7 +110,7 @@ export class PostController {
     @GetCurrentUser() user: IUserInfo,
     @Body() postDto: PostRequestDto,
   ): Promise<PostEntities> {
-    return await this.postService.create(user.id, postDto);
+    return await this.postService.create(user?.id, postDto);
   }
 
   /**

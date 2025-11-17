@@ -1,7 +1,7 @@
 // Libs
 import { Test, TestingModule } from '@nestjs/testing';
 import { getRepositoryToken } from '@nestjs/typeorm';
-import { Repository } from 'typeorm';
+import { DataSource, Repository } from 'typeorm';
 import { NotFoundException, ForbiddenException } from '@nestjs/common';
 
 // App sources
@@ -18,6 +18,7 @@ import {
   mockUuidUser,
 } from '@app/shared/mocks';
 import { CacheAbstractService } from '@app/shared/modules/cache/cache.abstract.service';
+import { AuditLoggerService } from '@app/shared/modules/audit-logger/audit-logger.service';
 
 type CacheServiceMock = jest.Mocked<
   Pick<
@@ -40,6 +41,10 @@ describe('UserService', () => {
   };
   let hashing: { hash: jest.Mock; compare: jest.Mock };
   let cacheService: CacheServiceMock;
+  let auditLogger: { logAction: jest.Mock };
+  let dataSource: { transaction: jest.Mock };
+  let transactionalRepository: { createQueryBuilder: jest.Mock };
+  let transactionManager: { getRepository: jest.Mock };
   let queryBuilder: {
     select: jest.Mock;
     andWhere: jest.Mock;
@@ -50,6 +55,10 @@ describe('UserService', () => {
   };
 
   beforeEach(async () => {
+    auditLogger = {
+      logAction: jest.fn().mockResolvedValue(undefined),
+    };
+
     queryBuilder = {
       select: jest.fn().mockReturnThis(),
       andWhere: jest.fn().mockReturnThis(),
@@ -57,6 +66,18 @@ describe('UserService', () => {
       skip: jest.fn().mockReturnThis(),
       take: jest.fn().mockReturnThis(),
       getManyAndCount: jest.fn(),
+    };
+
+    transactionalRepository = {
+      createQueryBuilder: jest.fn().mockReturnValue(queryBuilder),
+    };
+
+    transactionManager = {
+      getRepository: jest.fn().mockReturnValue(transactionalRepository),
+    };
+
+    dataSource = {
+      transaction: jest.fn().mockImplementation((cb) => cb(transactionManager)),
     };
 
     cacheService = {
@@ -104,6 +125,14 @@ describe('UserService', () => {
           provide: CacheAbstractService,
           useValue: cacheService,
         },
+        {
+          provide: AuditLoggerService,
+          useValue: auditLogger,
+        },
+        {
+          provide: DataSource,
+          useValue: dataSource,
+        },
       ],
     }).compile();
 
@@ -112,6 +141,8 @@ describe('UserService', () => {
     postService = module.get(PostService);
     hashing = module.get(CUSTOM_PROVIDER_TOKENS.PASSWORD_HASHING_SERVICE);
     cacheService = module.get(CacheAbstractService);
+    auditLogger = module.get(AuditLoggerService);
+    dataSource = module.get(DataSource) as { transaction: jest.Mock };
   });
 
   it('should be defined', () => {
@@ -133,6 +164,14 @@ describe('UserService', () => {
       expect(result.meta.total).toBe(1);
       expect(cacheService.getKey).toHaveBeenCalled();
       expect(cacheService.setKey).toHaveBeenCalled();
+      expect(dataSource.transaction).toHaveBeenCalled();
+      expect(auditLogger.logAction).toHaveBeenCalledWith(
+        expect.objectContaining({
+          userId: '00000000-0000-0000-0000-000000000000',
+          data: expect.objectContaining({ servedFromCache: false }),
+        }),
+        transactionManager,
+      );
     });
 
     it('returns cached users when available', async () => {
@@ -146,6 +185,13 @@ describe('UserService', () => {
 
       expect(result).toEqual(cachedResult);
       expect(queryBuilder.select).not.toHaveBeenCalled();
+      expect(dataSource.transaction).not.toHaveBeenCalled();
+      expect(auditLogger.logAction).toHaveBeenCalledWith(
+        expect.objectContaining({
+          userId: '00000000-0000-0000-0000-000000000000',
+          data: expect.objectContaining({ servedFromCache: true }),
+        }),
+      );
     });
 
     it('filters by search when provided', async () => {
@@ -167,6 +213,7 @@ describe('UserService', () => {
       queryBuilder.getManyAndCount.mockRejectedValue(new Error('query-fail'));
 
       await expect(service.getUsersRecently({})).rejects.toThrow();
+      expect(dataSource.transaction).toHaveBeenCalled();
     });
   });
 
@@ -510,7 +557,9 @@ describe('UserService', () => {
   describe('deleteAll', () => {
     it('throws when nothing to delete', async () => {
       (usersRepo.find as jest.Mock).mockResolvedValue([]);
-      await expect(service.deleteAll()).rejects.toThrow('No users for delete');
+      await expect(service.deleteAll(mockUuidUser)).rejects.toThrow(
+        'No users for delete',
+      );
     });
 
     it('returns message and count when deleted', async () => {
@@ -520,7 +569,7 @@ describe('UserService', () => {
         execute: jest.fn().mockResolvedValue({ affected: 2 }),
       });
 
-      const result = await service.deleteAll();
+      const result = await service.deleteAll(mockUuidUser);
       expect(result).toEqual({
         message: 'Deleted 2 users successfully.',
         count: 2,
@@ -534,7 +583,7 @@ describe('UserService', () => {
         execute: jest.fn().mockRejectedValue(new Error('delete-fail')),
       });
 
-      await expect(service.deleteAll()).rejects.toThrow();
+      await expect(service.deleteAll(mockUuidUser)).rejects.toThrow();
     });
   });
 
