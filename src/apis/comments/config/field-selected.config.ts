@@ -5,6 +5,7 @@ export const COMMENT_SELECT_FIELDS: Record<string, boolean> = {
   postId: true,
   createdAt: true,
   updatedAt: true,
+  deletedAt: false,
   user: true,
   post: true,
 };

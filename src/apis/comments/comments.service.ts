@@ -103,6 +103,7 @@ export class CommentService {
         .createQueryBuilder('comment')
         .leftJoinAndSelect('comment.user', 'user')
         .leftJoinAndSelect('comment.post', 'post')
+        .where('comment.deletedAt IS NULL')
         .select(selectFields.map((field) => `comment.${field}`));
 
       // Filter by postId if provided
@@ -167,7 +168,7 @@ export class CommentService {
     }
 
     const comment = await this.commentsRepo.findOne({
-      where: { id },
+      where: { id, deletedAt: null },
       select: {
         user: {
           id: true,
@@ -399,7 +400,7 @@ export class CommentService {
       await this.dataSource.transaction(async (manager: EntityManager) => {
         const transactionalRepo = manager.getRepository(Comment);
 
-        await transactionalRepo.remove(comment);
+        await transactionalRepo.softRemove(comment);
 
         // Log audit action within transaction
         await this.auditLoggerService.logAction(
@@ -555,6 +556,7 @@ export class CommentService {
       .createQueryBuilder('comment')
       .select(['comment.id', 'comment.content', 'comment.userId'])
       .where('comment.id IN (:...commentIds)', { commentIds })
+      .andWhere('comment.deletedAt IS NULL')
       .getMany();
   }
 

@@ -102,6 +102,7 @@ export class PostService {
               // Build query inside transaction
               let queryBuilder = transactionalRepo
                 .createQueryBuilder('post')
+                .where('post.deletedAt IS NULL')
                 .select(selectFields.map((field) => `post.${field}`));
 
               if (searchValue.length) {
@@ -206,7 +207,7 @@ export class PostService {
     }
 
     const post = await this.postsRepo.findOne({
-      where: { slug },
+      where: { slug, deletedAt: null },
     });
 
     if (post) {
@@ -238,7 +239,7 @@ export class PostService {
     }
 
     const post = await this.postsRepo.findOne({
-      where: { id },
+      where: { id, deletedAt: null },
     });
 
     if (!post) {
@@ -312,7 +313,7 @@ export class PostService {
           return postSaved;
         },
       );
-      console.log('=================newPostCreated:', newPostCreated);
+
       // Cache operations outside transaction (non-critical)
       try {
         // Invalidate list caches and set item caches
@@ -459,7 +460,7 @@ export class PostService {
 
           // Validate ownership role
           validateOwnerRole(user, existedPost, 'authorId');
-          await transactionalRepo.remove(existedPost);
+          await transactionalRepo.softRemove(existedPost);
 
           await this.auditLoggerService.logAction({
             userId: user.id,
@@ -609,6 +610,7 @@ export class PostService {
       .createQueryBuilder('post')
       .select(['post.id', 'post.title', 'post.authorId'])
       .where('post.id IN (:...postIds)', { postIds })
+      .andWhere('post.deletedAt IS NULL')
       .getMany();
   }
 
@@ -632,7 +634,7 @@ export class PostService {
 
         // Find the post and validate ownership using transactional repository
         const post = await transactionalRepo.findOne({
-          where: { id: postId, authorId: userId },
+          where: { id: postId, authorId: userId, deletedAt: null },
         });
 
         if (!post) {
@@ -644,7 +646,7 @@ export class PostService {
           });
         }
 
-        await transactionalRepo.remove(post);
+        await transactionalRepo.softRemove(post);
 
         // Use Audit Logger to log the post deletion action within transaction
         await this.auditLoggerService.logAction(
@@ -723,7 +725,8 @@ export class PostService {
               const queryBuilder = transactionalRepo
                 .createQueryBuilder('post')
                 .select(selectFields.map((field) => `post.${field}`))
-                .where('post.authorId = :userId', { userId });
+                .where('post.authorId = :userId', { userId })
+                .andWhere('post.deletedAt IS NULL');
 
               // Use default pagination params (page=1, limit=10, sort=createdAt)
               const paginatedResult = await getDataPagination<Post>({

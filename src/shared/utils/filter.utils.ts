@@ -41,14 +41,10 @@ export const deleteItemsInArray = async <
 
   for (const batch of batches) {
     try {
-      const batchIds = batch.map((item) => item.id);
-      // TypeScript-safe deletion with explicit typing
-      await (itemRepository.delete as (criteria: string[]) => Promise<unknown>)(
-        batchIds,
-      );
+      const deletedItems = await itemRepository.softRemove(batch);
 
-      totalDeletedCount += batch.length;
-      allDeletedIds.push(...batchIds);
+      totalDeletedCount += deletedItems.length;
+      allDeletedIds.push(...deletedItems.map((item) => item.id));
 
       logger.log(`Successfully deleted batch of ${batch.length} items`);
     } catch (error) {

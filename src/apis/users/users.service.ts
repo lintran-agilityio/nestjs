@@ -19,7 +19,7 @@ import {
   TTL_CACHE,
 } from '@app/shared/constants';
 import { QueryPaginationParamDto } from '@app/shared/dtos';
-import { IMessageAndCountResponse, UserRole } from '@app/shared/types';
+import { IMessageAndCountResponse, OrderBy, UserRole } from '@app/shared/types';
 import {
   getSelectFields,
   getDataPagination,
@@ -30,6 +30,7 @@ import {
   updateObjectFields,
   isValidUserCache,
   validateCacheEmail,
+  processPaginationParams,
 } from '@app/shared/utils';
 import { HashingAbstractService } from '@app/shared/modules/hashing/hashing.abstract.service';
 import { AppLoggerService } from '@app/shared/modules/logger/logger.service';
@@ -138,9 +139,26 @@ export class UserService {
             const transactionalRepo = manager.getRepository(User);
 
             // Build query inside transaction
+            // Process pagination params first to know the sort field
+            const paginationParams = processPaginationParams(queryUrl, {
+              defaultLimit: 10,
+              defaultPage: 1,
+              defaultSortField: 'createdAt',
+              defaultOrderBy: OrderBy.DESC,
+              allowedSortFields: selectFields,
+            });
+
+            // Build query with explicit select
+            // Ensure sort field is included for ORDER BY to work correctly
+            const fieldsToSelect = [...selectFields];
+            if (!fieldsToSelect.includes(paginationParams.sortField)) {
+              fieldsToSelect.push(paginationParams.sortField);
+            }
+
             let queryBuilder = transactionalRepo
               .createQueryBuilder('user')
-              .select(selectFields.map((field) => `user.${field}`));
+              .where('user.deletedAt IS NULL') // Exclude soft-deleted users
+              .select(fieldsToSelect.map((field) => `user.${field}`));
 
             // Search by (email | firstName | lastName)
             if (searchValue) {
@@ -227,7 +245,7 @@ export class UserService {
   async getUserByEmail(email: string): Promise<User | null> {
     this.logger.log(`Query get user by email: ${email}`);
     return await this.usersRepo.findOne({
-      where: { email },
+      where: { email, deletedAt: null },
     });
   }
 
@@ -300,7 +318,7 @@ export class UserService {
     const repository = manager ? manager.getRepository(User) : this.usersRepo;
 
     const user = await repository.findOne({
-      where: { id },
+      where: { id, deletedAt: null },
     });
 
     if (!manager && user) {
@@ -606,7 +624,7 @@ export class UserService {
 
           const deleteResult = await transactionalRepo
             .createQueryBuilder()
-            .delete()
+            .softDelete()
             .execute();
 
           await this.auditLogger.logAction(
@@ -666,7 +684,13 @@ export class UserService {
         async (manager) => {
           const transactionalRepo = manager.getRepository(User);
           const existedUser = await this.getById(id, manager);
-          await transactionalRepo.remove(existedUser);
+
+          // Using soft delete to mark the user as deleted
+          await transactionalRepo
+            .createQueryBuilder()
+            .softDelete()
+            .where('id = :id', { id })
+            .execute();
 
           // Use Audit Logger to log the user deletion action
           await this.auditLogger.logAction(
