@@ -4,6 +4,9 @@
 /build
 .env
 
+# temp
+/test
+
 
 # Logs
 logs
